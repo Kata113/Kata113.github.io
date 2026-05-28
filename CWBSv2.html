@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crossword Bonus Summary</title>
+<!-- ชื่อไฟล์: crossword_bonus_summary.html -->
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Sarabun:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --panel: #13161e;
+    --card: #181c27;
+    --border: #252a3a;
+    --accent: #e8c84a;
+    --accent2: #4ae8a4;
+    --red: #e84a6a;
+    --blue: #4a8fe8;
+    --muted: #5a6080;
+    --text: #d4d8ec;
+    --tile-bg: #e8c84a;
+    --tile-text: #0d0f14;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* noise overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.5;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 28px 40px 20px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+
+  .tile-logo {
+    display: flex;
+    gap: 4px;
+  }
+
+  .tile {
+    width: 38px; height: 38px;
+    background: var(--tile-bg);
+    color: var(--tile-text);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+    box-shadow: 0 3px 0 #9e8620, 0 4px 8px rgba(0,0,0,0.5);
+    position: relative;
+    animation: tileIn 0.5s ease backwards;
+  }
+  .tile:nth-child(1){animation-delay:0.0s}
+  .tile:nth-child(2){animation-delay:0.05s}
+  .tile:nth-child(3){animation-delay:0.1s}
+  .tile:nth-child(4){animation-delay:0.15s}
+  .tile .pts {
+    position: absolute; bottom: 2px; right: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7px;
+    color: #5a4200;
+  }
+
+  @keyframes tileIn {
+    from { opacity: 0; transform: translateY(-12px) rotate(-5deg); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .header-text h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .header-text p {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 4px;
+  }
+
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 0;
+    min-height: calc(100vh - 87px);
+  }
+
+  /* ── LEFT PANEL ── */
+  .left-panel {
+    padding: 30px 40px;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* General Info */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field-group label {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .field-group input, .field-group select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+    font-size: 14px;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  .field-group input:focus, .field-group select:focus {
+    border-color: var(--accent);
+  }
+  .field-group select option { background: var(--card); }
+
+  /* Games table */
+  .games-header {
+    display: grid;
+    grid-template-columns: 36px 180px 120px 80px 90px 130px 90px;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+
+  .game-row {
+    display: grid;
+    grid-template-columns: 36px 180px 120px 80px 90px 130px 90px;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    align-items: center;
+    transition: border-color 0.2s, transform 0.1s;
+    animation: rowIn 0.3s ease backwards;
+  }
+  .game-row:hover { border-color: #353a52; }
+  .game-row.win  { border-left: 3px solid var(--accent2); }
+  .game-row.loss { border-left: 3px solid var(--red); }
+
+  @keyframes rowIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .game-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .game-row input[type="text"],
+  .game-row input[type="number"] {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+    font-size: 14px;
+    padding: 8px 10px;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.2s;
+  }
+  .game-row input:focus { border-color: var(--accent); }
+
+  .score-pair {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .score-pair input {
+    width: 54px !important;
+    text-align: center;
+  }
+  .score-sep {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .result-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .result-badge.W { background: rgba(74,232,164,0.15); color: var(--accent2); border: 1px solid rgba(74,232,164,0.3); }
+  .result-badge.L { background: rgba(232,74,106,0.15); color: var(--red); border: 1px solid rgba(232,74,106,0.3); }
+
+  .phony-input {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .phony-input input { font-size: 12px !important; }
+  .phony-count {
+    font-size: 10px;
+    color: var(--red);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .bingo-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .bingo-chip {
+    background: rgba(232,200,74,0.1);
+    border: 1px solid rgba(232,200,74,0.25);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .bingo-chip:hover { background: rgba(232,200,74,0.2); }
+  .bingo-chip .pts { font-size: 9px; color: var(--muted); }
+
+  .add-bingo-btn {
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+    font-size: 11px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-family: 'Sarabun', sans-serif;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .add-bingo-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── RIGHT PANEL ── */
+  .right-panel {
+    padding: 30px 28px;
+    position: sticky;
+    top: 0;
+    height: calc(100vh - 87px);
+    overflow-y: auto;
+    background: var(--panel);
+  }
+
+  .summary-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .wl-display {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .wl-box {
+    flex: 1;
+    text-align: center;
+    padding: 14px;
+    border-radius: 8px;
+  }
+  .wl-box.wins  { background: rgba(74,232,164,0.1); border: 1px solid rgba(74,232,164,0.2); }
+  .wl-box.losses{ background: rgba(232,74,106,0.1); border: 1px solid rgba(232,74,106,0.2); }
+  .wl-box .num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 40px;
+    line-height: 1;
+  }
+  .wl-box.wins .num  { color: var(--accent2); }
+  .wl-box.losses .num{ color: var(--red); }
+  .wl-box .lbl {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .bonus-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .bonus-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    padding: 8px 12px;
+    background: var(--panel);
+    border-radius: 6px;
+  }
+  .bonus-line .label { color: var(--muted); font-size: 12px; }
+  .bonus-line .value { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+  .bonus-line.positive .value { color: var(--accent2); }
+  .bonus-line.negative .value { color: var(--red); }
+  .bonus-line.total {
+    background: rgba(232,200,74,0.08);
+    border: 1px solid rgba(232,200,74,0.2);
+    margin-top: 8px;
+  }
+  .bonus-line.total .label { color: var(--accent); font-size: 13px; font-weight: 600; }
+  .bonus-line.total .value { color: var(--accent); font-size: 20px; }
+
+  .bonus-rates {
+    margin-top: 16px;
+  }
+  .rate-title {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+  .rate-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .rate-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .rate-item .rt { color: var(--muted); font-size: 11px; margin-bottom: 2px; }
+  .rate-item .rv {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text);
+    font-size: 13px;
+  }
+  .rate-item input {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    width: 100%;
+    outline: none;
+    padding: 0;
+  }
+
+  .export-btn {
+    width: 100%;
+    background: var(--accent);
+    color: var(--tile-text);
+    border: none;
+    border-radius: 8px;
+    padding: 13px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    margin-top: 16px;
+    transition: background 0.2s, transform 0.1s;
+    box-shadow: 0 4px 0 #9e8620;
+  }
+  .export-btn:hover { background: #f0d460; transform: translateY(-1px); }
+  .export-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #9e8620; }
+
+  .add-game-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: 'Sarabun', sans-serif;
+    font-size: 14px;
+    padding: 12px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .add-game-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .mini-badge {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(74,143,232,0.15);
+    border: 1px solid rgba(74,143,232,0.3);
+    color: var(--blue);
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 7px;
+    border-radius: 20px;
+    margin-left: 6px;
+  }
+
+  .dif-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    text-align: center;
+    padding: 4px 0;
+    min-width: 60px;
+  }
+
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    width: 500px;
+    max-width: 95vw;
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .modal h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 20px;
+  }
+  .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .modal textarea {
+    width: 100%; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; padding: 10px; outline: none; resize: vertical;
+    min-height: 120px;
+  }
+  .modal textarea:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+  .btn-primary {
+    background: var(--accent); color: var(--tile-text);
+    border: none; border-radius: 6px;
+    padding: 9px 22px; font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px; letter-spacing: 1px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-primary:hover { background: #f0d460; }
+  .btn-secondary {
+    background: none; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 9px 18px; font-family: 'Sarabun', sans-serif;
+    font-size: 13px; cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-secondary:hover { border-color: var(--text); color: var(--text); }
+
+  .money-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .money-cell .money-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .money-cell input {
+    width: 100% !important;
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace !important;
+    color: var(--accent) !important;
+  }
+  .money-cell .baht-lbl {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .money-total-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(74,232,164,0.07);
+    border: 1px solid rgba(74,232,164,0.2);
+    border-radius: 8px;
+    margin-top: 4px;
+  }
+  .money-total-line .label { color: var(--accent2); font-size: 13px; font-weight: 600; }
+  .money-total-line .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent2);
+  }
+
+
+
+  .rank-field { width: 80px !important; }
+
+  /* ── MOBILE RESPONSIVE ── */
+  @media (max-width: 900px) {
+    header {
+      padding: 16px 16px 14px;
+      gap: 12px;
+    }
+    .tile { width: 32px; height: 32px; font-size: 18px; }
+    .header-text h1 { font-size: 22px; }
+    .header-text p { font-size: 10px; }
+
+    .main {
+      grid-template-columns: 1fr;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .left-panel {
+      padding: 16px 12px;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      overflow-y: visible;
+    }
+
+    .right-panel {
+      position: static;
+      height: auto;
+      padding: 16px 12px;
+    }
+
+    .info-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .info-grid .field-group:first-child {
+      grid-column: 1 / -1;
+    }
+
+    /* Games table → card layout on mobile */
+    .games-header { display: none; }
+
+    .game-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .game-num {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      font-size: 20px;
+    }
+
+    .game-row > input[type="text"] {
+      /* opponent name field */
+      font-size: 15px !important;
+      padding: 10px 12px !important;
+      margin-left: 28px;
+    }
+
+    .score-pair {
+      justify-content: center;
+    }
+    .score-pair input {
+      width: 72px !important;
+      font-size: 18px !important;
+      padding: 10px !important;
+      text-align: center;
+    }
+    .dif-display { font-size: 14px; }
+
+    .game-row > div {
+      width: 100%;
+    }
+
+    /* Result badge row */
+    .game-row > div:nth-child(4) {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .result-badge {
+      width: 36px;
+      height: 36px;
+      font-size: 16px;
+    }
+
+    .bingo-row { flex-wrap: wrap; }
+    .add-bingo-btn { font-size: 13px; padding: 6px 12px; }
+
+    .phony-input input { font-size: 14px !important; }
+
+    .money-cell { flex-direction: row; align-items: center; gap: 8px; }
+    .money-cell input { font-size: 15px !important; }
+
+    .bonus-line { font-size: 14px; }
+    .bonus-line .label { font-size: 13px; }
+    .rate-grid { grid-template-columns: 1fr 1fr; }
+    .export-btn { font-size: 18px; padding: 15px; }
+
+    .modal { padding: 20px 16px; }
+    .modal-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    .tile { width: 28px; height: 28px; font-size: 16px; }
+    .tile-logo { gap: 3px; }
+    .info-grid { grid-template-columns: 1fr; }
+    .info-grid .field-group:first-child { grid-column: 1; }
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="tile-logo">
+    <div class="tile">C<span class="pts">3</span></div>
+    <div class="tile">W<span class="pts">4</span></div>
+    <div class="tile">B<span class="pts">3</span></div>
+    <div class="tile">S<span class="pts">1</span></div>
+  </div>
+  <div class="header-text">
+    <h1>Crossword Bonus Summary</h1>
+    <p>CROSSWORD BONUS SUMMARY — TOURNAMENT SCORING</p>
+  </div>
+</header>
+
+<div class="main">
+  <!-- LEFT -->
+  <div class="left-panel">
+    <div class="section-title">ข้อมูลทั่วไป</div>
+    <div class="info-grid">
+      <div class="field-group" style="grid-column: 1/2;">
+        <label>ชื่อผู้เล่น</label>
+        <input type="text" id="playerName" placeholder="Chirawut">
+      </div>
+      <div class="field-group">
+        <label>ชื่อทัวร์นาเมนต์</label>
+        <input type="text" id="tourName" placeholder="ชื่อทัวร์นาเมนต์">
+      </div>
+      <div class="field-group">
+        <label>อันดับสุดท้าย</label>
+        <input type="number" id="finalRank" placeholder="23" class="rank-field">
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <div class="section-title" style="margin-bottom:0; flex:1;">รายการเกม</div>
+    </div>
+
+    <div class="games-header">
+      <div>#</div>
+      <div>คู่ต่อสู้</div>
+      <div>คะแนน</div>
+      <div>ผล</div>
+      <div>Bingo / Big</div>
+      <div>Phonies</div>
+      <div>ได้เงิน (฿)</div>
+    </div>
+
+    <div id="gamesContainer"></div>
+
+    <button class="add-game-btn" onclick="addGame()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      เพิ่มเกม
+    </button>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right-panel">
+    <div class="section-title">สรุปผล</div>
+
+    <div class="summary-card">
+      <div class="wl-display">
+        <div class="wl-box wins">
+          <div class="num" id="totalWins">0</div>
+          <div class="lbl">WIN</div>
+        </div>
+        <div class="wl-box losses">
+          <div class="num" id="totalLosses">0</div>
+          <div class="lbl">LOSS</div>
+        </div>
+      </div>
+
+      <div class="bonus-breakdown">
+        <div class="bonus-line positive">
+          <span class="label">ชนะ <span id="wCount" class="mini-badge">0</span></span>
+          <span class="value" id="wBonus">+0</span>
+        </div>
+        <div class="bonus-line positive">
+          <span class="label">ชนะ MAX (+250) <span id="dmax250count" class="mini-badge">0</span></span>
+          <span class="value" id="dmax250bonus">+0</span>
+        </div>
+        <div class="bonus-line positive">
+          <span class="label">Bingo 7 <span id="b7count" class="mini-badge">0</span></span>
+          <span class="value" id="b7bonus">+0</span>
+        </div>
+        <div class="bonus-line positive">
+          <span class="label">Bingo 8+ <span id="b8count" class="mini-badge">0</span></span>
+          <span class="value" id="b8bonus">+0</span>
+        </div>
+        <div class="bonus-line positive">
+          <span class="label">Bingo 9 <span id="b9count" class="mini-badge">0</span></span>
+          <span class="value" id="b9bonus">+0</span>
+        </div>
+        <div class="bonus-line positive">
+          <span class="label">Bingo 10 <span id="b10count" class="mini-badge">0</span></span>
+          <span class="value" id="b10bonus">+0</span>
+        </div>
+        <div class="bonus-line positive">
+          <span class="label">Big Point <span id="bigcount" class="mini-badge">0</span></span>
+          <span class="value" id="bigbonus">+0</span>
+        </div>
+        <div class="bonus-line positive">
+          <span class="label">Big Point(100+) <span id="big100count" class="mini-badge">0</span></span>
+          <span class="value" id="big100bonus">+0</span>
+        </div>
+        <div class="bonus-line positive">
+          <span class="label">คะแนน ≥500/600/700 <span id="over500count" class="mini-badge">0</span></span>
+          <span class="value" id="over500bonus">+0</span>
+        </div>
+        <div style="height:1px; background:var(--border); margin: 4px 0;"></div>
+        <div class="bonus-line negative">
+          <span class="label">แพ้ <span id="lCount" class="mini-badge">0</span></span>
+          <span class="value" id="lPenalty">−0</span>
+        </div>
+        <div class="bonus-line negative">
+          <span class="label">แพ้ MAX (-250) <span id="dmin250count" class="mini-badge">0</span></span>
+          <span class="value" id="dmin250bonus">−0</span>
+        </div>
+        <div class="bonus-line negative">
+          <span class="label">คะแนน &lt;300/&lt;200 <span id="under300count" class="mini-badge">0</span></span>
+          <span class="value" id="under300bonus">−0</span>
+        </div>
+        <div class="bonus-line negative">
+          <span class="label">Phonies <span id="phonyCnt" class="mini-badge">0</span></span>
+          <span class="value" id="phonyPenalty">−0</span>
+        </div>
+        <div class="bonus-line negative">
+          <span class="label">เวลา- <span id="timePenCount" class="mini-badge">0</span></span>
+          <span class="value" id="timePenPenalty">−0</span>
+        </div>
+        <div class="bonus-line total">
+          <span class="label">🏆 โบนัสรวม (คำนวณ)</span>
+          <span class="value" id="totalBonus">0</span>
+        </div>
+      </div>
+
+      <div class="money-total-line" style="margin-top:12px;">
+        <span class="label">💰 เงินรวม</span>
+        <span class="value" id="totalMoney">0 บาท</span>
+      </div>
+
+    </div>
+
+    <div class="bonus-rates">
+      <div class="rate-title">อัตราโบนัส (แก้ไขได้)</div>
+      <div class="rate-grid">
+        <div class="rate-item">
+          <div class="rt">ชนะ</div>
+          <div class="rv"><input type="number" id="rateW" value="20"> บาท</div>
+        </div>
+        <div class="rate-item">
+          <div class="rt">แพ้</div>
+          <div class="rv"><input type="number" id="rateL" value="20"> บาท</div>
+        </div>
+        <div class="rate-item">
+          <div class="rt">MAX bonus (±250)</div>
+          <div class="rv"><input type="number" id="rateDiff250" value="30"> บาท</div>
+        </div>
+        <div class="rate-item">
+          <div class="rt">Bingo 7</div>
+          <div class="rv"><input type="number" id="rateBingo7" value="20"> บาท</div>
+        </div>
+        <div class="rate-item">
+          <div class="rt">Bingo 8+</div>
+          <div class="rv"><input type="number" id="rateBingo8" value="30"> บาท</div>
+        </div>
+        <div class="rate-item">
+          <div class="rt">Bingo 9</div>
+          <div class="rv"><input type="number" id="rateBingo9" value="40"> บาท</div>
+        </div>
+        <div class="rate-item">
+          <div class="rt">Bingo 10</div>
+          <div class="rv"><input type="number" id="rateBingo10" value="50"> บาท</div>
+        </div>
+        <div class="rate-item">
+          <div class="rt">Big Point</div>
+          <div class="rv"><input type="number" id="rateBig" value="20"> บาท</div>
+        </div>
+        <div class="rate-item">
+          <div class="rt">Big Point(100+)</div>
+          <div class="rv"><input type="number" id="rateBig100" value="50"> บาท</div>
+        </div>
+        <div class="rate-item">
+          <div class="rt">Score &lt;300</div>
+          <div class="rv"><input type="number" id="rateUnder300" value="10"> บาท</div>
+        </div>
+        <div class="rate-item">
+          <div class="rt">Score &lt;200</div>
+          <div class="rv"><input type="number" id="rateUnder200" value="20"> บาท</div>
+        </div>
+        <div class="rate-item">
+          <div class="rt">Phony / คำ</div>
+          <div class="rv"><input type="number" id="ratePhony" value="10"> บาท</div>
+        </div>
+        <div class="rate-item">
+          <div class="rt">เวลา- / นาที</div>
+          <div class="rv"><input type="number" id="rateTime" value="10"> บาท</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="export-btn" onclick="showExport()">📋 ส่งออกสรุป</button>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" id="exportModal" style="display:none;">
+  <div class="modal">
+    <h3>ส่งออกสรุปโบนัส</h3>
+    <textarea id="exportText" readonly style="height:280px;"></textarea>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeExport()">ปิด</button>
+      <button class="btn-primary" onclick="copyExport()">📋 คัดลอก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bingo Modal -->
+<div class="modal-overlay" id="bingoModal" style="display:none;">
+  <div class="modal">
+    <h3>เพิ่ม Bingo / Big Point</h3>
+    <div class="modal-grid">
+      <div class="field-group">
+        <label>คำ (Word)</label>
+        <input type="text" id="bingoWord" placeholder="RADIOES" style="background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:9px 12px;font-size:14px;outline:none;width:100%;">
+      </div>
+      <div class="field-group">
+        <label>คะแนน</label>
+        <input type="number" id="bingoScore" placeholder="75" style="background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:9px 12px;font-size:14px;outline:none;width:100%;">
+      </div>
+      <div class="field-group">
+        <label>ประเภท</label>
+        <select id="bingoType" style="background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:9px 12px;font-size:14px;outline:none;width:100%;">
+          <option value="bingo7">Bingo 7 ตัว</option>
+          <option value="bingo8">Bingo 8+ ตัว</option>
+          <option value="bingo9">Bingo 9 ตัว</option>
+          <option value="bingo10">Bingo 10 ตัว</option>
+          <option value="bigpoint">Big Point (50+)</option>
+          <option value="bigpoint100">Big Point (100+)</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeBingo()">ยกเลิก</button>
+      <button class="btn-primary" onclick="confirmBingo()">เพิ่ม</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let games = [];
+let currentBingoGameId = null;
+
+const INITIAL_GAMES = [];
+
+function addGame(data = null) {
+  const id = Date.now();
+  const g = data || { id, opponent: '', myScore: 0, oppScore: 0, phonies: '', bingos: [], timePenalty: '', money: 0 };
+  if (!data) g.id = id;
+  games.push(g);
+  renderGame(g);
+  recalc();
+}
+
+function renderGame(g) {
+  const container = document.getElementById('gamesContainer');
+  const idx = games.indexOf(g) + 1;
+  const win = g.myScore > g.oppScore;
+  const dif = g.myScore - g.oppScore;
+
+  const div = document.createElement('div');
+  div.className = `game-row ${win ? 'win' : 'loss'}`;
+  div.id = `game-${g.id}`;
+  div.style.animationDelay = `${(idx - 1) * 0.04}s`;
+
+  div.innerHTML = `
+    <div class="game-num">${idx}</div>
+    <input type="text" placeholder="ชื่อคู่ต่อสู้" value="${g.opponent}"
+      oninput="updateGame(${g.id},'opponent',this.value)">
+    <div>
+      <div class="score-pair">
+        <input type="number" value="${g.myScore}" placeholder="Mine"
+          oninput="updateGame(${g.id},'myScore',+this.value)">
+        <span class="score-sep">:</span>
+        <input type="number" value="${g.oppScore}" placeholder="Opp"
+          oninput="updateGame(${g.id},'oppScore',+this.value)">
+      </div>
+      <div class="dif-display" id="dif-${g.id}" style="color:${dif>=0?'var(--accent2)':'var(--red)'}">
+        ${dif >= 0 ? '+' : ''}${dif}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <div class="result-badge ${win ? 'W' : 'L'}" id="badge-${g.id}">${win ? 'W' : 'L'}</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <label style="font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:0.5px;">เวลา-</label>
+        <input type="text" placeholder="00:00" value="${g.timePenalty || ''}"
+          maxlength="5"
+          oninput="formatTimeInput(this); updateGame(${g.id},'timePenalty',this.value)"
+          style="width:52px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 4px;background:var(--panel);border:1px solid var(--border);border-radius:5px;color:var(--red);outline:none;">
+        <div id="tp-${g.id}" style="font-size:9px;color:var(--red);font-family:'JetBrains Mono',monospace;">${calcTimePenaltyLabel(g.timePenalty)}</div>
+      </div>
+    </div>
+    <div>
+      <div class="bingo-row" id="bingos-${g.id}"></div>
+      <button class="add-bingo-btn" onclick="openBingo(${g.id})">+ Bingo/Big</button>
+    </div>
+    <div class="phony-input">
+      <input type="text" placeholder="WORD1,WORD2" value="${g.phonies}"
+        oninput="updateGame(${g.id},'phonies',this.value)">
+      <div class="phony-count" id="pc-${g.id}">${countPhonies(g.phonies)} phon${countPhonies(g.phonies)===1?'y':'ies'}</div>
+    </div>
+    <div class="money-cell">
+      <div id="game-money-${g.id}" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--accent);text-align:right;">0</div>
+      <span class="baht-lbl">บาท</span>
+    </div>
+  `;
+
+  container.appendChild(div);
+  renderBingos(g);
+}
+
+function renderBingos(g) {
+  const container = document.getElementById(`bingos-${g.id}`);
+  if (!container) return;
+  container.innerHTML = '';
+  g.bingos.forEach((b, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'bingo-chip';
+    const typeLabel = b.type === 'bingo7' ? 'B7' : b.type === 'bingo8' ? 'B8' : b.type === 'bingo9' ? 'B9' : b.type === 'bingo10' ? 'B10' : b.type === 'bigpoint100' ? 'BIG100' : 'BIG';
+    chip.innerHTML = `${b.word} <span class="pts">(${b.score}) ${typeLabel}</span> <span onclick="removeBingo(${g.id},${i})" style="color:var(--red);cursor:pointer;font-size:10px;">✕</span>`;
+    container.appendChild(chip);
+  });
+}
+
+function countPhonies(str) {
+  if (!str || !str.trim()) return 0;
+  return str.split(',').filter(x => x.trim()).length;
+}
+
+function updateGame(id, field, value) {
+  const g = games.find(x => x.id === id);
+  if (!g) return;
+  g[field] = value;
+
+  // update dif & badge
+  const dif = g.myScore - g.oppScore;
+  const win = dif > 0;
+  const difEl = document.getElementById(`dif-${id}`);
+  const badgeEl = document.getElementById(`badge-${id}`);
+  const rowEl = document.getElementById(`game-${id}`);
+  if (difEl) {
+    difEl.textContent = (dif >= 0 ? '+' : '') + dif;
+    difEl.style.color = dif >= 0 ? 'var(--accent2)' : 'var(--red)';
+  }
+  if (badgeEl) { badgeEl.textContent = win ? 'W' : 'L'; badgeEl.className = `result-badge ${win ? 'W' : 'L'}`; }
+  if (rowEl) { rowEl.className = `game-row ${win ? 'win' : 'loss'}`; }
+
+  // phony count
+  const pc = document.getElementById(`pc-${id}`);
+  if (pc) { const c = countPhonies(g.phonies); pc.textContent = `${c} phon${c===1?'y':'ies'}`; }
+
+  // time penalty label
+  const tpEl = document.getElementById(`tp-${id}`);
+  if (tpEl) tpEl.textContent = calcTimePenaltyLabel(g.timePenalty);
+
+  recalc();
+}
+
+function openBingo(gameId) {
+  currentBingoGameId = gameId;
+  document.getElementById('bingoWord').value = '';
+  document.getElementById('bingoScore').value = '';
+  document.getElementById('bingoType').value = 'bingo7';
+  document.getElementById('bingoModal').style.display = 'flex';
+}
+
+function closeBingo() {
+  document.getElementById('bingoModal').style.display = 'none';
+}
+
+function confirmBingo() {
+  const word = document.getElementById('bingoWord').value.trim();
+  const score = +document.getElementById('bingoScore').value;
+  const type = document.getElementById('bingoType').value;
+  if (!word || !score) return;
+  const g = games.find(x => x.id === currentBingoGameId);
+  if (g) {
+    g.bingos.push({ word, score, type });
+    renderBingos(g);
+    recalc();
+  }
+  closeBingo();
+}
+
+function removeBingo(gameId, idx) {
+  const g = games.find(x => x.id === gameId);
+  if (g) { g.bingos.splice(idx, 1); renderBingos(g); recalc(); }
+}
+
+// Auto-format MM:SS as user types
+function formatTimeInput(el) {
+  let v = el.value.replace(/[^0-9]/g, '');
+  if (v.length > 4) v = v.slice(0, 4);
+  if (v.length > 2) v = v.slice(0, 2) + ':' + v.slice(2);
+  el.value = v;
+}
+
+// Parse MM:SS → total seconds
+function parseTimeToSeconds(str) {
+  if (!str || !str.trim()) return 0;
+  const parts = str.split(':');
+  if (parts.length === 2) {
+    const m = parseInt(parts[0]) || 0;
+    const s = parseInt(parts[1]) || 0;
+    return m * 60 + s;
+  }
+  return 0;
+}
+
+// Calculate time penalty: -10 per minute started
+// 00:01–01:00 → -10, 01:01–02:00 → -20, 02:01–03:00 → -30, etc.
+function calcTimePenalty(str) {
+  const secs = parseTimeToSeconds(str);
+  if (secs <= 0) return 0;
+  // ceil to next whole minute: 1s→1min, 60s→1min, 61s→2min
+  return Math.ceil(secs / 60) * 10;
+}
+
+function calcTimePenaltyLabel(str) {
+  const p = calcTimePenalty(str);
+  if (p === 0) return '';
+  return `−${p} บาท`;
+}
+
+// คำนวณเงินต่อเกม
+function calcGameMoney(g, r) {
+  const dif = g.myScore - g.oppScore;
+  const win = dif > 0;
+  let money = 0;
+
+  // W/L base
+  if (win) money += r.W;
+  else money -= r.L;
+
+  // MAX diff bonus/penalty
+  if (dif >= 250) money += r.diff250;
+  if (dif <= -250) money -= r.diff250;
+
+  // Bingos
+  g.bingos.forEach(b => {
+    if (b.type === 'bingo7') money += r.bingo7;
+    else if (b.type === 'bingo8') money += r.bingo8;
+    else if (b.type === 'bingo9') money += r.bingo9;
+    else if (b.type === 'bingo10') money += r.bingo10;
+    else if (b.type === 'bigpoint') money += r.big;
+    else if (b.type === 'bigpoint100') money += r.big100;
+  });
+
+  // Score tiers ≥500/600/700 — ยกเว้นถ้าได้ MAX (diff ≥250) จะไม่นับ scoreBonus เพิ่ม
+  if (dif < 250) money += scoreBonus(g.myScore);
+
+  // Score penalty <300/<200
+  money -= scorePenalty(g.myScore, r);
+
+  // Phony
+  money -= countPhonies(g.phonies) * r.phony;
+
+  // Time penalty
+  const timeSecs = parseTimeToSeconds(g.timePenalty);
+  if (timeSecs > 0) money -= Math.ceil(timeSecs / 60) * r.time;
+
+  return money;
+}
+
+function getRates() {
+  return {
+    W:         +document.getElementById('rateW').value       || 20,
+    L:         +document.getElementById('rateL').value       || 20,
+    diff250:   +document.getElementById('rateDiff250').value || 30,
+    bingo7:    +document.getElementById('rateBingo7').value  || 20,
+    bingo8:    +document.getElementById('rateBingo8').value  || 30,
+    bingo9:    +document.getElementById('rateBingo9').value  || 40,
+    bingo10:   +document.getElementById('rateBingo10').value || 50,
+    big:       +document.getElementById('rateBig').value     || 20,
+    big100:    +document.getElementById('rateBig100').value  || 50,
+    under300:  +document.getElementById('rateUnder300').value|| 10,
+    under200:  +document.getElementById('rateUnder200').value|| 20,
+    phony:     +document.getElementById('ratePhony').value   || 10,
+    time:      +document.getElementById('rateTime').value    || 10,
+  };
+}
+
+// Tiered score bonus: ≥700→+30, ≥600→+20, ≥500→+10, else 0
+function scoreBonus(score) {
+  if (score >= 700) return 30;
+  if (score >= 600) return 20;
+  if (score >= 500) return 10;
+  return 0;
+}
+
+// Score penalty: <200→-20 (use under200 rate), <300→-10 (use under300 rate), else 0
+// Note: <200 already satisfies <300 so we pick the higher penalty
+function scorePenalty(score, r) {
+  if (score <= 0) return 0; // no score entered yet
+  if (score < 200) return r.under200;
+  if (score < 300) return r.under300;
+  return 0;
+}
+
+function recalc() {
+  const r = getRates();
+  let wins = 0, losses = 0;
+  let bingo7 = 0, bingo8 = 0, bingo9 = 0, bingo10 = 0, bigpoint = 0, bigpoint100 = 0;
+  let dmax250 = 0, dmin250 = 0;
+  let over500_10 = 0, over500_20 = 0, over500_30 = 0; // ≥500, ≥600, ≥700
+  let under300cnt = 0; // counts games <300 (including <200)
+  let phonies = 0;
+  let timePenaltyTotal = 0;
+  let totalScoreBonus = 0;
+  let totalScorePenalty = 0;
+
+  games.forEach(g => {
+    const dif = g.myScore - g.oppScore;
+    if (dif > 0) wins++; else losses++;
+
+    // Score tiers ≥500/600/700 — ยกเว้นถ้าได้ MAX (diff ≥250)
+    if (dif < 250) {
+      const sb = scoreBonus(g.myScore);
+      totalScoreBonus += sb;
+      if (sb === 30) over500_30++;
+      else if (sb === 20) over500_20++;
+      else if (sb === 10) over500_10++;
+    }
+
+    // Score penalty <300 / <200
+    const sp = scorePenalty(g.myScore, r);
+    totalScorePenalty += sp;
+    if (sp > 0) under300cnt++;
+
+    // Diff MAX
+    if (dif >= 250) dmax250++;
+    if (dif <= -250) dmin250++;
+
+    phonies += countPhonies(g.phonies);
+    timePenaltyTotal += Math.ceil(parseTimeToSeconds(g.timePenalty) / 60) * r.time;
+
+    g.bingos.forEach(b => {
+      if (b.type === 'bingo7') bingo7++;
+      else if (b.type === 'bingo8') bingo8++;
+      else if (b.type === 'bingo9') bingo9++;
+      else if (b.type === 'bingo10') bingo10++;
+      else if (b.type === 'bigpoint') bigpoint++;
+      else if (b.type === 'bigpoint100') bigpoint100++;
+    });
+  });
+
+  const wB    = wins    * r.W;
+  const lP    = losses  * r.L;
+  const dm250B = dmax250 * r.diff250;
+  const dn250P = dmin250 * r.diff250;
+  const b7B   = bingo7  * r.bingo7;
+  const b8B   = bingo8  * r.bingo8;
+  const b9B   = bingo9  * r.bingo9;
+  const b10B  = bingo10 * r.bingo10;
+  const bigB  = bigpoint * r.big;
+  const big100B = bigpoint100 * r.big100;
+  const phP   = phonies  * r.phony;
+
+  const total = (wB + dm250B + b7B + b8B + b9B + b10B + bigB + big100B + totalScoreBonus)
+              - (lP + dn250P + totalScorePenalty + phP + timePenaltyTotal);
+
+  // Per-game money display + total
+  let totalMoneySum = 0;
+  games.forEach(g => {
+    const gm = calcGameMoney(g, r);
+    totalMoneySum += gm;
+    const el = document.getElementById(`game-money-${g.id}`);
+    if (el) {
+      el.textContent = (gm >= 0 ? '+' : '') + gm;
+      el.style.color = gm >= 0 ? 'var(--accent2)' : 'var(--red)';
+    }
+  });
+
+  // Over-500 display: show breakdown e.g. "×10 +×20 +×30"
+  const over500total = totalScoreBonus;
+  const over500count_total = over500_10 + over500_20 + over500_30;
+
+  document.getElementById('totalWins').textContent = wins;
+  document.getElementById('totalLosses').textContent = losses;
+  document.getElementById('wCount').textContent = wins;
+  document.getElementById('lCount').textContent = losses;
+  document.getElementById('wBonus').textContent = `+${wB}`;
+  document.getElementById('lPenalty').textContent = `−${lP}`;
+  document.getElementById('dmax250count').textContent = dmax250;
+  document.getElementById('dmax250bonus').textContent = `+${dm250B}`;
+  document.getElementById('dmin250count').textContent = dmin250;
+  document.getElementById('dmin250bonus').textContent = `−${dn250P}`;
+  document.getElementById('b7count').textContent = bingo7;
+  document.getElementById('b7bonus').textContent = `+${b7B}`;
+  document.getElementById('b8count').textContent = bingo8;
+  document.getElementById('b8bonus').textContent = `+${b8B}`;
+  document.getElementById('b9count').textContent = bingo9;
+  document.getElementById('b9bonus').textContent = `+${b9B}`;
+  document.getElementById('b10count').textContent = bingo10;
+  document.getElementById('b10bonus').textContent = `+${b10B}`;
+  document.getElementById('bigcount').textContent = bigpoint;
+  document.getElementById('bigbonus').textContent = `+${bigB}`;
+  document.getElementById('big100count').textContent = bigpoint100;
+  document.getElementById('big100bonus').textContent = `+${big100B}`;
+  document.getElementById('over500count').textContent = over500count_total;
+  document.getElementById('over500bonus').textContent = over500total > 0 ? `+${over500total}` : '+0';
+  document.getElementById('under300count').textContent = under300cnt;
+  document.getElementById('under300bonus').textContent = `−${totalScorePenalty}`;
+  document.getElementById('phonyCnt').textContent = phonies;
+  document.getElementById('phonyPenalty').textContent = `−${phP}`;
+  const timePenGames = games.filter(g => parseTimeToSeconds(g.timePenalty) > 0).length;
+  const tpEl = document.getElementById('timePenCount');
+  const tpValEl = document.getElementById('timePenPenalty');
+  if (tpEl) tpEl.textContent = timePenGames;
+  if (tpValEl) tpValEl.textContent = `−${timePenaltyTotal}`;
+  document.getElementById('totalBonus').textContent = (total >= 0 ? '+' : '') + total + ' บาท';
+  const tmEl = document.getElementById('totalMoney');
+  tmEl.textContent = (totalMoneySum >= 0 ? '+' : '') + totalMoneySum + ' บาท';
+  tmEl.style.color = totalMoneySum >= 0 ? 'var(--accent2)' : 'var(--red)';
+}
+
+// listen to rate changes
+document.querySelectorAll('.rate-item input').forEach(el => el.addEventListener('input', recalc));
+
+function showExport() {
+  const name = document.getElementById('playerName').value || 'ผู้เล่น';
+  const tour = document.getElementById('tourName').value || 'Tournament';
+  const rank = document.getElementById('finalRank').value || '?';
+
+  let lines = [`สรุปโบนัส ${name} งาน ${tour}\n`];
+  const r = getRates();
+  games.forEach((g, i) => {
+    const dif = g.myScore - g.oppScore;
+    const win = dif > 0;
+    const gm = calcGameMoney(g, r);
+    let bStr = g.bingos.map(b => `${b.word}(${b.score})`).join(', ') || '-';
+    lines.push(`เกมที่ ${i+1} ▶️ ${bStr}`);
+    lines.push(`พบกับ ${g.opponent || '?'}`);
+    lines.push(`${win ? 'ชนะ' : 'แพ้'} ${g.myScore} - ${g.oppScore}`);
+    lines.push(`dif ${dif >= 0 ? '+' : ''}${dif}`);
+    if (g.phonies) lines.push(`phony ${g.phonies} ❌`);
+    if (g.timePenalty) lines.push(`เวลา- ${g.timePenalty} (−${Math.ceil(parseTimeToSeconds(g.timePenalty)/60)*getRates().time} บาท) ⏱️`);
+    lines.push(`โบนัสเกมนี้ (${gm >= 0 ? '+' : ''}${gm} บาท)`);
+    lines.push('');
+  });
+
+  const wins = games.filter(g => g.myScore > g.oppScore).length;
+  const losses = games.length - wins;
+  const totalMoneySum = games.reduce((s, g) => s + calcGameMoney(g, r), 0);
+  lines.push(`รวม W ${wins} - L ${losses}`);
+  lines.push(`จบอันดับที่ ${rank}`);
+  lines.push(`โบนัสรวม: ${document.getElementById('totalBonus').textContent}`);
+  lines.push(`เงินรวม: ${totalMoneySum >= 0 ? '+' : ''}${totalMoneySum} บาท`);
+
+  document.getElementById('exportText').value = lines.join('\n');
+  document.getElementById('exportModal').style.display = 'flex';
+}
+
+function closeExport() { document.getElementById('exportModal').style.display = 'none'; }
+
+function copyExport() {
+  const ta = document.getElementById('exportText');
+  ta.select();
+  document.execCommand('copy');
+  const btn = document.querySelector('#exportModal .btn-primary');
+  btn.textContent = '✓ คัดลอกแล้ว!';
+  setTimeout(() => btn.textContent = '📋 คัดลอก', 1500);
+}
+
+// close modals on overlay click
+document.getElementById('exportModal').addEventListener('click', function(e){ if(e.target===this) closeExport(); });
+document.getElementById('bingoModal').addEventListener('click', function(e){ if(e.target===this) closeBingo(); });
+
+INITIAL_GAMES.forEach(g => {
+  games.push(g);
+  renderGame(g);
+});
+recalc();
+</script>
+</body>
+</html>

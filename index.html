@@ -33,6 +33,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .tnav{background:none;border:none;color:var(--text2);font-family:'Sarabun',sans-serif;font-size:13px;padding:6px 12px;border-radius:6px;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap}
 .tnav:hover{background:var(--card);color:var(--text)}
 .tnav.act{background:var(--card);color:var(--gold);border:1px solid var(--border2)}
+.tnav.cwbs-link{display:flex;align-items:center;gap:6px;background:rgba(232,200,74,.07);border:1px solid rgba(232,200,74,.18);border-radius:7px;color:var(--gold);padding:5px 11px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.5px;transition:background .15s,border-color .15s,transform .1s}
+.tnav.cwbs-link:hover{background:rgba(232,200,74,.15);border-color:rgba(232,200,74,.4);transform:translateY(-1px)}
+.tnav.cwbs-link svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;flex-shrink:0}
 
 /* ── LOGIN BUTTON (topbar) ── */
 .login-trigger-btn{display:flex;align-items:center;gap:7px;background:rgba(176,108,255,.10);border:1px solid rgba(176,108,255,.25);border-radius:8px;padding:6px 13px;color:var(--admin-accent);font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;transition:background .15s,border-color .15s;white-space:nowrap;flex-shrink:0}
@@ -245,6 +248,11 @@ body.is-admin .admin-only{display:inline-flex}
     <button class="tnav" onclick="nav('games',this)">เกม</button>
     <button class="tnav" onclick="nav('tournaments',this)">ทัวร์นาเมนต์</button>
     <button class="tnav admin-only" onclick="nav('admin',this)" style="color:var(--admin-accent);border-color:transparent">⚙ Admin</button>
+    <a href="./CWBS/CWBSv2.html" target="_blank" class="tnav cwbs-link" title="เปิด Crossword Bonus Summary">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      CWBS
+      <svg viewBox="0 0 24 24" style="width:9px;height:9px;opacity:.6"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
   </nav>
 
   <!-- admin badge (shown when logged in) -->

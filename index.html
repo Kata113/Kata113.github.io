@@ -248,7 +248,7 @@ body.is-admin .admin-only{display:inline-flex}
     <button class="tnav act" onclick="nav('leaderboard',this)">อันดับ</button>
     <button class="tnav" onclick="nav('players',this)">ผู้เล่น</button>
     <button class="tnav" onclick="nav('games',this)">เกม</button>
-    <button class="tnav" onclick="nav('tournaments',this)">ทัวร์นาเมนต์</button>
+    <button class="tnav" onclick="nav('tournaments',this)" style="display:none">ทัวร์นาเมนต์</button>
     <button class="tnav admin-only" onclick="nav('admin',this)" style="color:var(--admin-accent);border-color:transparent">⚙ Admin</button>
     <a href="./CWBS/CWBSv2.html" target="_blank" class="tnav cwbs-link" title="เปิด Crossword Bonus Summary">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -503,7 +503,6 @@ body.is-admin .admin-only{display:inline-flex}
       <div class="form-row"><label>คะแนน ผู้เล่น 1</label><input type="number" id="gS1" value="0" min="0"></div>
       <div class="form-row"><label>คะแนน ผู้เล่น 2</label><input type="number" id="gS2" value="0" min="0"></div>
     </div>
-    <div class="form-row"><label>ทัวร์นาเมนต์</label><select id="gTour"><option value="">— ไม่ระบุ —</option></select></div>
     <div class="form-row"><label>วันที่</label><input type="date" id="gDate"></div>
     <div class="form-row"><label>หมายเหตุ</label><input type="text" id="gNote" placeholder="เช่น รอบที่ 1"></div>
     <div class="modal-actions">

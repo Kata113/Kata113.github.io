@@ -46,7 +46,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
 /* ── LOGIN DROPDOWN ── */
-.login-dropdown-wrap{position:relative;flex-shrink:0}
+.login-dropdown-wrap{position:relative;flex-shrink:0;z-index:310}
 .login-dropdown{position:absolute;top:calc(100% + 10px);right:0;background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:20px;width:280px;z-index:300;animation:dropIn .18s ease;box-shadow:0 16px 40px rgba(0,0,0,.6)}
 .login-dropdown.hidden{display:none}
 @keyframes dropIn{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:none}}
@@ -66,8 +66,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .dd-skip-btn{width:100%;padding:8px;font-size:12px;background:none;border:1px solid var(--border2);border-radius:7px;color:var(--text2);font-family:'Sarabun',sans-serif;cursor:pointer;transition:background .15s,color .15s}
 .dd-skip-btn:hover{background:var(--card);color:var(--text)}
 /* overlay to close dropdown on outside click */
-.dd-overlay{position:fixed;inset:0;z-index:299;display:none}
-.dd-overlay.show{display:block}
+
 
 /* ── PAGES ── */
 .page{display:none;padding:24px 20px;position:relative;z-index:1;max-width:900px;margin:0 auto}
@@ -186,6 +185,19 @@ body.is-admin .admin-only{display:inline-flex}
 .admin-action-row strong{color:var(--text);font-weight:500;display:block;font-size:14px;margin-bottom:2px}
 .pwd-change-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 
+/* ── PENDING GAMES ── */
+.pending-banner{background:rgba(232,200,74,.07);border:1px solid rgba(232,200,74,.25);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .15s}
+.pending-banner:hover{background:rgba(232,200,74,.12)}
+.pending-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);flex-shrink:0;animation:pulse 2s infinite}
+.pending-banner .pb-text{flex:1;font-size:13px;color:var(--gold)}
+.pending-banner .pb-count{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);line-height:1}
+.pending-item{background:var(--card);border:1px solid rgba(232,200,74,.3);border-radius:10px;padding:13px 15px;margin-bottom:8px;animation:rowIn .25s ease backwards}
+.pending-item .pi-players{font-size:14px;font-weight:500;margin-bottom:4px}
+.pending-item .pi-meta{font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace}
+.pending-actions{display:flex;gap:7px;margin-top:10px}
+.btn.approve{background:rgba(63,214,138,.12);color:var(--green);border-color:rgba(63,214,138,.3)}
+.btn.approve:hover{background:rgba(63,214,138,.22)}
+
 /* ── SCROLL ── */
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -266,8 +278,7 @@ body.is-admin .admin-only{display:inline-flex}
   </div>
 </header>
 
-<!-- click-away overlay -->
-<div class="dd-overlay" id="ddOverlay" onclick="closeDropdown()"></div>
+
 
 <!-- ══ MAIN ══ -->
 <main>
@@ -277,9 +288,11 @@ body.is-admin .admin-only{display:inline-flex}
   <div class="sec-head">
     <div><div class="sec-title">อันดับ <span>ปัจจุบัน</span></div></div>
     <div style="display:flex;gap:8px">
-      <button class="btn primary sm admin-only" onclick="openAddGame()">+ บันทึกเกม</button>
+      <button class="btn primary sm" onclick="openSubmitGame()">+ บันทึกเกม</button>
+      <button class="btn sm admin-only" style="background:rgba(176,108,255,.1);color:var(--admin-accent);border-color:rgba(176,108,255,.3)" onclick="openAddGame()">⚙ Admin เกม</button>
     </div>
   </div>
+  <div id="pendingBanner" style="display:none"></div>
   <div class="stats-row" id="globalStats"></div>
   <div class="search-wrap">
     <span class="search-icon">⌕</span>
@@ -314,7 +327,16 @@ body.is-admin .admin-only{display:inline-flex}
 <div id="page-games" class="page">
   <div class="sec-head">
     <div class="sec-title">ประวัติ <span>เกม</span></div>
-    <button class="btn primary sm admin-only" onclick="openAddGame()">+ บันทึกเกม</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary sm" onclick="openSubmitGame()">+ บันทึกเกม</button>
+      <button class="btn sm admin-only" style="background:rgba(176,108,255,.1);color:var(--admin-accent);border-color:rgba(176,108,255,.3)" onclick="openAddGame()">⚙ Admin เกม</button>
+    </div>
+  </div>
+  <div id="pendingSection" style="display:none">
+    <div style="font-size:10px;color:var(--gold);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">⏳ รอการอนุมัติจาก Admin</div>
+    <div id="pendingList"></div>
+    <div style="height:8px"></div>
+    <div style="font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:8px">เกมที่อนุมัติแล้ว</div>
   </div>
   <div class="search-wrap">
     <span class="search-icon">⌕</span>
@@ -411,6 +433,37 @@ body.is-admin .admin-only{display:inline-flex}
 
 <!-- ══ MODALS ══ -->
 
+<!-- User Submit Game -->
+<div class="modal-overlay" id="modalSubmitGame" style="display:none" onclick="if(event.target===this)closeModal('modalSubmitGame')">
+  <div class="modal">
+    <div class="modal-title" style="color:var(--gold)">บันทึกเกมที่เล่น</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">เกมจะรอการยืนยันจาก Admin ก่อน rating จึงจะอัปเดต</p>
+    <div class="form-row"><label>ผู้เล่น 1 *</label><select id="sgP1"></select></div>
+    <div class="form-row"><label>ผู้เล่น 2 *</label><select id="sgP2"></select></div>
+    <div class="form-grid">
+      <div class="form-row"><label>คะแนน ผู้เล่น 1</label><input type="number" id="sgS1" value="0" min="0"></div>
+      <div class="form-row"><label>คะแนน ผู้เล่น 2</label><input type="number" id="sgS2" value="0" min="0"></div>
+    </div>
+    <div class="form-row"><label>วันที่</label><input type="date" id="sgDate"></div>
+    <div class="form-row"><label>หมายเหตุ</label><input type="text" id="sgNote" placeholder="เช่น รอบที่ 1 หรือชื่อทัวร์นาเมนต์"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalSubmitGame')">ยกเลิก</button>
+      <button class="btn primary" onclick="submitUserGame()">ส่งเพื่อรอยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pending Games Admin Modal -->
+<div class="modal-overlay" id="modalPending" style="display:none" onclick="if(event.target===this)closeModal('modalPending')">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">⏳ เกมรอการอนุมัติ</div>
+    <div id="pendingModalList"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalPending')">ปิด</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add Player (admin only) -->
 <div class="modal-overlay" id="modalPlayer" style="display:none" onclick="if(event.target===this)closeModal('modalPlayer')">
   <div class="modal">
@@ -482,7 +535,7 @@ body.is-admin .admin-only{display:inline-flex}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 // ══ CONSTANTS ══
-const STORE = { players:'cbs_players', games:'cbs_games', tournaments:'cbs_tours', pwd:'cbs_admin_pwd' };
+const STORE = { players:'cbs_players', games:'cbs_games', tournaments:'cbs_tours', pwd:'cbs_admin_pwd', pending:'cbs_pending' };
 const DEFAULT_PWD = 'admin';
 const TAU = 0.5, SCALE = 173.7478;
 
@@ -494,11 +547,9 @@ function getAdminPwd() { return localStorage.getItem(STORE.pwd) || DEFAULT_PWD; 
 // ── Dropdown toggle ──
 function toggleDropdown() {
   const dd = document.getElementById('loginDropdown');
-  const ov = document.getElementById('ddOverlay');
   const isHidden = dd.classList.contains('hidden');
   if (isHidden) {
     dd.classList.remove('hidden');
-    ov.classList.add('show');
     setTimeout(() => document.getElementById('ddPwd').focus(), 80);
   } else {
     closeDropdown();
@@ -506,10 +557,16 @@ function toggleDropdown() {
 }
 function closeDropdown() {
   document.getElementById('loginDropdown').classList.add('hidden');
-  document.getElementById('ddOverlay').classList.remove('show');
   document.getElementById('ddPwd').value = '';
   document.getElementById('ddError').style.display = 'none';
 }
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('loginWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    closeDropdown();
+  }
+});
 
 function doLogin() {
   const v = document.getElementById('ddPwd').value;
@@ -563,8 +620,9 @@ function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 let players = load(STORE.players);
 let games = load(STORE.games);
 let tournaments = load(STORE.tournaments);
+let pendingGames = load(STORE.pending);
 
-function renderAll() { renderLeaderboard(); }
+function renderAll() { renderLeaderboard(); renderPendingBanner(); }
 
 // ══ GLICKO-2 ══
 function gFn(phi) { return 1/Math.sqrt(1+3*phi*phi/(Math.PI*Math.PI)); }
@@ -709,6 +767,7 @@ function renderPlayers() {
 
 // ══ GAMES ══
 function renderGames() {
+  renderPendingSection();
   const q=(document.getElementById('gameSearch')||{value:''}).value.toLowerCase();
   const c=document.getElementById('gamesList');
   const empty=document.getElementById('gamesEmpty');
@@ -825,6 +884,132 @@ function showProfile(id) {
   }
 }
 
+// ══ USER SUBMIT GAME ══
+function openSubmitGame() {
+  if(!players.length){alert('ยังไม่มีผู้เล่นในระบบ');return;}
+  const opts=players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  document.getElementById('sgP1').innerHTML=opts;
+  document.getElementById('sgP2').innerHTML=opts;
+  if(players.length>1)document.getElementById('sgP2').selectedIndex=1;
+  document.getElementById('sgS1').value=0;
+  document.getElementById('sgS2').value=0;
+  document.getElementById('sgDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('sgNote').value='';
+  document.getElementById('modalSubmitGame').style.display='flex';
+}
+
+function submitUserGame() {
+  const p1id=document.getElementById('sgP1').value;
+  const p2id=document.getElementById('sgP2').value;
+  if(!p1id||!p2id||p1id===p2id){alert('กรุณาเลือกผู้เล่นสองคนที่แตกต่างกัน');return;}
+  const pg={
+    id:'pg'+Date.now(),
+    p1id, p2id,
+    score1:+document.getElementById('sgS1').value,
+    score2:+document.getElementById('sgS2').value,
+    date:document.getElementById('sgDate').value,
+    note:document.getElementById('sgNote').value.trim(),
+    submittedAt:new Date().toISOString()
+  };
+  pendingGames.push(pg);
+  save(STORE.pending,pendingGames);
+  closeModal('modalSubmitGame');
+  renderPendingBanner();
+  renderGames();
+  alert('ส่งข้อมูลเรียบร้อย! รอ Admin ยืนยันเพื่ออัปเดต Rating');
+}
+
+// ══ PENDING BANNER & LIST ══
+function renderPendingBanner() {
+  const banner=document.getElementById('pendingBanner');
+  if(!banner)return;
+  const cnt=pendingGames.length;
+  if(cnt===0){banner.style.display='none';return;}
+  banner.style.display='block';
+  if(isAdmin){
+    banner.innerHTML=`<div class="pending-banner" onclick="openPendingModal()">
+      <span class="pending-dot"></span>
+      <span class="pb-text">มีเกมรอการอนุมัติ — กดเพื่อจัดการ</span>
+      <span class="pb-count">${cnt}</span>
+      <span style="font-size:18px">›</span>
+    </div>`;
+  } else {
+    banner.innerHTML=`<div class="pending-banner" style="cursor:default">
+      <span class="pending-dot"></span>
+      <span class="pb-text">มีเกมรอการยืนยันจาก Admin อยู่ ${cnt} รายการ</span>
+    </div>`;
+  }
+}
+
+function renderPendingSection() {
+  const sec=document.getElementById('pendingSection');
+  const list=document.getElementById('pendingList');
+  if(!sec||!list)return;
+  if(!pendingGames.length){sec.style.display='none';return;}
+  sec.style.display='block';
+  list.innerHTML=pendingGames.map((pg,i)=>{
+    const p1=players.find(p=>p.id===pg.p1id)||{name:'?'};
+    const p2=players.find(p=>p.id===pg.p2id)||{name:'?'};
+    return `<div class="pending-item" style="animation-delay:${i*.04}s">
+      <div class="pi-players">${p1.name} <span style="color:var(--muted)">vs</span> ${p2.name}</div>
+      <div class="pi-meta">${pg.score1} : ${pg.score2} · ${pg.date||''}${pg.note?' · '+pg.note:''}</div>
+      ${isAdmin?`<div class="pending-actions">
+        <button class="btn sm approve" onclick="approveGame('${pg.id}')">✓ อนุมัติ</button>
+        <button class="btn sm danger" onclick="rejectGame('${pg.id}')">✕ ปฏิเสธ</button>
+      </div>`:'<div style="margin-top:6px;font-size:11px;color:var(--gold);font-family:JetBrains Mono,monospace">⏳ รอ Admin ยืนยัน</div>'}
+    </div>`;
+  }).join('');
+}
+
+function openPendingModal() {
+  if(!isAdmin)return;
+  const list=document.getElementById('pendingModalList');
+  if(!pendingGames.length){list.innerHTML=`<div class="empty"><div class="icon">✅</div><h3>ไม่มีเกมรอการอนุมัติ</h3></div>`;
+  } else {
+    list.innerHTML=pendingGames.map((pg,i)=>{
+      const p1=players.find(p=>p.id===pg.p1id)||{name:'?'};
+      const p2=players.find(p=>p.id===pg.p2id)||{name:'?'};
+      return `<div class="pending-item" style="animation-delay:${i*.04}s">
+        <div class="pi-players">${p1.name} <span style="color:var(--muted)">vs</span> ${p2.name}</div>
+        <div class="pi-meta">${pg.score1} : ${pg.score2} · ${pg.date||''}${pg.note?' · '+pg.note:''}</div>
+        <div class="pending-actions">
+          <button class="btn sm approve" onclick="approveGame('${pg.id}');rerenderPendingModal()">✓ อนุมัติ + คำนวณ Rating</button>
+          <button class="btn sm danger" onclick="rejectGame('${pg.id}');rerenderPendingModal()">✕ ปฏิเสธ</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('modalPending').style.display='flex';
+}
+
+function rerenderPendingModal() {
+  setTimeout(()=>{
+    if(document.getElementById('modalPending').style.display!=='none') openPendingModal();
+  },50);
+}
+
+function approveGame(pgId) {
+  const pg=pendingGames.find(x=>x.id===pgId);
+  if(!pg)return;
+  const game={id:'g'+Date.now(),p1id:pg.p1id,p2id:pg.p2id,score1:pg.score1,score2:pg.score2,tourid:'',date:pg.date,note:pg.note};
+  games.push(game);
+  save(STORE.games,games);
+  applyGameToRatings(game);
+  pendingGames=pendingGames.filter(x=>x.id!==pgId);
+  save(STORE.pending,pendingGames);
+  renderPendingBanner();
+  renderPendingSection();
+  renderLeaderboard();
+  renderGames();
+}
+
+function rejectGame(pgId) {
+  pendingGames=pendingGames.filter(x=>x.id!==pgId);
+  save(STORE.pending,pendingGames);
+  renderPendingBanner();
+  renderPendingSection();
+}
+
 // ══ ADMIN ACTIONS ══
 function exportData() {
   const data={players,games,tournaments,exported:new Date().toISOString()};
@@ -868,8 +1053,8 @@ function resetAllRatings() {
 
 function clearAllData() {
   showConfirm('ลบข้อมูลทั้งหมด? ผู้เล่น เกม และทัวร์นาเมนต์ทั้งหมดจะหายไป ไม่สามารถย้อนกลับได้',()=>{
-    players=[];games=[];tournaments=[];
-    save(STORE.players,players);save(STORE.games,games);save(STORE.tournaments,tournaments);
+    players=[];games=[];tournaments=[];pendingGames=[];
+    save(STORE.players,players);save(STORE.games,games);save(STORE.tournaments,tournaments);save(STORE.pending,pendingGames);
     renderAll();renderPlayers();renderGames();renderTournaments();
   });
 }
@@ -965,7 +1150,12 @@ function confirmDeleteGame(id){
 }
 
 // ══ INIT ══
+// Reset stored password to new default if it was the old default
+if (localStorage.getItem(STORE.pwd) === 'admin1234') {
+  localStorage.removeItem(STORE.pwd);
+}
 renderLeaderboard();
+renderPendingBanner();
 </script>
 </body>
 </html>

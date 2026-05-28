@@ -1105,11 +1105,10 @@ function savePlayer() {
 
 function openAddGame() {
   if(!isAdmin)return;
-  const s1=document.getElementById('gP1'),s2=document.getElementById('gP2'),sT=document.getElementById('gTour');
+  const s1=document.getElementById('gP1'),s2=document.getElementById('gP2');
   const opts=players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   s1.innerHTML=opts;s2.innerHTML=opts;
   if(players.length>1)s2.selectedIndex=1;
-  sT.innerHTML='<option value="">— ไม่ระบุ —</option>'+tournaments.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
   document.getElementById('gS1').value=0;document.getElementById('gS2').value=0;
   document.getElementById('gDate').value=new Date().toISOString().split('T')[0];
   document.getElementById('gNote').value='';
@@ -1119,7 +1118,7 @@ function saveGame() {
   if(!isAdmin)return;
   const p1id=document.getElementById('gP1').value,p2id=document.getElementById('gP2').value;
   if(!p1id||!p2id||p1id===p2id){alert('เลือกผู้เล่นสองคนที่แตกต่างกัน');return;}
-  const game={id:'g'+Date.now(),p1id,p2id,score1:+document.getElementById('gS1').value,score2:+document.getElementById('gS2').value,tourid:document.getElementById('gTour').value,date:document.getElementById('gDate').value,note:document.getElementById('gNote').value.trim()};
+  const game={id:'g'+Date.now(),p1id,p2id,score1:+document.getElementById('gS1').value,score2:+document.getElementById('gS2').value,tourid:'',date:document.getElementById('gDate').value,note:document.getElementById('gNote').value.trim()};
   games.push(game);save(STORE.games,games);
   applyGameToRatings(game);
   closeModal('modalGame');renderLeaderboard();renderGames();

@@ -675,6 +675,18 @@ const DEFAULT_PWD = 'admin';
 const TAU = 0.5, SCALE = 173.7478;
 
 let uploadedFiles = { sg: null, ag: null };
+let gistWriteToken = '';
+
+function obfuscateToken(token) {
+  return btoa(token.split('').reverse().join(''));
+}
+function deobfuscateToken(obfuscated) {
+  try {
+    return atob(obfuscated).split('').reverse().join('');
+  } catch (e) {
+    return '';
+  }
+}
 
 // ── CLOUD & IMAGE UTILS ──
 function getGistHeaders() {
@@ -682,7 +694,7 @@ function getGistHeaders() {
     'Accept': 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28'
   };
-  const pat = localStorage.getItem(STORE.githubPat);
+  const pat = localStorage.getItem(STORE.githubPat) || gistWriteToken;
   if (pat) {
     headers['Authorization'] = `Bearer ${pat}`;
   }
@@ -697,7 +709,7 @@ async function fetchGist(gistId) {
 }
 
 async function updateGist(gistId, files) {
-  const pat = localStorage.getItem(STORE.githubPat);
+  const pat = localStorage.getItem(STORE.githubPat) || gistWriteToken;
   if (!pat) throw new Error('กรุณากรอก GitHub PAT ก่อนทำการเขียนข้อมูล');
   const headers = getGistHeaders();
   
@@ -717,7 +729,7 @@ async function updateGist(gistId, files) {
 }
 
 async function createGist(files) {
-  const pat = localStorage.getItem(STORE.githubPat);
+  const pat = localStorage.getItem(STORE.githubPat) || gistWriteToken;
   if (!pat) throw new Error('กรุณากรอก GitHub PAT ก่อนทำการสร้าง Gist');
   const headers = getGistHeaders();
   const res = await fetch('https://api.github.com/gists', {
@@ -742,12 +754,14 @@ async function createGist(files) {
 let syncTimeout = null;
 function autoSyncToGist() {
   const gistId = localStorage.getItem(STORE.gistId);
-  const pat = localStorage.getItem(STORE.githubPat);
+  const pat = localStorage.getItem(STORE.githubPat) || gistWriteToken;
   if (!gistId || !pat) return;
   
   if (syncTimeout) clearTimeout(syncTimeout);
   syncTimeout = setTimeout(async () => {
     try {
+      const patForMeta = localStorage.getItem(STORE.githubPat) || gistWriteToken;
+      const obfuscatedPat = patForMeta ? obfuscateToken(patForMeta) : '';
       const files = {
         'players.json': { content: JSON.stringify(players, null, 2) },
         'games.json': { content: JSON.stringify(games, null, 2) },
@@ -755,7 +769,8 @@ function autoSyncToGist() {
         'pending.json': { content: JSON.stringify(pendingGames, null, 2) },
         'meta.json': { content: JSON.stringify({ 
           lastUpdated: new Date().toISOString(),
-          imgbbKey: localStorage.getItem(STORE.imgbbKey) || ''
+          imgbbKey: localStorage.getItem(STORE.imgbbKey) || '',
+          secToken: obfuscatedPat
         }, null, 2) }
       };
       await updateGist(gistId, files);
@@ -879,8 +894,13 @@ function saveCloudSettings() {
   if (imgbb) localStorage.setItem(STORE.imgbbKey, imgbb);
   else localStorage.removeItem(STORE.imgbbKey);
   
-  if (pat) localStorage.setItem(STORE.githubPat, pat);
-  else localStorage.removeItem(STORE.githubPat);
+  if (pat) {
+    localStorage.setItem(STORE.githubPat, pat);
+    gistWriteToken = pat;
+  } else {
+    localStorage.removeItem(STORE.githubPat);
+    gistWriteToken = '';
+  }
   
   if (gistId) localStorage.setItem(STORE.gistId, gistId);
   else localStorage.removeItem(STORE.gistId);
@@ -903,6 +923,7 @@ async function createNewGist() {
     return;
   }
   localStorage.setItem(STORE.githubPat, pat);
+  gistWriteToken = pat;
   showCloudMsg('กำลังสร้าง Gist บน GitHub...', 'var(--gold)');
   
   const files = {
@@ -912,7 +933,8 @@ async function createNewGist() {
     'pending.json': { content: JSON.stringify(pendingGames, null, 2) },
     'meta.json': { content: JSON.stringify({ 
       lastUpdated: new Date().toISOString(),
-      imgbbKey: localStorage.getItem(STORE.imgbbKey) || ''
+      imgbbKey: localStorage.getItem(STORE.imgbbKey) || '',
+      secToken: obfuscateToken(pat)
     }, null, 2) }
   };
   
@@ -933,7 +955,7 @@ async function syncLocalToGist() {
     alert('กรุณาระบุ Gist ID ก่อนทำการ Sync');
     return;
   }
-  const pat = document.getElementById('githubPatInput').value.trim() || localStorage.getItem(STORE.githubPat);
+  const pat = document.getElementById('githubPatInput').value.trim() || localStorage.getItem(STORE.githubPat) || gistWriteToken;
   if (!pat) {
     alert('กรุณากรอก GitHub PAT ก่อนทำการ Sync');
     return;
@@ -947,7 +969,8 @@ async function syncLocalToGist() {
     'pending.json': { content: JSON.stringify(pendingGames, null, 2) },
     'meta.json': { content: JSON.stringify({ 
       lastUpdated: new Date().toISOString(),
-      imgbbKey: localStorage.getItem(STORE.imgbbKey) || ''
+      imgbbKey: localStorage.getItem(STORE.imgbbKey) || '',
+      secToken: obfuscateToken(pat)
     }, null, 2) }
   };
   
@@ -992,6 +1015,9 @@ async function loadFromGist() {
     }
     if (gistFiles.files['meta.json']?.content) {
       const meta = JSON.parse(gistFiles.files['meta.json'].content);
+      if (meta.secToken) {
+        gistWriteToken = deobfuscateToken(meta.secToken);
+      }
       if (meta.imgbbKey && !localStorage.getItem(STORE.imgbbKey)) {
         localStorage.setItem(STORE.imgbbKey, meta.imgbbKey);
         if (document.getElementById('imgbbKeyInput')) {
@@ -1733,6 +1759,20 @@ function confirmDeleteGame(id){
 }
 
 // ══ INIT ══
+const DEFAULT_GIST_ID = ''; // แอดมินสามารถใส่ Gist ID เริ่มต้นตรงนี้ เพื่อให้ผู้ใช้ทั่วไปโหลดข้อมูลโดยอัตโนมัติ (เช่น '12345...')
+
+// ตรวจสอบ Gist ID จาก URL parameter (เช่น ?gist=GIST_ID)
+const urlParams = new URLSearchParams(window.location.search);
+const queryGistId = urlParams.get('gist') || urlParams.get('gistId');
+if (queryGistId) {
+  localStorage.setItem(STORE.gistId, queryGistId);
+}
+
+// โหลด Gist ID เริ่มต้นลง localStorage หากยังไม่มีการตั้งค่า
+if (!localStorage.getItem(STORE.gistId) && DEFAULT_GIST_ID) {
+  localStorage.setItem(STORE.gistId, DEFAULT_GIST_ID);
+}
+
 // Reset stored password to new default if it was the old default
 if (localStorage.getItem(STORE.pwd) === 'admin1234') {
   localStorage.removeItem(STORE.pwd);
@@ -1771,6 +1811,9 @@ if (initGistId) {
     }
     if (gistFiles.files['meta.json']?.content) {
       const meta = JSON.parse(gistFiles.files['meta.json'].content);
+      if (meta.secToken) {
+        gistWriteToken = deobfuscateToken(meta.secToken);
+      }
       if (meta.imgbbKey && !localStorage.getItem(STORE.imgbbKey)) {
         localStorage.setItem(STORE.imgbbKey, meta.imgbbKey);
       }

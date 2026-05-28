@@ -206,23 +206,77 @@ body.is-admin .admin-only{display:inline-flex}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
+/* ── REALTIME SYNC PILL – LIVE STATE ── */
+.sync-pill.idle{
+  background:rgba(63,214,138,.13);
+  border-color:rgba(63,214,138,.35);
+  color:var(--green);
+  box-shadow:0 0 8px rgba(63,214,138,.18);
+}
+/* pulse ring on LIVE button */
+.sync-pill.idle::after{
+  content:'';
+  position:absolute;
+  inset:-3px;
+  border-radius:20px;
+  border:1.5px solid rgba(63,214,138,.35);
+  animation:liveRing 2.4s ease-out infinite;
+  pointer-events:none;
+}
+.sync-pill{position:relative}
+@keyframes liveRing{
+  0%{opacity:.7;transform:scale(1)}
+  70%{opacity:0;transform:scale(1.18)}
+  100%{opacity:0;transform:scale(1.18)}
+}
+/* refresh spin on click */
+.sync-pill.refreshing .sync-dot{
+  animation:spin .7s linear infinite!important;
+  border-radius:0;
+  background:none;
+  border:1.5px solid currentColor;
+  border-top-color:transparent;
+  width:8px;height:8px;
+}
+
 /* ── MOBILE ── */
 @media(max-width:600px){
-  .topbar{padding:9px 13px}
+  .topbar{padding:8px 12px;gap:8px}
   .logo-sub{display:none}
-  .page{padding:18px 13px}
-  .lb-table th:nth-child(n+5),.lb-row td:nth-child(n+5){display:none}
+  /* hide logo tiles on very small screens to save space */
+  .logo-tiles{display:none}
+  .logo-text{font-size:15px;letter-spacing:1px}
+  .page{padding:14px 12px}
+  /* leaderboard: hide RD & W-L columns, keep rank/name/rating/change */
+  .lb-table th:nth-child(4),.lb-row td:nth-child(4),
+  .lb-table th:nth-child(5),.lb-row td:nth-child(5){display:none}
   .hide-mobile{display:none}
   .login-trigger-btn span{display:none}
+  .login-trigger-btn{padding:6px 8px}
+  /* smaller rank font on mobile */
+  .rank-cell{font-size:17px;width:36px}
+  .lb-row td{padding:10px 8px}
+  .lb-table th{padding:8px 8px}
+  .player-name{font-size:13px}
+  .rating-val{font-size:14px}
+  /* trend badge compact */
+  .trend-badge{font-size:10px;padding:2px 5px}
+  /* stat cards 2 per row already, just tighten */
+  .stat-card .val{font-size:24px}
+  /* sync pill: show full label on mobile too (it's the LIVE indicator) */
+  .sync-pill span.sync-label{display:inline!important}
+  .sync-pill{font-size:9px;padding:3px 7px}
 }
 .tab-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(9,9,15,.96);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:8px 0 env(safe-area-inset-bottom)}
 @media(max-width:600px){
   .tab-bar{display:flex}
-  .page{padding-bottom:88px}
+  .page{padding-bottom:84px}
   .topbar-nav{display:none}
   .admin-badge span.label{display:none}
+  /* active tab indicator */
+  .tab-item.act::after{content:'';position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);width:18px;height:2px;background:var(--gold);border-radius:1px}
 }
-.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 2px;background:none;border:none;color:var(--text2);font-size:10px;font-family:'Sarabun',sans-serif;cursor:pointer;transition:color .15s}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;background:none;border:none;color:var(--text2);font-size:10px;font-family:'Sarabun',sans-serif;cursor:pointer;transition:color .15s;position:relative}
 .tab-item.act{color:var(--gold)}
 .tab-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 
@@ -272,15 +326,13 @@ body.is-admin .admin-only{display:inline-flex}
 .cloud-btn-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 
 /* ── REALTIME SYNC INDICATOR ── */
-.sync-pill{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 9px;border-radius:20px;border:1px solid transparent;transition:all .3s;flex-shrink:0;white-space:nowrap}
-.sync-pill.idle{background:rgba(63,214,138,.08);border-color:rgba(63,214,138,.2);color:var(--green)}
+.sync-pill{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 9px;border-radius:20px;border:1px solid transparent;transition:all .3s;flex-shrink:0;white-space:nowrap;cursor:pointer;position:relative}
 .sync-pill.syncing{background:rgba(232,200,74,.08);border-color:rgba(232,200,74,.2);color:var(--gold)}
 .sync-pill.err{background:rgba(232,80,106,.08);border-color:rgba(232,80,106,.2);color:var(--red)}
 .sync-pill.offline{background:var(--card);border-color:var(--border);color:var(--muted)}
 .sync-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
 .sync-pill.idle .sync-dot{animation:pulse 3s infinite}
 .sync-pill.syncing .sync-dot{animation:spin .8s linear infinite;border-radius:0;clip-path:none;background:none;border:1.5px solid currentColor;border-top-color:transparent;width:7px;height:7px}
-@media(max-width:600px){.sync-pill span.sync-label{display:none}}
 </style>
 </head>
 <body>
@@ -1906,6 +1958,11 @@ function stopPolling() {
 
 // กด sync indicator เพื่อ refresh ทันที
 function manualRefresh() {
+  const pill = document.getElementById('syncPill');
+  if (pill) {
+    pill.classList.add('refreshing');
+    setTimeout(() => pill.classList.remove('refreshing'), 900);
+  }
   pollGist(false);
 }
 

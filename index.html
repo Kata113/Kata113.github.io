@@ -270,6 +270,17 @@ body.is-admin .admin-only{display:inline-flex}
 .api-key-input:focus{border-color:var(--blue)}
 .api-key-input::placeholder{color:var(--muted)}
 .cloud-btn-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+
+/* ── REALTIME SYNC INDICATOR ── */
+.sync-pill{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 9px;border-radius:20px;border:1px solid transparent;transition:all .3s;flex-shrink:0;white-space:nowrap}
+.sync-pill.idle{background:rgba(63,214,138,.08);border-color:rgba(63,214,138,.2);color:var(--green)}
+.sync-pill.syncing{background:rgba(232,200,74,.08);border-color:rgba(232,200,74,.2);color:var(--gold)}
+.sync-pill.err{background:rgba(232,80,106,.08);border-color:rgba(232,80,106,.2);color:var(--red)}
+.sync-pill.offline{background:var(--card);border-color:var(--border);color:var(--muted)}
+.sync-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.sync-pill.idle .sync-dot{animation:pulse 3s infinite}
+.sync-pill.syncing .sync-dot{animation:spin .8s linear infinite;border-radius:0;clip-path:none;background:none;border:1.5px solid currentColor;border-top-color:transparent;width:7px;height:7px}
+@media(max-width:600px){.sync-pill span.sync-label{display:none}}
 </style>
 </head>
 <body>
@@ -307,6 +318,12 @@ body.is-admin .admin-only{display:inline-flex}
     <span class="admin-dot"></span>
     <span class="label">ADMIN</span>
     <button onclick="logout()" style="background:none;border:none;color:var(--admin-accent);cursor:pointer;font-size:12px;padding:0;margin-left:4px;opacity:.7" title="ออกจากระบบ">✕</button>
+  </div>
+
+  <!-- realtime sync indicator -->
+  <div class="sync-pill offline" id="syncPill" title="สถานะการซิงค์ข้อมูล" onclick="manualRefresh()" style="cursor:pointer">
+    <span class="sync-dot"></span>
+    <span class="sync-label" id="syncLabel">—</span>
   </div>
 
   <!-- login button + dropdown (shown when NOT logged in) -->
@@ -762,18 +779,21 @@ function autoSyncToGist() {
     try {
       const patForMeta = localStorage.getItem(STORE.githubPat) || gistWriteToken;
       const obfuscatedPat = patForMeta ? obfuscateToken(patForMeta) : '';
+      const nowISO = new Date().toISOString();
       const files = {
         'players.json': { content: JSON.stringify(players, null, 2) },
         'games.json': { content: JSON.stringify(games, null, 2) },
         'tournaments.json': { content: JSON.stringify(tournaments, null, 2) },
         'pending.json': { content: JSON.stringify(pendingGames, null, 2) },
         'meta.json': { content: JSON.stringify({ 
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: nowISO,
           imgbbKey: localStorage.getItem(STORE.imgbbKey) || '',
           secToken: obfuscatedPat
         }, null, 2) }
       };
       await updateGist(gistId, files);
+      // อัปเดต timestamp ที่รู้อยู่แล้ว เพื่อให้ poll ครั้งถัดไปไม่ re-render โดยไม่จำเป็น
+      lastGistUpdatedAt = nowISO;
       console.log('Gist auto-synced successfully');
     } catch (e) {
       console.error('Gist auto-sync failed:', e);
@@ -1759,77 +1779,154 @@ function confirmDeleteGame(id){
 }
 
 // ══ INIT ══
-const DEFAULT_GIST_ID = 'f0d77dc82c462869e487a304418c01fd'; // แอดมินสามารถใส่ Gist ID เริ่มต้นตรงนี้ เพื่อให้ผู้ใช้ทั่วไปโหลดข้อมูลโดยอัตโนมัติ (เช่น '12345...')
+const DEFAULT_GIST_ID = 'f0d77dc82c462869e487a304418c01fd'; // แอดมินสามารถใส่ Gist ID เริ่มต้นตรงนี้
 
-// ตรวจสอบ Gist ID จาก URL parameter (เช่น ?gist=GIST_ID)
+// ── URL param override ──
 const urlParams = new URLSearchParams(window.location.search);
 const queryGistId = urlParams.get('gist') || urlParams.get('gistId');
-if (queryGistId) {
-  localStorage.setItem(STORE.gistId, queryGistId);
+if (queryGistId) localStorage.setItem(STORE.gistId, queryGistId);
+if (!localStorage.getItem(STORE.gistId) && DEFAULT_GIST_ID) localStorage.setItem(STORE.gistId, DEFAULT_GIST_ID);
+
+// Reset old default password
+if (localStorage.getItem(STORE.pwd) === 'admin1234') localStorage.removeItem(STORE.pwd);
+
+// ══ REALTIME SYNC ENGINE ══
+const POLL_INTERVAL = 30000; // poll ทุก 30 วิ
+let pollTimer = null;
+let lastGistUpdatedAt = null; // ISO string จาก meta.json
+let isSyncing = false;
+
+function setSyncPill(state, label) {
+  const pill = document.getElementById('syncPill');
+  const lbl  = document.getElementById('syncLabel');
+  if (!pill) return;
+  pill.className = 'sync-pill ' + state;
+  if (lbl) lbl.textContent = label;
 }
 
-// โหลด Gist ID เริ่มต้นลง localStorage หากยังไม่มีการตั้งค่า
-if (!localStorage.getItem(STORE.gistId) && DEFAULT_GIST_ID) {
-  localStorage.setItem(STORE.gistId, DEFAULT_GIST_ID);
-}
+// โหลดข้อมูลจาก Gist แล้ว update ถ้ามีการเปลี่ยนแปลง
+async function pollGist(isInitial = false) {
+  const gistId = localStorage.getItem(STORE.gistId);
+  if (!gistId) {
+    setSyncPill('offline', 'ออฟไลน์');
+    if (isInitial) { renderLeaderboard(); renderPendingBanner(); if(currentPage==='admin')loadCloudInputs(); }
+    return;
+  }
+  if (isSyncing) return;
+  isSyncing = true;
+  setSyncPill('syncing', 'กำลังโหลด...');
 
-// Reset stored password to new default if it was the old default
-if (localStorage.getItem(STORE.pwd) === 'admin1234') {
-  localStorage.removeItem(STORE.pwd);
-}
-renderLeaderboard();
-renderPendingBanner();
+  try {
+    const gistData = await fetchGist(gistId);
 
-if (currentPage === 'admin') {
-  loadCloudInputs();
-}
-
-const initGistId = localStorage.getItem(STORE.gistId);
-if (initGistId) {
-  updateCloudStatus('loading', 'กำลังโหลดข้อมูลจาก Gist...');
-  fetchGist(initGistId).then(gistFiles => {
-    let updated = false;
-    if (gistFiles.files['players.json']?.content) {
-      players = JSON.parse(gistFiles.files['players.json'].content);
-      localStorage.setItem(STORE.players, JSON.stringify(players));
-      updated = true;
-    }
-    if (gistFiles.files['games.json']?.content) {
-      games = JSON.parse(gistFiles.files['games.json'].content);
-      localStorage.setItem(STORE.games, JSON.stringify(games));
-      updated = true;
-    }
-    if (gistFiles.files['tournaments.json']?.content) {
-      tournaments = JSON.parse(gistFiles.files['tournaments.json'].content);
-      localStorage.setItem(STORE.tournaments, JSON.stringify(tournaments));
-      updated = true;
-    }
-    if (gistFiles.files['pending.json']?.content) {
-      pendingGames = JSON.parse(gistFiles.files['pending.json'].content);
-      localStorage.setItem(STORE.pending, JSON.stringify(pendingGames));
-      updated = true;
-    }
-    if (gistFiles.files['meta.json']?.content) {
-      const meta = JSON.parse(gistFiles.files['meta.json'].content);
-      if (meta.secToken) {
-        gistWriteToken = deobfuscateToken(meta.secToken);
-      }
+    // ── ตรวจสอบ meta ก่อน เพื่อดูว่ามีการเปลี่ยนแปลงหรือยัง ──
+    let newUpdatedAt = null;
+    if (gistData.files['meta.json']?.content) {
+      const meta = JSON.parse(gistData.files['meta.json'].content);
+      newUpdatedAt = meta.lastUpdated || null;
+      if (meta.secToken) gistWriteToken = deobfuscateToken(meta.secToken);
       if (meta.imgbbKey && !localStorage.getItem(STORE.imgbbKey)) {
         localStorage.setItem(STORE.imgbbKey, meta.imgbbKey);
       }
     }
-    if (updated) {
-      renderAll();
-      if (currentPage === 'players') renderPlayers();
-      if (currentPage === 'games') renderGames();
-      if (currentPage === 'tournaments') renderTournaments();
+
+    // ถ้าไม่ใช่ครั้งแรก และ timestamp ไม่เปลี่ยน → ข้ามการ render
+    const hasChanged = isInitial || (newUpdatedAt !== lastGistUpdatedAt);
+    lastGistUpdatedAt = newUpdatedAt;
+
+    if (hasChanged) {
+      let updated = false;
+      if (gistData.files['players.json']?.content) {
+        players = JSON.parse(gistData.files['players.json'].content);
+        localStorage.setItem(STORE.players, JSON.stringify(players));
+        updated = true;
+      }
+      if (gistData.files['games.json']?.content) {
+        games = JSON.parse(gistData.files['games.json'].content);
+        localStorage.setItem(STORE.games, JSON.stringify(games));
+        updated = true;
+      }
+      if (gistData.files['tournaments.json']?.content) {
+        tournaments = JSON.parse(gistData.files['tournaments.json'].content);
+        localStorage.setItem(STORE.tournaments, JSON.stringify(tournaments));
+        updated = true;
+      }
+      if (gistData.files['pending.json']?.content) {
+        pendingGames = JSON.parse(gistData.files['pending.json'].content);
+        localStorage.setItem(STORE.pending, JSON.stringify(pendingGames));
+        updated = true;
+      }
+
+      if (updated || isInitial) {
+        renderAll();
+        if (currentPage === 'players') renderPlayers();
+        if (currentPage === 'games') renderGames();
+        if (currentPage === 'tournaments') renderTournaments();
+        if (currentPage === 'admin') loadCloudInputs();
+      }
+
+      if (!isInitial && hasChanged) {
+        // flash สั้นๆ แจ้งว่ามีข้อมูลใหม่
+        setSyncPill('syncing', '✦ อัปเดตแล้ว');
+        setTimeout(() => setIdlePill(), 1500);
+      } else {
+        setIdlePill();
+      }
+    } else {
+      setIdlePill();
     }
+
+    // อัปเดต admin cloud status ด้วยถ้าอยู่หน้า admin
     checkCloudConnection();
-  }).catch(err => {
-    console.error('Failed to load Gist data on init:', err);
-    updateCloudStatus('err', 'โหลดข้อมูลล้มเหลว (ใช้ออฟไลน์)');
-  });
+
+  } catch (err) {
+    console.error('Poll Gist failed:', err);
+    setSyncPill('err', 'โหลดล้มเหลว');
+  } finally {
+    isSyncing = false;
+  }
 }
+
+function setIdlePill() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+  setSyncPill('idle', `LIVE · ${hh}:${mm}:${ss}`);
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => pollGist(false), POLL_INTERVAL);
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+// กด sync indicator เพื่อ refresh ทันที
+function manualRefresh() {
+  pollGist(false);
+}
+
+// ── visibility API: หยุด poll เมื่อ tab ซ่อน, เริ่มใหม่เมื่อกลับมา ──
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopPolling();
+  } else {
+    pollGist(false); // โหลดทันทีเมื่อกลับมา
+    startPolling();
+  }
+});
+
+// ── เริ่ม ──
+// render จาก localStorage ก่อน (เร็ว) แล้ว Gist จะ override ทันที
+renderLeaderboard();
+renderPendingBanner();
+if (currentPage === 'admin') loadCloudInputs();
+
+// โหลด Gist ครั้งแรก แล้วเริ่ม polling
+pollGist(true).then(() => startPolling());
 </script>
 </body>
 </html>

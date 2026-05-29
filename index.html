@@ -258,7 +258,7 @@ body.is-admin .admin-only{display:inline-flex}
 .drawer-nav-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:9px;background:none;border:none;color:var(--text2);font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;width:100%;text-align:left;text-decoration:none;transition:background .15s,color .15s}
 .drawer-nav-item:hover{background:var(--card);color:var(--text)}
 .drawer-nav-item.act{background:var(--card);color:var(--gold)}
-.drawer-nav-item svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.drawer-nav-item svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;overflow:visible}
 .drawer-nav-item.cwbs{color:var(--gold);background:rgba(232,200,74,.07);border:1px solid rgba(232,200,74,.15)}
 .drawer-nav-item.cwbs:hover{background:rgba(232,200,74,.14)}
 .drawer-nav-item.admin-item{color:var(--admin-accent);background:rgba(176,108,255,.07);border:1px solid rgba(176,108,255,.15)}
@@ -459,13 +459,13 @@ body.is-admin .admin-only{display:inline-flex}
       <svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M5 3h14l-1 9a6 6 0 01-12 0L5 3z"/><path d="M5 3a2 2 0 00-2 2v1a2 2 0 002 2h.5M19 3a2 2 0 012 2v1a2 2 0 01-2 2h-.5"/></svg>ทัวร์นาเมนต์
     </button>
     <div class="drawer-divider"></div>
-    <a href="./CWBS/CWBSv2.html" target="_blank" class="drawer-nav-item cwbs" onclick="closeDrawer()">
+    <button class="drawer-nav-item cwbs" onclick="window.open('./CWBS/CWBSv2.html','_blank');closeDrawer()">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
       CWBS
-      <svg viewBox="0 0 24 24" style="width:11px;height:11px;margin-left:auto;opacity:.6"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </a>
-    <button class="drawer-nav-item admin-item drawer-admin-only" id="drawerNav-admin" onclick="navDrawer('admin')" style="display:none">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <svg viewBox="0 0 24 24" style="width:11px;height:11px;margin-left:auto;opacity:.6;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </button>
+    <button class="drawer-nav-item admin-item" id="drawerNav-admin" onclick="navDrawer('admin')" style="display:none">
+      <svg viewBox="0 0 24 24" style="stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
       Admin Panel
     </button>
   </div>

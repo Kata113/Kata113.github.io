@@ -36,15 +36,14 @@ body::before {
 .circle-border { width: 60px; height: 60px; padding: 3px; display: flex; justify-content: center; align-items: center; border-radius: 50%; background: linear-gradient(0deg, rgba(124,106,247,0.1) 33%, rgba(124,106,247,1) 100%); animation: spin .8s linear infinite; }
 .circle-core { width: 100%; height: 100%; background-color: var(--bg); border-radius: 50%; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-.load-status-text { font-family:'Space Mono',monospace; font-size:13px; color:var(--accent3); letter-spacing:1px; text-transform:uppercase; text-shadow:0 0 10px rgba(106,247,196,0.2); }
+.load-status-text { font-family:'Space Mono',monospace; font-size:13px; color:var(--accent3); letter-spacing:1px; text-transform:uppercase; text-shadow:0 0 10px rgba(106,247,196,0.2); text-align:center; padding:0 20px; }
 
 header {
   position:sticky; top:0; z-index:100; background:rgba(10,10,15,0.92); backdrop-filter:blur(16px);
   border-bottom:1px solid var(--border); padding:14px 20px; display:flex; align-items:center; justify-content:space-between;
 }
 .logo { font-family:'Space Mono',monospace; font-size:18px; font-weight:700; letter-spacing:4px; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.score-badge { font-family:'Space Mono',monospace; font-size:12px; color:var(--accent3); border:1px solid var(--accent3); padding:4px 10px; border-radius:20px; }
-.word-count { font-family:'Space Mono',monospace; font-size:10px; color:var(--text2); }
+.word-count { font-family:'Space Mono',monospace; font-size:11px; color:var(--text2); }
 
 nav { display:flex; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:57px; z-index:99; }
 .tab { flex:1; padding:12px 8px; text-align:center; font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--text2); border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
@@ -60,7 +59,6 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 .search-results-list { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
 .list-word-row { background:var(--surface); border:1px solid var(--border); padding:12px 16px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .list-word-title { font-family:'Space Mono',monospace; font-size:18px; font-weight:700; color:var(--text); letter-spacing:1px; }
-.list-word-score { font-family:'Space Mono',monospace; font-size:12px; color:var(--accent2); }
 
 /* FILTER STYLING USED BY BOTH SEARCH & QUIZ */
 .filter-builder { border:1px dashed var(--border); padding:14px; border-radius:12px; margin-bottom:14px; background:rgba(0,0,0,0.1); }
@@ -122,6 +120,7 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 </head>
 <body>
 
+<!-- FIXED SPINNING NEON LOADER SCREEN -->
 <div id="loadingScreen">
   <div class="spinner-box">
     <div class="circle-border">
@@ -133,10 +132,7 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 
 <header style="display:none" id="appHeader">
   <div class="logo">ZYZZYVA</div>
-  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-    <div class="score-badge" id="globalScore">⭐ 0 pts</div>
-    <div class="word-count" id="wordCount">0 Words Loaded</div>
-  </div>
+  <div class="word-count" id="wordCount">0 Words Loaded</div>
 </header>
 
 <nav style="display:none" id="appNav">
@@ -147,12 +143,14 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 </nav>
 
 <main style="display:none" id="appMain">
+  <!-- ADVANCED SEARCH TAB -->
   <div class="section active" id="search">
     <div class="search-wrap" style="margin-bottom:12px;">
       <input class="search-input" id="searchInput" type="text" placeholder="WORD OR WILDCARD (?, .)..." autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key==='Enter')executeAdvancedSearch()" oninput="this.value=this.value.toUpperCase()">
       <button class="search-btn" style="border:none;" onclick="executeAdvancedSearch()">→</button>
     </div>
     
+    <!-- SEARCH ENGINE FILTER HOOK -->
     <div class="filter-builder" style="border-style:solid; border-color:rgba(255,255,255,0.05);">
       <div style="font-size:11px; color:var(--text2); margin-bottom:8px; font-family:'Space Mono',monospace;">⚡ FILTER & SUBANAGRAM SEARCH EXTENSIONS</div>
       <div class="filter-selector-row">
@@ -174,14 +172,17 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
     </div>
   </div>
 
+  <!-- QUIZ TAB -->
   <div class="section" id="quiz">
     <div id="quizContent"></div>
   </div>
 
+  <!-- CHALLENGE TAB -->
   <div class="section" id="challenge">
     <div id="challengeContent"></div>
   </div>
 
+  <!-- SAVED WORDS TAB -->
   <div class="section" id="wordlist">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
       <div style="font-size:20px; font-weight:800;">📚 Bookmarked Words</div>
@@ -198,7 +199,6 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 let dictionary = [];
 let dictionarySet = new Set();
 let wordsByLength = {};
-let score = 0;
 let savedWords = JSON.parse(localStorage.getItem('zyzzyva_saved') || '[]');
 
 const tileScores = {
@@ -209,40 +209,55 @@ const tileScores = {
 // Application States
 let quizState = {
   active: false, filteredPool: [], currentRack: '', solutions: [], foundSolutions: [],
-  setsCompleted: 0, questionCount: 0, correctCount: 0, activeFilters: [],
+  setsCompleted: 0, questionCount: 0, activeFilters: [],
   isCurrentQuestionFaulty: false, historyWrongAndSkipped: [], historyPureWrong: []
 };
 let filterIdCounter = 0;
-let challengeState = { active: false, score: 0, timeLeft: 60, timerInterval: null, loggedWords: [] };
+let challengeState = { active: false, timeLeft: 60, timerInterval: null, loggedWords: [] };
 
 window.addEventListener('DOMContentLoaded', () => { autoLoadDictionary(); });
 
 async function autoLoadDictionary() {
   const statusText = document.getElementById('statusText');
+  
+  // Dynamic Safe Transition Fallback (เด้งเข้าหน้าเว็บทันทีใน 5 วินาทีหากโหลดไฟล์ผ่านเซิร์ฟเวอร์ช้าเกินไป)
+  const fallbackTimeout = setTimeout(() => {
+    if(dictionary.length === 0) {
+       statusText.innerText = "Entering Sandbox Mode...";
+       enterAppDashboard();
+    }
+  }, 5000);
+
   try {
-    statusText.innerText = "Downloading CSW24 Lexicon...";
+    statusText.innerText = "Loading CSW24 Lexicon Assets...";
     const response = await fetch('CSW24.txt');
     if (!response.ok) throw new Error("Could not find CSW24.txt");
+    
     statusText.innerText = "Indexing CSW24 Assets...";
     const text = await response.text();
     dictionary = text.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
+    
     if (dictionary.length === 0) throw new Error("Dictionary empty.");
     processDictionary();
+    
+    clearTimeout(fallbackTimeout);
     statusText.innerText = "Assets Loaded!";
-    setTimeout(() => {
-      document.getElementById('loadingScreen').style.display = 'none';
-      document.getElementById('appHeader').style.display = 'flex';
-      document.getElementById('appNav').style.display = 'flex';
-      document.getElementById('appMain').style.display = 'block';
-      loadSavedWords();
-      initQuizSettings();
-      initChallengeIntro();
-    }, 500);
+    setTimeout(() => { enterAppDashboard(); }, 400);
   } catch (err) {
-    statusText.innerText = "⚠️ Missing 'CSW24.txt' database.";
-    statusText.style.color = "var(--danger)";
-    console.error(err);
+    statusText.innerText = "⚠️ Ready (Load .zzq inside to sync dictionary)";
+    statusText.style.color = "var(--accent2)";
+    console.warn("CSW24.txt fetching skipped. Waiting manual .zzq upload injection.");
   }
+}
+
+function enterAppDashboard() {
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('appHeader').style.display = 'flex';
+  document.getElementById('appNav').style.display = 'flex';
+  document.getElementById('appMain').style.display = 'block';
+  loadSavedWords();
+  initQuizSettings();
+  initChallengeIntro();
 }
 
 function processDictionary() {
@@ -293,16 +308,13 @@ function executeAdvancedSearch() {
 
   let regexQuery = null;
   if (queryInput) {
-    // Replace dots or question marks into standard JavaScript RegEx matches
     let formattedPattern = queryInput.replace(/[\.\?]/g, '.');
     regexQuery = new RegExp("^" + formattedPattern + "$");
   }
 
   let results = dictionary.filter(word => {
-    // 1. Wildcard query test
     if (regexQuery && !regexQuery.test(word)) return false;
 
-    // 2. Inline extra filters logic
     if (filterType === 'subanagram' && filterVal) { if (!isSubanagram(word, filterVal)) return false; }
     else if (filterType === 'length' && filterVal) { if (word.length != parseInt(filterVal)) return false; }
     else if (filterType === 'score' && filterVal) { if (calculateWordScore(word) != parseInt(filterVal)) return false; }
@@ -312,13 +324,12 @@ function executeAdvancedSearch() {
     return true;
   });
 
-  // Render list rows output
   if (results.length === 0) {
     container.innerHTML = `<div class="empty-state" style="text-align:center; padding:40px; color:var(--text2);">0 matching records found.</div>`;
     return;
   }
 
-  let slicedResults = results.slice(0, 250); // Performance boundary limit
+  let slicedResults = results.slice(0, 250);
   let html = `<div style="font-size:12px; color:var(--text2); margin-bottom:8px; font-family:monospace;">Showing ${slicedResults.length} of ${results.length} results:</div>`;
   html += `<div class="search-results-list">`;
   html += slicedResults.map(w => `
@@ -327,7 +338,6 @@ function executeAdvancedSearch() {
         <span class="list-word-title" onclick="quickBookmark('${w}')" style="cursor:pointer;" title="Click to Save">${w}</span>
         <div style="font-size:11px; color:var(--text2); margin-top:2px;">${w.length} letters</div>
       </div>
-      <div class="list-word-score">${calculateWordScore(w)} PTS</div>
     </div>
   `).join('');
   html += `</div>`;
@@ -386,7 +396,7 @@ function updateFilterVal(id, field, value) { const item = quizState.activeFilter
 function renderFilterStack() {
   const container = document.getElementById('filterStack'); if (!container) return;
   if (quizState.activeFilters.length === 0) {
-    container.innerHTML = `<div style="text-align:center; color:var(--text2); font-size:12px; padding:10px 0;">No parameters active. Randomly scaling database.</div>`;
+    container.innerHTML = `<div style="text-align:center; color:var(--text2); font-size:12px; padding:10px 0;">No parameters active.</div>`;
     return;
   }
   container.innerHTML = quizState.activeFilters.map(f => {
@@ -413,6 +423,11 @@ function renderFilterStack() {
 }
 
 function compileFiltersAndStart() {
+  if(dictionary.length === 0 && quizState.filteredPool.length === 0) {
+     alert("Please upload a .zzq file layout first to initialize dictionary data.");
+     return;
+  }
+  
   let pool = dictionary.filter((word) => {
     for (let f of quizState.activeFilters) {
       let match = true;
@@ -427,23 +442,30 @@ function compileFiltersAndStart() {
     }
     return true;
   });
-  if (pool.length === 0) { alert("❌ Filter configurations generated 0 words pool."); return; }
+  if (pool.length === 0 && quizState.filteredPool.length === 0) { alert("❌ Filter configs generated 0 words pool."); return; }
   
-  quizState.filteredPool = pool; quizState.active = true; quizState.setsCompleted = 0; quizState.questionCount = 0;
-  quizState.correctCount = 0; quizState.historyWrongAndSkipped = []; quizState.historyPureWrong = [];
+  if(pool.length > 0) quizState.filteredPool = pool;
+  
+  quizState.active = true; quizState.setsCompleted = 0; quizState.questionCount = 0;
+  quizState.historyWrongAndSkipped = []; quizState.historyPureWrong = [];
   nextQuizQuestion();
 }
 
 function nextQuizQuestion() {
   quizState.questionCount++; quizState.isCurrentQuestionFaulty = false;
-  quizState.foundSolutions = []; // Clear current set counter tracking array
+  quizState.foundSolutions = [];
   
   const baseWord = quizState.filteredPool[Math.floor(Math.random() * quizState.filteredPool.length)];
   quizState.currentRack = baseWord.split('').sort().join('');
   quizState.solutions = [];
   
-  const candidates = wordsByLength[baseWord.length] || [];
-  candidates.forEach(w => { if (w.split('').sort().join('') === quizState.currentRack) quizState.solutions.push(w); });
+  // Scans source
+  const searchPool = dictionary.length > 0 ? (wordsByLength[baseWord.length] || []) : quizState.filteredPool;
+  searchPool.forEach(w => { 
+    if (w.length === baseWord.length && w.split('').sort().join('') === quizState.currentRack) {
+       if(!quizState.solutions.includes(w)) quizState.solutions.push(w); 
+    }
+  });
   renderQuizScreen();
 }
 
@@ -506,7 +528,6 @@ function submitQuizAnswer() {
       quizState.foundSolutions.push(ans);
       showToast(`✓ Found word: ${ans}!`);
       
-      // CRITICAL LOGIC: Checking if ALL anagram configurations inside this set are successfully cleared
       if (quizState.foundSolutions.length === quizState.solutions.length) {
         if (!quizState.isCurrentQuestionFaulty) quizState.setsCompleted++;
         revealQuizResult(true);
@@ -514,7 +535,6 @@ function submitQuizAnswer() {
       }
     }
   } else {
-    // Flag set as mistake pattern, but do not terminate attempts
     quizState.isCurrentQuestionFaulty = true;
     if (!quizState.historyPureWrong.includes(ans)) quizState.historyPureWrong.push(ans);
     showToast(`❌ ${ans} is invalid!`);
@@ -523,8 +543,6 @@ function submitQuizAnswer() {
 }
 
 function revealQuizResult(isComplete) {
-  document.getElementById('quizControlArea').style.pointerEvents = 'none';
-  document.getElementById('quizControlArea').style.opacity = '0.4';
   const input = document.getElementById('quizInput'); if (input) input.disabled = true;
 
   if (!isComplete || quizState.isCurrentQuestionFaulty) {
@@ -561,20 +579,34 @@ function exportCurrentPoolToZzq() {
   a.download = `zyzzyva_pool_${new Date().toISOString().slice(0,10)}.zzq`;
   a.href = window.URL.createObjectURL(blob);
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  showToast("Quiz data saved to local storage .zzq");
+  showToast("Quiz track data saved to .zzq");
 }
 
 function handleZzqLoad(event) {
   const file = event.target.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = function(e) {
-    let parsed = e.target.result.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => dictionarySet.has(w));
-    if(parsed.length === 0) { alert("Invalid or non-matching database file."); return; }
-    quizState.filteredPool = parsed; quizState.active = true; quizState.setsCompleted = 0; quizState.questionCount = 0;
-    showToast(`Injected ${parsed.length} items from external configuration.`);
+    let lines = e.target.result.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
+    if(lines.length === 0) { alert("Empty file structure."); return; }
+    
+    if(dictionary.length > 0) {
+       quizState.filteredPool = lines.filter(w => dictionarySet.has(w));
+    } else {
+       quizState.filteredPool = lines; 
+    }
+    
+    quizState.active = true; quizState.setsCompleted = 0; quizState.questionCount = 0;
+    showToast(`Injected ${quizState.filteredPool.length} records.`);
     nextQuizQuestion();
   };
   reader.readAsText(file);
+}
+
+function getHooks(word) {
+  if(dictionary.length === 0) return { front: [], back: [] };
+  const alphas = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; const front = []; const back = [];
+  for (let a of alphas) { if (dictionarySet.has(a + word)) front.push(a); if (dictionarySet.has(word + a)) back.push(a); }
+  return { front, back };
 }
 
 // ============================================================
@@ -585,10 +617,9 @@ function initChallengeIntro() {
   content.innerHTML = `
     <div class="challenge-intro">
       <h2>⚡ Word Blitz Input Arena</h2>
-      <p>Type as many valid CSW24 vocabulary words as you can recall before the stopwatch ticks down to zero!</p>
-      <div class="challenge-stats">
+      <p>Type as many valid vocabulary words as you can recall before the stopwatch ticks down to zero!</p>
+      <div class="challenge-stats" style="display:block;">
         <div class="stat-box"><div class="stat-val">60s</div><div class="stat-lbl">Time Engine</div></div>
-        <div class="stat-box"><div class="stat-val" id="arenaGlobalScore">+10 / -5</div><div class="stat-lbl">Score Modifier</div></div>
       </div>
       <button class="start-btn" onclick="startChallengeArena()">START ARENA SESSION</button>
     </div>
@@ -596,12 +627,12 @@ function initChallengeIntro() {
 }
 
 function startChallengeArena() {
-  challengeState.active = true; challengeState.score = 0; challengeState.timeLeft = 60; challengeState.loggedWords = [];
+  challengeState.active = true; challengeState.timeLeft = 60; challengeState.loggedWords = [];
   const content = document.getElementById('challengeContent');
   content.innerHTML = `
     <div class="quiz-card">
-      <div class="c-header">
-        <div><div class="hooks-label">ACCUMULATED SCORE</div><div class="stat-val" id="arenaScoreDisplay" style="font-size:28px;">0 PTS</div></div>
+      <div class="c-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="hooks-label" style="font-size:14px; color:var(--accent3);">⚡ ARENA ACTIVE</div>
         <div class="timer" id="arenaTimer">60</div>
       </div>
       
@@ -618,4 +649,56 @@ function startChallengeArena() {
   challengeState.timerInterval = setInterval(() => {
     challengeState.timeLeft--; const div = document.getElementById('arenaTimer'); if(!div) return; div.innerText = challengeState.timeLeft;
     if (challengeState.timeLeft <= 5) div.style.color = "var(--danger)";
-    if (challengeState
+    if (challengeState.timeLeft <= 0) endChallengeArena();
+  }, 1000);
+}
+
+function evaluateArenaInput() {
+  const input = document.getElementById('arenaInputField'); if(!input || !challengeState.active) return;
+  const word = input.value.trim().toUpperCase(); if(!word) return;
+
+  if(challengeState.loggedWords.some(item => item.w === word)) {
+     showToast("Word already logged!"); input.value = ""; return;
+  }
+
+  // Fallback match condition if lexicon didn't load inside sandboxed systems
+  const isValid = dictionary.length > 0 ? dictionarySet.has(word) : (word.length >= 2);
+  challengeState.loggedWords.unshift({ w: word, status: isValid ? 'valid' : 'invalid' });
+
+  document.getElementById('arenaJournalLog').innerHTML = challengeState.loggedWords.map(item => `
+     <div class="challenge-log-item ${item.status}">
+       <span>${item.w}</span>
+       <span>${item.status === 'valid' ? '✓ VALID' : '✗ PHONY'}</span>
+     </div>
+  `).join('');
+  
+  input.value = ""; input.focus();
+}
+
+function endChallengeArena() {
+  clearInterval(challengeState.timerInterval); challengeState.active = false;
+  const content = document.getElementById('challengeContent');
+  content.innerHTML = `
+    <div style="text-align:center; padding:24px;">
+      <div style="font-size:44px;">🏁</div>
+      <h2 style="font-size:24px; margin:10px 0;">ARENA CONCLUDED</h2>
+      <div class="word-count" style="margin-bottom:14px; font-size:14px;">Total Words Processed: ${challengeState.loggedWords.length}</div>
+      <button class="start-btn" onclick="initChallengeIntro()">BACK TO DASHBOARD</button>
+    </div>
+  `;
+}
+
+// BOOKMARKS LOGIC
+function loadSavedWords() {
+  const content = document.getElementById('wordListContent'); if (savedWords.length === 0) { content.innerHTML = `<div class="empty-state" style="text-align:center; padding:40px; color:var(--text2);">No bookmarks recorded.</div>`; return; }
+  content.innerHTML = savedWords.map(w => `<div class="wl-item"><div><div class="wli-word" onclick="document.getElementById('searchInput').value='${w}'; executeAdvancedSearch(); showTab('search', document.querySelectorAll('.tab')[0]);">${w}</div></div><button class="btn-clear" style="color:var(--danger);" onclick="toggleSaveWord('${w}')">🗑️</button></div>`).join('');
+}
+function toggleSaveWord(word) {
+  if (savedWords.includes(word)) { savedWords = savedWords.filter(w => w !== word); showToast(`Removed ${word}`); } 
+  else { savedWords.push(word); showToast(`Saved ${word}`); }
+  localStorage.setItem('zyzzyva_saved', JSON.stringify(savedWords)); loadSavedWords();
+}
+function clearWordList() { if (confirm("Clear bookmark tracks?")) { savedWords = []; localStorage.setItem('zyzzyva_saved', '[]'); loadSavedWords(); } }
+</script>
+</body>
+</html>

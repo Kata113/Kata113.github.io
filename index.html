@@ -409,9 +409,14 @@ body.is-admin .admin-only{display:inline-flex}
     <button class="tnav" onclick="nav('games',this)">เกม</button>
     <button class="tnav" onclick="nav('tournaments',this)" style="display:none">ทัวร์นาเมนต์</button>
     <button class="tnav admin-only" onclick="nav('admin',this)" style="color:var(--admin-accent);border-color:transparent">⚙ Admin</button>
-    <a href="./CWBS/CWBSv2.html" target="_blank" class="tnav cwbs-link" title="เปิด Crossword Bonus Summary">
+    <a href="https://kata113.github.io/CWBS/" target="_blank" class="tnav cwbs-link" title="เปิด Crossword Bonus Summary">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
       CWBS
+      <svg viewBox="0 0 24 24" style="width:9px;height:9px;opacity:.6"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a href="https://kata113.github.io/Zyzzylu" target="_blank" class="tnav cwbs-link" title="เปิด Zyzzylu" style="background:rgba(63,214,138,.07);border-color:rgba(63,214,138,.18);color:var(--green)">
+      <svg viewBox="0 0 24 24" style="stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      ZZZ
       <svg viewBox="0 0 24 24" style="width:9px;height:9px;opacity:.6"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </a>
   </nav>
@@ -483,9 +488,14 @@ body.is-admin .admin-only{display:inline-flex}
       <svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M5 3h14l-1 9a6 6 0 01-12 0L5 3z"/><path d="M5 3a2 2 0 00-2 2v1a2 2 0 002 2h.5M19 3a2 2 0 012 2v1a2 2 0 01-2 2h-.5"/></svg>ทัวร์นาเมนต์
     </button>
     <div class="drawer-divider"></div>
-    <button class="drawer-nav-item cwbs" onclick="window.open('./CWBS/CWBSv2.html','_blank');closeDrawer()">
+    <button class="drawer-nav-item cwbs" onclick="window.open('https://kata113.github.io/CWBS/','_blank');closeDrawer()">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
       CWBS
+      <svg viewBox="0 0 24 24" style="width:11px;height:11px;margin-left:auto;opacity:.6;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </button>
+    <button class="drawer-nav-item cwbs" onclick="window.open('https://kata113.github.io/Zyzzylu','_blank');closeDrawer()" style="color:var(--green);background:rgba(63,214,138,.07);border-color:rgba(63,214,138,.15)">
+      <svg viewBox="0 0 24 24" style="stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      ZZZ
       <svg viewBox="0 0 24 24" style="width:11px;height:11px;margin-left:auto;opacity:.6;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
     </button>
     <button class="drawer-nav-item admin-item" id="drawerNav-admin" onclick="navDrawer('admin')" style="display:none">

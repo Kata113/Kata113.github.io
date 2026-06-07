@@ -3,760 +3,130 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ZYZZYVA — CSW24</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<title>ZYZZYVA — Quiz System</title>
 <style>
-:root {
-  --bg: #0a0a0f;
-  --surface: #12121a;
-  --surface2: #1a1a26;
-  --border: #2a2a3d;
-  --accent: #7c6af7;
-  --accent2: #f7a06a;
-  --accent3: #6af7c4;
-  --text: #e8e8f0;
-  --text2: #8888aa;
-  --danger: #f76a6a;
-  --success: #6af7a0;
-}
-* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; min-height:100vh; overflow-x:hidden; }
-body::before {
-  content:''; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0.3;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-}
-
-/* AUTOMATIC LOADING SCREEN */
-#loadingScreen {
-  position:fixed; inset:0; background:var(--bg); z-index:9999;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; gap:24px;
-}
-.load-logo { font-family:'Space Mono',monospace; font-size:32px; letter-spacing:8px; font-weight:700;
-  background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.connect-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:35px 24px; max-width:400px; width:100%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
-.connect-title { font-size:18px; font-weight:700; margin-bottom:10px; color:var(--text); }
-.connect-desc { font-size:13px; color:var(--text2); line-height:1.6; margin-bottom:20px; }
-.status-text { font-family:'Space Mono',monospace; font-size:12px; color:var(--accent3); margin-top:14px; }
-
-header {
-  position:sticky; top:0; z-index:100;
-  background:rgba(10,10,15,0.92); backdrop-filter:blur(16px);
-  border-bottom:1px solid var(--border);
-  padding:14px 20px; display:flex; align-items:center; justify-content:space-between;
-}
-.logo { font-family:'Space Mono',monospace; font-size:18px; font-weight:700; letter-spacing:4px;
-  background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.score-badge { font-family:'Space Mono',monospace; font-size:12px; color:var(--accent3);
-  border:1px solid var(--accent3); padding:4px 10px; border-radius:20px; }
-.word-count { font-family:'Space Mono',monospace; font-size:10px; color:var(--text2); }
-
-nav { display:flex; background:var(--surface); border-bottom:1px solid var(--border);
-  position:sticky; top:57px; z-index:99; }
-.tab { flex:1; padding:12px 8px; text-align:center; font-size:11px; font-weight:600;
-  letter-spacing:1px; text-transform:uppercase; color:var(--text2);
-  border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
-.tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-.tab-icon { font-size:16px; display:block; margin-bottom:2px; }
-
-main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 auto; }
-.section { display:none; animation:fadeUp 0.3s ease; }
-.section.active { display:block; }
-@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-
-/* SEARCH */
-.search-wrap { position:relative; margin-bottom:20px; }
-.search-input {
-  width:100%; padding:16px 50px 16px 18px;
-  background:var(--surface); border:1px solid var(--border); border-radius:14px;
-  color:var(--text); font-family:'Space Mono',monospace; font-size:18px;
-  outline:none; text-transform:uppercase; letter-spacing:3px;
-  transition:border-color 0.2s, box-shadow 0.2s;
-}
-.search-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(124,106,247,0.15); }
-.search-btn {
-  position:absolute; right:10px; top:50%; transform:translateY(-50%);
-  background:var(--accent); border:none; border-radius:8px;
-  width:34px; height:34px; cursor:pointer; font-size:16px;
-  display:flex; align-items:center; justify-content:center; transition:opacity 0.2s;
-}
-.search-btn:hover { opacity:0.85; }
-
-.word-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:12px; animation:fadeUp 0.3s ease; }
-.word-title { font-family:'Space Mono',monospace; font-size:32px; font-weight:700; color:var(--accent); letter-spacing:4px; margin-bottom:4px; }
-.word-valid { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:4px 12px; border-radius:20px; margin-bottom:12px; }
-.word-valid.yes { background:rgba(106,247,160,0.1); color:var(--success); border:1px solid var(--success); }
-.word-valid.no { background:rgba(247,106,106,0.1); color:var(--danger); border:1px solid var(--danger); }
-.word-hooks { margin-top:12px; }
-.hooks-label { font-size:11px; color:var(--text2); margin-bottom:6px; font-family:'Space Mono',monospace; }
-.hooks-row { display:flex; flex-wrap:wrap; gap:6px; }
-.hook-pill { font-family:'Space Mono',monospace; font-size:13px; padding:4px 10px; border-radius:8px;
-  background:rgba(124,106,247,0.1); color:var(--accent); border:1px solid rgba(124,106,247,0.3);
-  cursor:pointer; transition:background 0.2s; }
-.hook-pill:hover { background:rgba(124,106,247,0.2); }
-.anagram-section { margin-top:12px; }
-.anagram-row { display:flex; flex-wrap:wrap; gap:6px; }
-.anagram-pill { font-family:'Space Mono',monospace; font-size:13px; padding:4px 10px; border-radius:8px;
-  background:rgba(247,160,106,0.1); color:var(--accent2); border:1px solid rgba(247,160,106,0.3);
-  cursor:pointer; }
-
-.empty-state { text-align:center; padding:50px 20px; color:var(--text2); font-size:14px; }
-.empty-icon { font-size:48px; margin-bottom:12px; }
-
-/* QUIZ */
-.quiz-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:24px 20px; }
-.quiz-progress { display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:11px; color:var(--text2); margin-bottom:12px; }
-.progress-bar { width:100%; height:4px; background:var(--surface2); border-radius:2px; margin-bottom:20px; overflow:hidden; }
-.progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:2px; transition:width 0.4s ease; }
-
-.quiz-mode-label { font-size:11px; color:var(--text2); letter-spacing:2px; margin-bottom:8px; }
-.anagram-display {
-  font-family:'Space Mono',monospace; font-size:34px; font-weight:700; color:var(--accent2);
-  letter-spacing:6px; text-align:center; margin:16px 0;
-  text-shadow:0 0 20px rgba(247,160,106,0.3);
-}
-
-.quiz-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0; }
-.btn-clear { padding:12px; border-radius:10px; background:var(--surface2); border:1px solid var(--border);
-  color:var(--text2); font-family:'Syne',sans-serif; font-size:13px; font-weight:600; cursor:pointer; }
-.btn-submit { padding:12px; border-radius:10px; background:var(--accent); border:none;
-  color:#fff; font-family:'Syne',sans-serif; font-size:13px; font-weight:700; cursor:pointer; }
-
-.quiz-setting-row { margin-bottom: 18px; }
-.quiz-setting-label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 8px; font-family: 'Space Mono', monospace; }
-.quiz-select { width: 100%; padding: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: inherit; outline: none; }
-.quiz-checkbox-group { display: flex; gap: 16px; margin-top: 6px; }
-.quiz-checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
-
-.quiz-analysis { border-radius:12px; padding:16px; margin:12px 0; animation:fadeUp 0.3s ease; }
-.quiz-analysis.correct { background:rgba(106,247,160,0.08); border:1px solid rgba(106,247,160,0.3); }
-.quiz-analysis.wrong { background:rgba(247,106,106,0.08); border:1px solid rgba(247,106,106,0.3); }
-.analysis-result { font-size:18px; font-weight:800; margin-bottom:8px; }
-.analysis-result.correct { color:var(--success); }
-.analysis-result.wrong { color:var(--danger); }
-.analysis-word-block { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.analysis-word-block:last-child { border-bottom: none; }
-.analysis-word { font-family:'Space Mono',monospace; font-size:22px; color:var(--accent); letter-spacing:3px; margin-bottom:4px; }
-.analysis-detail { font-size:13px; color:var(--text2); line-height:1.6; }
-.next-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:12px; color:#fff; font-family:'Syne',sans-serif; font-size:15px; font-weight:700; cursor:pointer; margin-top:8px; }
-
-/* CHALLENGE */
-.challenge-intro { text-align:center; padding:10px 0 20px; }
-.challenge-intro h2 { font-size:28px; font-weight:800; margin-bottom:8px; }
-.challenge-intro p { color:var(--text2); font-size:14px; line-height:1.6; margin-bottom:24px; }
-.challenge-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:24px; }
-.stat-box { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 10px; text-align:center; }
-.stat-val { font-family:'Space Mono',monospace; font-size:24px; font-weight:700; color:var(--accent); }
-.stat-lbl { font-size:11px; color:var(--text2); margin-top:2px; }
-.start-btn { width:100%; padding:18px; border:none; border-radius:14px; background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; font-family:'Syne',sans-serif; font-size:18px; font-weight:800; cursor:pointer; letter-spacing:2px; }
-
-.c-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-.c-label { font-size:11px; color:var(--text2); font-family:'Space Mono',monospace; }
-.c-score { font-size:22px; font-weight:800; }
-.timer { font-family:'Space Mono',monospace; font-size:28px; color:var(--accent3); background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:8px 18px; min-width:70px; text-align:center; }
-.timer.warn { color:var(--accent2); }
-.timer.danger { color:var(--danger); animation:pulse 0.5s infinite alternate; }
-
-.c-word-display { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:28px 20px; text-align:center; margin-bottom:16px; }
-.c-word { font-family:'Space Mono',monospace; font-size:38px; font-weight:700; color:var(--text); letter-spacing:6px; margin-bottom:8px; word-break:break-all; text-shadow:0 0 30px rgba(124,106,247,0.2); }
-.c-word-len { font-size:12px; color:var(--text2); font-family:'Space Mono',monospace; }
-.c-progress-bar { width:100%; height:3px; background:var(--surface2); border-radius:2px; margin-top:16px; overflow:hidden; }
-.c-progress-fill { height:100%; background:var(--accent3); border-radius:2px; transition:width 0.3s; }
-
-.c-buttons { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
-.btn-valid { padding:20px 10px; border-radius:16px; border:2px solid var(--success); background:rgba(106,247,160,0.08); color:var(--success); font-family:'Syne',sans-serif; font-size:18px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; }
-.btn-invalid { padding:20px 10px; border-radius:16px; border:2px solid var(--danger); background:rgba(247,106,106,0.08); color:var(--danger); font-family:'Syne',sans-serif; font-size:18px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; }
-.btn-sub { font-size:11px; font-weight:400; opacity:0.7; }
-
-/* SAVED LIST */
-.wordlist-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
-.wordlist-title { font-size:20px; font-weight:800; }
-.clear-btn { font-size:12px; color:var(--danger); background:none; border:1px solid rgba(247,106,106,0.4); border-radius:8px; padding:5px 12px; cursor:pointer; }
-.wl-item { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; animation:fadeUp 0.2s ease; }
-.wli-word { font-family:'Space Mono',monospace; font-size:20px; font-weight:700; color:var(--accent); letter-spacing:3px; }
-.wli-meta { font-size:12px; color:var(--text2); margin-top:3px; }
-.delete-btn { background:none; border:none; cursor:pointer; font-size:18px; color:var(--text2); padding:4px; }
-
-.toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:12px 20px; border-radius:12px; font-size:14px; z-index:999; transition:transform 0.3s ease,opacity 0.3s ease; opacity:0; white-space:nowrap; }
-.toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+:root { --bg:#0a0a0f; --surface:#12121a; --border:#2a2a3d; --accent:#7c6af7; --text:#e8e8f0; --text2:#8888aa; --success:#6af7a0; --danger:#f76a6a; }
+body { background:var(--bg); color:var(--text); font-family:sans-serif; margin:0; padding:20px; }
+.card { background:var(--surface); border:1px solid var(--border); padding:20px; border-radius:15px; margin-bottom:15px; }
+.btn { padding:12px 20px; border-radius:8px; border:none; background:var(--accent); color:white; cursor:pointer; font-weight:bold; }
+.btn:disabled { opacity:0.5; cursor:not-allowed; }
+input { background:var(--bg); border:1px solid var(--border); color:white; padding:10px; width:100%; box-sizing:border-box; border-radius:8px; }
+#quiz-area, #analysis-area { display:none; }
+.result-row { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--border); }
 </style>
 </head>
 <body>
 
-<div id="loadingScreen">
-  <div class="load-logo">ZYZZYVA</div>
-  <div class="connect-card">
-    <div class="connect-title">🔌 Connecting Lexicon...</div>
-    <div class="connect-desc">Downloading and parsing <b>CSW24.txt</b> database from repository. Please wait a moment.</div>
-    <div class="progress-bar" style="width:100%; height:4px; background:var(--surface2); border-radius:2px; overflow:hidden;">
-      <div class="progress-fill" id="initProgress" style="width: 15%; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width 0.3s ease;"></div>
-    </div>
-    <div class="status-text" id="statusText">Fetching dictionary file...</div>
-  </div>
+<div id="setup-area" class="card">
+    <h2>Quiz Setup</h2>
+    <label>Quiz Type:</label>
+    <select id="quizType" class="quiz-select">
+        <option value="anagram">Anagram Quiz</option>
+        <option value="flashcard">Flashcard Mode</option>
+    </select>
+    <br><br>
+    <button class="btn" onclick="startQuiz()">Start Quiz</button>
 </div>
 
-<header style="display:none" id="appHeader">
-  <div class="logo">ZYZZYVA</div>
-  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-    <div class="score-badge" id="globalScore">⭐ 0 pts</div>
-    <div class="word-count" id="wordCount">0 Words Loaded</div>
-  </div>
-</header>
-
-<nav style="display:none" id="appNav">
-  <button class="tab active" onclick="showTab('search',this)"><span class="tab-icon">🔍</span>SEARCH</button>
-  <button class="tab" onclick="showTab('quiz',this)"><span class="tab-icon">🧠</span>QUIZ</button>
-  <button class="tab" onclick="showTab('challenge',this)"><span class="tab-icon">⚡</span>CHALLENGE</button>
-  <button class="tab" onclick="showTab('wordlist',this)"><span class="tab-icon">📚</span>SAVED</button>
-</nav>
-
-<main style="display:none" id="appMain">
-  <div class="section active" id="search">
-    <div class="search-wrap">
-      <input class="search-input" id="searchInput" type="text" placeholder="WORD..." autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key==='Enter')searchWord()" oninput="this.value=this.value.toUpperCase()">
-      <button class="search-btn" onclick="searchWord()">→</button>
+<div id="quiz-area" class="card">
+    <div id="question-display" style="font-size:24px; font-weight:bold; margin-bottom:10px;">---</div>
+    <div id="input-area">
+        <input type="text" id="quizInput" placeholder="Enter word..." onkeydown="if(event.key==='Enter')addAnswer()">
     </div>
-    <div id="searchResult">
-      <div class="empty-state">
-        <div class="empty-icon">🔤</div>
-        Type any word to check if it's valid in CSW24
-      </div>
-    </div>
-  </div>
+    <div id="answers-list" style="margin:15px 0;"></div>
+    <button class="btn" id="checkBtn" onclick="checkAnswers()">Check Answers</button>
+    <button class="btn" onclick="nextQuestion()">Next Question →</button>
+    <button class="btn" style="background:var(--text2)" onclick="analyzeQuiz()">Analyze Quiz</button>
+</div>
 
-  <div class="section" id="quiz">
-    <div id="quizContent"></div>
-  </div>
-
-  <div class="section" id="challenge">
-    <div id="challengeContent"></div>
-  </div>
-
-  <div class="section" id="wordlist">
-    <div class="wordlist-header">
-      <div class="wordlist-title">📚 Saved Words</div>
-      <button class="clear-btn" onclick="clearWordList()">Clear All</button>
-    </div>
-    <div id="wordListContent"></div>
-  </div>
-</main>
-
-<div class="toast" id="toast"></div>
+<div id="analysis-area" class="card">
+    <h2>Performance Analysis</h2>
+    <div id="stats"></div>
+    <button class="btn" onclick="document.getElementById('analysis-area').style.display='none'">Close</button>
+</div>
 
 <script>
-let dictionary = [];
-let dictionarySet = new Set();
-let wordsByLength = {};
-let score = 0;
-let savedWords = JSON.parse(localStorage.getItem('zyzzyva_saved') || '[]');
-
-// Quiz State
-let quizState = { active: false, settings: { length: 'any', useDot: true, useQues: true }, currentRack: '', solutions: [], questionCount: 0, correctCount: 0 };
-// Challenge State
-let challengeState = { active: false, currentWord: '', isValid: false, score: 0, timeLeft: 60, timerInterval: null };
-
-// ============================================================
-// AUTOMATIC FETCH LOGIC ON PAGE LOAD
-// ============================================================
-window.addEventListener('DOMContentLoaded', () => {
-  autoLoadDictionary();
-});
-
-async function autoLoadDictionary() {
-  const statusText = document.getElementById('statusText');
-  const bar = document.getElementById('initProgress');
-  
-  try {
-    statusText.innerText = "Downloading CSW24.txt...";
-    bar.style.width = "50%";
-    
-    // Fetch the file directly from the root of the repository
-    const response = await fetch('CSW24.txt');
-    if (!response.ok) {
-      throw new Error("Could not find CSW24.txt in the same directory.");
-    }
-    
-    statusText.innerText = "Indexing lexicon database...";
-    bar.style.width = "85%";
-    
-    const text = await response.text();
-    dictionary = text.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
-    
-    if (dictionary.length === 0) {
-      throw new Error("Dictionary file is empty.");
-    }
-
-    processDictionary();
-    bar.style.width = "100%";
-    statusText.innerText = "Launch Successful!";
-    
-    // Reveal application interface
-    setTimeout(() => {
-      document.getElementById('loadingScreen').style.display = 'none';
-      document.getElementById('appHeader').style.display = 'flex';
-      document.getElementById('appNav').style.display = 'flex';
-      document.getElementById('appMain').style.display = 'block';
-      
-      loadSavedWords();
-      initQuizSettings();
-      initChallengeIntro();
-    }, 400);
-
-  } catch (err) {
-    statusText.innerText = "⚠️ Error: Make sure 'CSW24.txt' is uploaded alongside this file.";
-    statusText.style.color = "var(--danger)";
-    bar.style.background = "var(--danger)";
-    console.error(err);
-  }
-}
-
-function processDictionary() {
-  dictionarySet = new Set(dictionary);
-  wordsByLength = {};
-  dictionary.forEach(word => {
-    const len = word.length;
-    if (!wordsByLength[len]) wordsByLength[len] = [];
-    wordsByLength[len].push(word);
-  });
-  document.getElementById('wordCount').innerText = `${dictionary.length.toLocaleString()} CSW24 Words`;
-}
-
-function showTab(tabId, btn) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById(tabId).classList.add('active');
-}
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.innerText = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
-}
-
-// ============================================================
-// SEARCH ENGINE
-// ============================================================
-function searchWord() {
-  const input = document.getElementById('searchInput');
-  const word = input.value.trim().toUpperCase();
-  if (!word) return;
-
-  const resultDiv = document.getElementById('searchResult');
-  const isValid = dictionarySet.has(word);
-  const hooks = getHooks(word);
-  const anagrams = findAnagramsOfWord(word);
-  const isSaved = savedWords.includes(word);
-
-  let html = `
-    <div class="word-card">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-        <div>
-          <div class="word-title">${word}</div>
-          <div class="word-valid ${isValid ? 'yes' : 'no'}">
-            ${isValid ? '✓ VALID IN CSW24' : '✗ INVALID IN CSW24'}
-          </div>
-        </div>
-        ${isValid ? `<button class="hook-pill" style="font-size:18px;" onclick="toggleSaveWord('${word}')">${isSaved?'⭐':'☆'}</button>`:''}
-      </div>
-  `;
-
-  if (isValid) {
-    html += `
-      <div class="word-hooks">
-        <div class="hooks-label">FRONT HOOKS</div>
-        <div class="hooks-row">
-          ${hooks.front.length ? hooks.front.map(h => `<span class="hook-pill" onclick="quickSearch('${h+word}')">${h}</span>`).join('') : '<span style="color:var(--text2);font-size:12px;">None</span>'}
-        </div>
-      </div>
-      <div class="word-hooks">
-        <div class="hooks-label">BACK HOOKS</div>
-        <div class="hooks-row">
-          ${hooks.back.length ? hooks.back.map(h => `<span class="hook-pill" onclick="quickSearch('${word+h}')">${h}</span>`).join('') : '<span style="color:var(--text2);font-size:12px;">None</span>'}
-        </div>
-      </div>
-    `;
-  }
-
-  if (anagrams.length > 1) {
-    html += `
-      <div class="anagram-section">
-        <div class="hooks-label">ANAGRAMS (${anagrams.length - 1})</div>
-        <div class="anagram-row">
-          ${anagrams.filter(a => a !== word).map(a => `<span class="anagram-pill" onclick="quickSearch('${a}')">${a}</span>`).join('')}
-        </div>
-      </div>
-    `;
-  }
-
-  html += `</div>`;
-  resultDiv.innerHTML = html;
-}
-
-function quickSearch(word) {
-  document.getElementById('searchInput').value = word;
-  searchWord();
-}
-
-function getHooks(word) {
-  const alphas = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const front = [];
-  const back = [];
-  for (let a of alphas) {
-    if (dictionarySet.has(a + word)) front.push(a);
-    if (dictionarySet.has(word + a)) back.push(a);
-  }
-  return { front, back };
-}
-
-function findAnagramsOfWord(word) {
-  const sorted = word.split('').sort().join('');
-  const candidates = wordsByLength[word.length] || [];
-  return candidates.filter(w => w.split('').sort().join('') === sorted);
-}
-
-// ============================================================
-// QUIZ CORE
-// ============================================================
-function initQuizSettings() {
-  quizState.active = false;
-  const content = document.getElementById('quizContent');
-  content.innerHTML = `
-    <div class="quiz-card">
-      <h2 style="font-size:22px; font-weight:800; margin-bottom:16px; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">🧠 Anagram Quiz Settings</h2>
-      
-      <div class="quiz-setting-row">
-        <label class="quiz-setting-label">WORD LENGTH</label>
-        <select class="quiz-select" id="quizLength">
-          <option value="any">Any Length (2-8+)</option>
-          <option value="2">2 Letters</option>
-          <option value="3">3 Letters</option>
-          <option value="4">4 Letters</option>
-          <option value="5">5 Letters</option>
-          <option value="6">6 Letters</option>
-          <option value="7">7 Letters</option>
-          <option value="8">8 Letters</option>
-        </select>
-      </div>
-
-      <div class="quiz-setting-row">
-        <label class="quiz-setting-label">BLANK WILDCARDS CONFIG</label>
-        <div class="quiz-checkbox-group">
-          <label class="quiz-checkbox-label">
-            <input type="checkbox" id="quizUseDot" checked> Use "." as Blank
-          </label>
-          <label class="quiz-checkbox-label">
-            <input type="checkbox" id="quizUseQues" checked> Use "?" as Blank
-          </label>
-        </div>
-      </div>
-
-      <button class="start-btn" style="margin-top:10px;" onclick="startQuiz()">START QUIZ</button>
-    </div>
-  `;
-}
+let state = {
+    type: 'anagram',
+    questions: ["SATIRE", "PENSION", "RETAIN"],
+    currentIndex: 0,
+    responses: [], // เก็บคำตอบของผู้ใช้
+    answers: { "SATIRE": ["SATIRE", "ARTIES", "STAIRE"], "PENSION": ["PENSION", "PINEONS"], "RETAIN": ["RETAIN", "RETINA"] },
+    correctCount: 0,
+    totalValid: 0,
+    totalSubmitted: 0
+};
 
 function startQuiz() {
-  quizState.active = true;
-  quizState.questionCount = 0;
-  quizState.correctCount = 0;
-  quizState.settings.length = document.getElementById('quizLength').value;
-  quizState.settings.useDot = document.getElementById('quizUseDot').checked;
-  quizState.settings.useQues = document.getElementById('quizUseQues').checked;
-  nextQuizQuestion();
-}
-
-function nextQuizQuestion() {
-  quizState.questionCount++;
-  let targetLen = parseInt(quizState.settings.length);
-  if (isNaN(targetLen)) {
-    const lengths = Object.keys(wordsByLength).map(Number).filter(l => l >= 2 && l <= 10);
-    targetLen = lengths[Math.floor(Math.random() * lengths.length)] || 5;
-  }
-  
-  const wordPool = wordsByLength[targetLen] || dictionary;
-  if (!wordPool || wordPool.length === 0) {
-    showToast("No words found for this setup!");
-    initQuizSettings();
-    return;
-  }
-  
-  const baseWord = wordPool[Math.floor(Math.random() * wordPool.length)];
-  let rackChars = baseWord.split('');
-  
-  if (quizState.settings.useDot && Math.random() < 0.25) {
-    const rIdx = Math.floor(Math.random() * rackChars.length);
-    rackChars[rIdx] = '.';
-  }
-  if (quizState.settings.useQues && Math.random() < 0.2) {
-    const rIdx = Math.floor(Math.random() * rackChars.length);
-    if (rackChars[rIdx] !== '.') rackChars[rIdx] = '?';
-  }
-  
-  quizState.currentRack = rackChars.sort().join('');
-  quizState.solutions = [];
-  
-  const candidates = wordsByLength[targetLen] || [];
-  candidates.forEach(w => {
-    if (checkRackMatch(w, quizState.currentRack, quizState.settings.useDot, quizState.settings.useQues)) {
-      quizState.solutions.push(w);
+    state.type = document.getElementById('quizType').value;
+    document.getElementById('setup-area').style.display = 'none';
+    document.getElementById('quiz-area').style.display = 'block';
+    
+    [span_8](start_span)// ตั้งค่า Flashcard Mode[span_8](end_span)
+    if(state.type === 'flashcard') {
+        document.getElementById('input-area').style.display = 'none';
     }
-  });
-
-  if (!quizState.solutions.includes(baseWord) && !quizState.currentRack.includes('.') && !quizState.currentRack.includes('?')) {
-    quizState.solutions.push(baseWord);
-  }
-
-  renderQuizScreen();
+    loadQuestion();
 }
 
-function checkRackMatch(word, rack, useDot, useQues) {
-  let rCount = {};
-  let blanks = 0;
-  for (let c of rack) {
-    if ((c === '.' && useDot) || (c === '?' && useQues)) blanks++;
-    else rCount[c] = (rCount[c] || 0) + 1;
-  }
-  for (let c of word) {
-    if (rCount[c] && rCount[c] > 0) rCount[c]--;
-    else if (blanks > 0) blanks--;
-    else return false;
-  }
-  return true;
+function loadQuestion() {
+    document.getElementById('question-display').innerText = state.questions[state.currentIndex];
+    document.getElementById('answers-list').innerHTML = '';
+    state.responses = [];
 }
 
-function renderQuizScreen() {
-  const content = document.getElementById('quizContent');
-  content.innerHTML = `
-    <div class="quiz-card">
-      <div class="quiz-progress">
-        <span>QUESTION ${quizState.questionCount}</span>
-        <span>SCORE: ${quizState.correctCount} / ${quizState.questionCount - 1}</span>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill" style="width: ${Math.min(100, (quizState.questionCount/20)*100)}%"></div>
-      </div>
-      
-      <div class="quiz-mode-label" style="text-align:center;">ANAGRAM THIS RACK</div>
-      <div class="anagram-display">${quizState.currentRack}</div>
-      
-      <div style="margin: 20px 0;">
-        <input type="text" id="quizInput" class="search-input" placeholder="TYPE ANSWER HERE..." 
-          autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
-          style="text-align:center; font-size:22px; letter-spacing:4px;"
-          onkeydown="if(event.key==='Enter')submitQuizAnswer()" oninput="this.value=this.value.toUpperCase()">
-      </div>
-
-      <div class="quiz-actions" id="quizControlArea">
-        <button class="btn-clear" onclick="revealQuizResult(false)">SKIP</button>
-        <button class="btn-submit" onclick="submitQuizAnswer()">SUBMIT</button>
-      </div>
-
-      <div id="quizFeedbackSlot"></div>
-    </div>
-  `;
-  setTimeout(() => document.getElementById('quizInput').focus(), 100);
+function addAnswer() {
+    if(state.type === 'flashcard') return;
+    const input = document.getElementById('quizInput');
+    const val = input.value.toUpperCase();
+    if(!val) return;
+    
+    state.responses.push(val);
+    input.value = '';
+    
+    [span_9](start_span)// แสดงผลคำตอบที่พิมพ์[span_9](end_span)
+    const div = document.createElement('div');
+    div.innerText = val;
+    document.getElementById('answers-list').appendChild(div);
 }
 
-function submitQuizAnswer() {
-  const input = document.getElementById('quizInput');
-  if (!input) return;
-  const ans = input.value.trim().toUpperCase();
-  if (!ans) return;
+function checkAnswers() {
+    [span_10](start_span)// ระบบตรวจสอบคำตอบ[span_10](end_span)
+    const correctWords = state.answers[state.questions[state.currentIndex]] || [];
+    let correctForThis = 0;
+    
+    state.responses.forEach(r => {
+        if(correctWords.includes(r)) correctForThis++;
+    });
 
-  const isCorrect = quizState.solutions.includes(ans);
-  if (isCorrect) quizState.correctCount++;
-  
-  revealQuizResult(isCorrect, ans);
+    [span_11](start_span)// ถ้าเป็น Flashcard Mode จะแสดงคำตอบทั้งหมดทันที[span_11](end_span)
+    if(state.type === 'flashcard') {
+        document.getElementById('answers-list').innerText = "Answers: " + correctWords.join(', ');
+    } else {
+        alert("Correct: " + correctForThis + " of " + correctWords.length);
+    }
+    
+    state.correctCount += correctForThis;
+    state.totalValid += correctWords.length;
+    state.totalSubmitted += state.responses.length;
 }
 
-function revealQuizResult(isCorrect, submittedAns = "") {
-  document.getElementById('quizControlArea').style.pointerEvents = 'none';
-  document.getElementById('quizControlArea').style.opacity = '0.4';
-  const input = document.getElementById('quizInput');
-  if (input) input.disabled = true;
+function nextQuestion() {
+    state.currentIndex++;
+    if(state.currentIndex >= state.questions.length) alert("Quiz Finished!");
+    else loadQuestion();
+}
 
-  const slot = document.getElementById('quizFeedbackSlot');
-  let statusClass = isCorrect ? 'correct' : 'wrong';
-  let titleText = isCorrect ? '✓ CORRECT!' : (submittedAns === "" ? 'SKIPPED' : '✗ INCORRECT!');
-  
-  let html = `
-    <div class="quiz-analysis ${statusClass}">
-      <div class="analysis-result ${statusClass}">${titleText}</div>
-      <div class="hooks-label" style="margin-bottom:12px; color:var(--text)">VALID SOLUTIONS & HOOKS:</div>
-  `;
-
-  quizState.solutions.forEach(word => {
-    const hooks = getHooks(word);
-    html += `
-      <div class="analysis-word-block">
-        <div class="analysis-word">${word}</div>
-        <div style="margin-top:4px; display:flex; flex-direction:column; gap:4px;">
-          <div class="analysis-detail"><span style="color:var(--accent3); font-weight:700;">[F] Hooks:</span> ${hooks.front.length ? hooks.front.join(', ') : '-'}</div>
-          <div class="analysis-detail"><span style="color:var(--accent2); font-weight:700;">[B] Hooks:</span> ${hooks.back.length ? hooks.back.join(', ') : '-'}</div>
-        </div>
-      </div>
+function analyzeQuiz() {
+    [span_12](start_span)[span_13](start_span)// การคำนวณ Recall และ Precision[span_12](end_span)[span_13](end_span)
+    const recall = state.totalValid > 0 ? (state.correctCount / state.totalValid * 100).toFixed(1) : 0;
+    const precision = state.totalSubmitted > 0 ? (state.correctCount / state.totalSubmitted * 100).toFixed(1) : 0;
+    
+    document.getElementById('analysis-area').style.display = 'block';
+    document.getElementById('stats').innerHTML = `
+        <div class="result-row">Recall: ${recall}% (${state.correctCount}/${state.totalValid})</div>
+        <div class="result-row">Precision: ${precision}% (${state.correctCount}/${state.totalSubmitted})</div>
     `;
-  });
-
-  html += `
-      <button class="next-btn" onclick="nextQuizQuestion()">NEXT QUESTION →</button>
-    </div>
-  `;
-  slot.innerHTML = html;
-  
-  score = quizState.correctCount * 10;
-  document.getElementById('globalScore').innerText = `⭐ ${score} pts`;
-}
-
-// ============================================================
-// BLITZ CHALLENGE
-// ============================================================
-function initChallengeIntro() {
-  const content = document.getElementById('challengeContent');
-  content.innerHTML = `
-    <div class="challenge-intro">
-      <h2>⚡ Blitz Challenge</h2>
-      <p>Decide whether the displayed word is valid or invalid in CSW24. You have 60 seconds!</p>
-      <div class="challenge-stats">
-        <div class="stat-box"><div class="stat-val">60s</div><div class="stat-lbl">Time Limit</div></div>
-        <div class="stat-box"><div class="stat-val">+10</div><div class="stat-lbl">Correct</div></div>
-        <div class="stat-box"><div class="stat-val">-5</div><div class="stat-lbl">Wrong</div></div>
-      </div>
-      <button class="start-btn" onclick="startChallenge()">START CHALLENGE</button>
-    </div>
-  `;
-}
-
-function startChallenge() {
-  challengeState.active = true;
-  challengeState.score = 0;
-  challengeState.timeLeft = 60;
-  
-  const content = document.getElementById('challengeContent');
-  content.innerHTML = `
-    <div class="challenge-game">
-      <div class="c-header">
-        <div>
-          <div class="c-label">SCORE</div>
-          <div class="c-score" id="cScore">0 pts</div>
-        </div>
-        <div class="timer" id="cTimer">60</div>
-      </div>
-      <div class="c-word-display">
-        <div class="c-word" id="cWord">---</div>
-        <div class="c-word-len" id="cWordLen">0 LETTERS</div>
-      </div>
-      <div class="c-buttons">
-        <button class="btn-valid" onclick="submitChallengeAnswer(true)">
-          <span>VALID</span><span class="btn-sub">✓ True Word</span>
-        </button>
-        <button class="btn-invalid" onclick="submitChallengeAnswer(false)">
-          <span>INVALID</span><span class="btn-sub">✗ Phony Word</span>
-        </button>
-      </div>
-    </div>
-  `;
-
-  challengeState.timerInterval = setInterval(() => {
-    challengeState.timeLeft--;
-    const timerDiv = document.getElementById('cTimer');
-    if (!timerDiv) return;
-    timerDiv.innerText = challengeState.timeLeft;
-    if (challengeState.timeLeft <= 5) timerDiv.style.color = "var(--danger)";
-    if (challengeState.timeLeft <= 0) endChallenge();
-  }, 1000);
-
-  nextChallengeWord();
-}
-
-function nextChallengeWord() {
-  if (!challengeState.active) return;
-  const showValid = Math.random() < 0.5;
-  let word = "";
-  
-  if (showValid) {
-    word = dictionary[Math.floor(Math.random() * dictionary.length)];
-    challengeState.isValid = true;
-  } else {
-    const base = dictionary[Math.floor(Math.random() * dictionary.length)];
-    const alphas = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const pos = Math.floor(Math.random() * base.length);
-    word = base.substring(0, pos) + alphas[Math.floor(Math.random() * 26)] + base.substring(pos + 1);
-    challengeState.isValid = dictionarySet.has(word);
-  }
-  
-  challengeState.currentWord = word;
-  document.getElementById('cWord').innerText = word;
-  document.getElementById('cWordLen').innerText = `${word.length} LETTERS`;
-}
-
-function submitChallengeAnswer(userGuess) {
-  if (!challengeState.active) return;
-  const isCorrect = (userGuess === challengeState.isValid);
-  
-  if (isCorrect) challengeState.score += 10;
-  else challengeState.score = Math.max(0, challengeState.score - 5);
-  
-  document.getElementById('cScore').innerText = `${challengeState.score} pts`;
-  nextChallengeWord();
-}
-
-function endChallenge() {
-  clearInterval(challengeState.timerInterval);
-  challengeState.active = false;
-  score += challengeState.score;
-  document.getElementById('globalScore').innerText = `⭐ ${score} pts`;
-
-  const content = document.getElementById('challengeContent');
-  content.innerHTML = `
-    <div class="results-screen">
-      <div class="results-emoji">🏁</div>
-      <div class="results-score">${challengeState.score} PTS</div>
-      <div class="results-label">Time is up!</div>
-      <button class="play-again-btn" onclick="initChallengeIntro()">CONTINUE</button>
-    </div>
-  `;
-}
-
-// ============================================================
-// SAVED WORDS LIST
-// ============================================================
-function loadSavedWords() {
-  const content = document.getElementById('wordListContent');
-  if (savedWords.length === 0) {
-    content.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div>No bookmarked words yet.</div>`;
-    return;
-  }
-  content.innerHTML = savedWords.map(w => `
-    <div class="wl-item">
-      <div>
-        <div class="wli-word" onclick="quickSearch('${w}'); showTab('search', document.querySelectorAll('.tab')[0]);">${w}</div>
-        <div class="wli-meta">${w.length} letters</div>
-      </div>
-      <button class="delete-btn" onclick="toggleSaveWord('${w}')">🗑️</button>
-    </div>
-  `).join('');
-}
-
-function toggleSaveWord(word) {
-  if (savedWords.includes(word)) {
-    savedWords = savedWords.filter(w => w !== word);
-    showToast(`Removed ${word}`);
-  } else {
-    savedWords.push(word);
-    showToast(`Saved ${word}`);
-  }
-  localStorage.setItem('zyzzyva_saved', JSON.stringify(savedWords));
-  loadSavedWords();
-}
-
-function clearWordList() {
-  if (confirm("Clear all?")) {
-    savedWords = [];
-    localStorage.setItem('zyzzyva_saved', '[]');
-    loadSavedWords();
-  }
 }
 </script>
 </body>

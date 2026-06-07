@@ -121,12 +121,20 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 .btn-submit { padding:12px; border-radius:10px; background:var(--accent); border:none;
   color:#fff; font-family:'Syne',sans-serif; font-size:13px; font-weight:700; cursor:pointer; }
 
-.quiz-filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
-.quiz-setting-row { margin-bottom: 14px; }
-.quiz-setting-label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 6px; font-family: 'Space Mono', monospace; letter-spacing: 1px; }
-.quiz-select, .quiz-input-field { width: 100%; padding: 10px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
-.quiz-input-field:focus { border-color: var(--accent); }
-.quiz-checkbox-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); cursor: pointer; margin-top: 4px; }
+/* DYNAMIC FILTER UI */
+.filter-builder { border:1px dashed var(--border); padding:14px; border-radius:12px; margin-bottom:18px; background:rgba(0,0,0,0.1); }
+.filter-selector-row { display:flex; gap:8px; margin-bottom:12px; }
+.quiz-select { flex:1; padding:10px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:13px; outline:none; }
+.btn-add-filter { padding:0 16px; background:var(--accent); border:none; border-radius:8px; color:#fff; font-weight:700; cursor:pointer; font-size:13px; }
+.filter-stack { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+.filter-item { display:flex; align-items:center; gap:8px; background:var(--surface2); border:1px solid var(--border); padding:8px 12px; border-radius:8px; animation:fadeUp 0.2s ease; }
+.filter-label { font-family:'Space Mono',monospace; font-size:11px; color:var(--accent2); width:110px; min-width:110px; text-transform:uppercase; }
+.filter-value { flex:1; font-family:'Space Mono',monospace; font-size:13px; color:var(--text); background:transparent; border:none; outline:none; }
+.filter-value-input { flex:1; padding:6px 10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'Space Mono',monospace; font-size:13px; outline:none; }
+.not-toggle { display:flex; align-items:center; gap:4px; font-size:11px; font-weight:700; color:var(--text2); cursor:pointer; padding:4px 8px; border-radius:6px; border:1px solid var(--border); }
+.not-toggle.active { color:var(--danger); border-color:var(--danger); background:rgba(247,106,106,0.05); }
+.btn-remove-filter { background:none; border:none; color:var(--text2); cursor:pointer; font-size:16px; padding:2px 6px; }
+.btn-remove-filter:hover { color:var(--danger); }
 
 .quiz-analysis { border-radius:12px; padding:16px; margin:12px 0; animation:fadeUp 0.3s ease; }
 .quiz-analysis.correct { background:rgba(106,247,160,0.08); border:1px solid rgba(106,247,160,0.3); }
@@ -250,21 +258,23 @@ let wordsByLength = {};
 let score = 0;
 let savedWords = JSON.parse(localStorage.getItem('zyzzyva_saved') || '[]');
 
-// Scrabble Tile Values for Score Filter Calculation
 const tileScores = {
   A:1, B:3, C:3, D:2, E:1, F:4, G:2, H:4, I:1, J:8, K:5, L:1, M:3,
   N:1, O:1, P:3, Q:10, R:1, S:1, T:1, U:1, V:4, W:4, X:8, Y:4, Z:10
 };
 
-// Quiz Advanced State
+// Quiz Dynamic State
 let quizState = { 
   active: false, 
   filteredPool: [],
   currentRack: '', 
   solutions: [], 
   questionCount: 0, 
-  correctCount: 0 
+  correctCount: 0,
+  activeFilters: [] // Array of {id, type, val1, val2, isNot}
 };
+
+let filterIdCounter = 0;
 
 // Challenge State
 let challengeState = { active: false, currentWord: '', isValid: false, score: 0, timeLeft: 60, timerInterval: null };
@@ -319,7 +329,7 @@ function processDictionary() {
   dictionarySet = new Set(dictionary);
   wordsByLength = {};
   
-  // Pre-sort dictionary globally to make "Probability Index" structural and reliable
+  // Base structural sorting for probability
   dictionary.sort((a, b) => a.length - b.length || a.localeCompare(b));
 
   dictionary.forEach(word => {
@@ -332,9 +342,7 @@ function processDictionary() {
 
 function calculateWordScore(word) {
   let s = 0;
-  for (let char of word) {
-    s += tileScores[char] || 0;
-  }
+  for (let char of word) { s += tileScores[char] || 0; }
   return s;
 }
 
@@ -434,145 +442,220 @@ function findAnagramsOfWord(word) {
 }
 
 // ============================================================
-// QUIZ ENGINE WITH POWERFUL FILTERS
+// DYNAMIC QUIZ FILTER SYSTEM (ADD ON DEMAND)
 // ============================================================
 function initQuizSettings() {
   quizState.active = false;
   const content = document.getElementById('quizContent');
   content.innerHTML = `
     <div class="quiz-card">
-      <h2 style="font-size:20px; font-weight:800; margin-bottom:16px; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">🧠 Anagram Quiz System</h2>
+      <h2 style="font-size:20px; font-weight:800; margin-bottom:16px; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">🧠 Anagram Custom Builder</h2>
       
-      <div class="quiz-filter-grid">
-        <div class="quiz-setting-row">
-          <label class="quiz-setting-label">MIN LENGTH</label>
-          <input type="number" class="quiz-input-field" id="qzMinLen" value="2" min="2" max="15">
-        </div>
-        <div class="quiz-setting-row">
-          <label class="quiz-setting-label">MAX LENGTH</label>
-          <input type="number" class="quiz-input-field" id="qzMaxLen" value="8" min="2" max="15">
-        </div>
-      </div>
-
-      <div class="quiz-filter-grid">
-        <div class="quiz-setting-row">
-          <label class="quiz-setting-label">PROBABILITY IDX</label>
-          <div style="display:flex; gap:4px; align-items:center;">
-            <input type="number" class="quiz-input-field" id="qzMinProb" placeholder="Min" value="1">
-            <input type="number" class="quiz-input-field" id="qzMaxProb" placeholder="Max" value="5000">
-          </div>
-        </div>
-        <div class="quiz-setting-row">
-          <label class="quiz-setting-label">SCORE RANGE</label>
-          <div style="display:flex; gap:4px; align-items:center;">
-            <input type="number" class="quiz-input-field" id="qzMinScore" placeholder="Min" value="0">
-            <input type="number" class="quiz-input-field" id="qzMaxScore" placeholder="Max" value="50">
-          </div>
+      <div class="filter-builder">
+        <div class="quiz-setting-label">ADD NEW CRITERIA / FILTER</div>
+        <div class="filter-selector-row">
+          <select class="quiz-select" id="filterTypeSelect">
+            <option value="length">Length Range (Min - Max)</option>
+            <option value="probability">Probability Index Range</option>
+            <option value="score">Score Face Value Range</option>
+            <option value="includes">Includes Letters (Contains)</option>
+            <option value="begins">Begins With</option>
+            <option value="ends">Ends With</option>
+            <option value="anagram">Anagram Match</option>
+            <option value="pattern">Pattern Match (Wildcards ? / *)</option>
+          </select>
+          <button class="btn-add-filter" onclick="addNewFilterItem()">+ ADD</button>
         </div>
       </div>
 
-      <div class="quiz-setting-row">
-        <div style="display:flex; justify-content:between; align-items:center; margin-bottom:4px;">
-          <label class="quiz-setting-label" style="margin-bottom:0;">INCLUDES LETTERS (CONTAINS)</label>
-          <label class="quiz-checkbox-label" style="margin-top:0;">
-            <input type="checkbox" id="qzNotIncludes"> <span style="color:var(--danger); font-weight:700;">NOT</span>
-          </label>
-        </div>
-        <input type="text" class="quiz-input-field" id="qzIncludes" placeholder="e.g. QX or AEIOU" oninput="this.value=this.value.toUpperCase()">
-      </div>
+      <div class="filter-stack" id="filterStack"></div>
 
-      <div class="quiz-filter-grid">
-        <div class="quiz-setting-row">
-          <label class="quiz-setting-label">BEGINS WITH</label>
-          <input type="text" class="quiz-input-field" id="qzBegins" placeholder="UN-" oninput="this.value=this.value.toUpperCase()">
-        </div>
-        <div class="quiz-setting-row">
-          <label class="quiz-setting-label">ENDS WITH</label>
-          <input type="text" class="quiz-input-field" id="qzEnds" placeholder="-NESS" oninput="this.value=this.value.toUpperCase()">
-        </div>
-      </div>
-
-      <div class="quiz-setting-row">
-        <label class="quiz-setting-label">ANAGRAM MATCH (EXACT LETTERS)</label>
-        <input type="text" class="quiz-input-field" id="qzAnagramMatch" placeholder="e.g. ETAOIN" oninput="this.value=this.value.toUpperCase()">
-      </div>
-
-      <div class="quiz-setting-row">
-        <label class="quiz-setting-label">PATTERN MATCH (? = 1 Char, * = Multi)</label>
-        <input type="text" class="quiz-input-field" id="qzPattern" placeholder="e.g. ?A?E or *ING" oninput="this.value=this.value.toUpperCase()">
-      </div>
-
-      <button class="start-btn" style="margin-top:10px;" onclick="generateFilteredQuizPool()">START FILTERED QUIZ</button>
+      <button class="start-btn" style="margin-top:10px;" onclick="compileFiltersAndStart()">START CUSTOM QUIZ</button>
     </div>
   `;
+  
+  // Render existing filters if any
+  renderFilterStack();
 }
 
-function generateFilteredQuizPool() {
-  // Capture values
-  const minLen = parseInt(document.getElementById('qzMinLen').value) || 2;
-  const maxLen = parseInt(document.getElementById('qzMaxLen').value) || 15;
-  const minProb = parseInt(document.getElementById('qzMinProb').value) || 1;
-  const maxProb = parseInt(document.getElementById('qzMaxProb').value) || Infinity;
-  const minScore = parseInt(document.getElementById('qzMinScore').value) || 0;
-  const maxScore = parseInt(document.getElementById('qzMaxScore').value) || Infinity;
+function addNewFilterItem() {
+  const type = document.getElementById('filterTypeSelect').value;
+  filterIdCounter++;
   
-  const incStr = document.getElementById('qzIncludes').value.trim();
-  const notInc = document.getElementById('qzNotIncludes').checked;
-  const begins = document.getElementById('qzBegins').value.trim();
-  const ends = document.getElementById('qzEnds').value.trim();
-  const anaMatch = document.getElementById('qzAnagramMatch').value.trim();
-  const pattern = document.getElementById('qzPattern').value.trim();
+  let newItem = { id: filterIdCounter, type: type, val1: '', val2: '', isNot: false };
+  
+  // Set defaults for ease of use
+  if (type === 'length') { newItem.val1 = '2'; newItem.val2 = '8'; }
+  if (type === 'probability') { newItem.val1 = '1'; newItem.val2 = '2000'; }
+  if (type === 'score') { newItem.val1 = '10'; newItem.val2 = '40'; }
+  
+  quizState.activeFilters.push(newItem);
+  renderFilterStack();
+}
 
-  // Convert Pattern Match wildcard (? and *) to Regular Expression
-  let regex = null;
-  if (pattern) {
-    let rStr = "^" + pattern.replace(/\?/g, '.').replace(/\*/g, '.*') + "$";
-    regex = new RegExp(rStr);
+function removeFilterItem(id) {
+  quizState.activeFilters = quizState.activeFilters.filter(f => f.id !== id);
+  renderFilterStack();
+}
+
+function toggleFilterNot(id) {
+  const item = quizState.activeFilters.find(f => f.id === id);
+  if (item) item.isNot = !item.isNot;
+  renderFilterStack();
+}
+
+function updateFilterVal(id, field, value) {
+  const item = quizState.activeFilters.find(f => f.id === id);
+  if (item) item[field] = value.toUpperCase();
+}
+
+function renderFilterStack() {
+  const container = document.getElementById('filterStack');
+  if (!container) return;
+  
+  if (quizState.activeFilters.length === 0) {
+    container.innerHTML = `<div style="text-align:center; color:var(--text2); font-size:12px; padding:10px 0;">No filters active. Quiz will pick randomly from all words.</div>`;
+    return;
   }
+  
+  container.innerHTML = quizState.activeFilters.map(f => {
+    let inputsHtml = '';
+    
+    if (f.type === 'length' || f.type === 'probability' || f.type === 'score') {
+      inputsHtml = `
+        <input type="number" class="filter-value-input" style="max-width:80px;" value="${f.val1}" placeholder="Min" onchange="updateFilterVal(${f.id}, 'val1', this.value)">
+        <span style="color:var(--text2); font-size:12px;">to</span>
+        <input type="number" class="filter-value-input" style="max-width:80px;" value="${f.val2}" placeholder="Max" onchange="updateFilterVal(${f.id}, 'val2', this.value)">
+      `;
+    } else {
+      let placeholderText = "Type value...";
+      if (f.type === 'pattern') placeholderText = "?A?E or *ING";
+      if (f.type === 'includes') placeholderText = "e.g. QX or ... (Blanks)";
+      
+      inputsHtml = `
+        <input type="text" class="filter-value-input" value="${f.val1}" placeholder="${placeholderText}" oninput="updateFilterVal(${f.id}, 'val1', this.value)">
+      `;
+    }
+    
+    return `
+      <div class="filter-item">
+        <button class="not-toggle ${f.isNot ? 'active' : ''}" onclick="toggleFilterNot(${f.id})">NOT</button>
+        <div class="filter-label">${f.type}</div>
+        <div style="display:flex; align-items:center; gap:6px; flex:1;">
+          ${inputsHtml}
+        </div>
+        <button class="btn-remove-filter" onclick="removeFilterItem(${f.id})">✕</button>
+      </div>
+    `;
+  }).join('');
+}
 
-  let sortedAnaMatch = anaMatch.split('').sort().join('');
+// Helper checker function for Blank wildcards support inside Include arrays
+function matchBlankInclusion(word, filterStr) {
+  let wordChars = word.split('');
+  for (let fChar of filterStr) {
+    if (fChar === '.') {
+      if (wordChars.length > 0) wordChars.pop(); // safe to consume any char
+      else return false;
+    } else {
+      let index = wordChars.indexOf(fChar);
+      if (index !== -1) wordChars.splice(index, 1);
+      else return false;
+    }
+  }
+  return true;
+}
 
-  // Filtering System Loop
+// Convert flexible string bounds featuring '.' into RegExp format
+function convertToRegex(pattern, strictAnchor = false) {
+  let rStr = pattern.replace(/\?/g, '.').replace(/\*/g, '.*').replace(/\./g, '.');
+  if (strictAnchor) return new RegExp("^" + rStr + "$");
+  return new RegExp(rStr);
+}
+
+function checkAnagramWithBlanks(word, targetPattern) {
+  if (word.length !== targetPattern.length) return false;
+  let wChars = word.split('');
+  for (let pChar of targetPattern) {
+    if (pChar === '.') continue;
+    let idx = wChars.indexOf(pChar);
+    if (idx !== -1) wChars.splice(idx, 1);
+    else return false;
+  }
+  return true;
+}
+
+// ============================================================
+// COMPILING AND EVALUATING THE DYNAMIC FILTERS POOL
+// ============================================================
+function compileFiltersAndStart() {
   let pool = dictionary.filter((word, index) => {
-    // 1. Length Check
-    if (word.length < minLen || word.length > maxLen) return false;
-
-    // 2. Probability Index Check (structural array sequence position)
-    const pIdx = index + 1;
-    if (pIdx < minProb || pIdx > maxProb) return false;
-
-    // 3. Score Evaluator
-    const wScore = calculateWordScore(word);
-    if (wScore < minScore || wScore > maxScore) return false;
-
-    // 4. Includes / NOT Contains Check
-    if (incStr) {
-      let hasChars = true;
-      for (let ch of incStr) {
-        if (!word.includes(ch)) { hasChars = false; break; }
+    
+    for (let f of quizState.activeFilters) {
+      let isConditionMet = true;
+      
+      if (f.type === 'length') {
+        let min = parseInt(f.val1) || 0;
+        let max = parseInt(f.val2) || Infinity;
+        isConditionMet = (word.length >= min && word.length <= max);
       }
-      if (notInc && hasChars) return false; // if matched but requested NOT
-      if (!notInc && !hasChars) return false; // if not matched but requested containment
+      
+      else if (f.type === 'probability') {
+        let min = parseInt(f.val1) || 1;
+        let max = parseInt(f.val2) || Infinity;
+        let currentProbIdx = index + 1;
+        isConditionMet = (currentProbIdx >= min && currentProbIdx <= max);
+      }
+      
+      else if (f.type === 'score') {
+        let min = parseInt(f.val1) || 0;
+        let max = parseInt(f.val2) || Infinity;
+        let score = calculateWordScore(word);
+        isConditionMet = (score >= min && score <= max);
+      }
+      
+      else if (f.type === 'includes') {
+        if (!f.val1) continue;
+        isConditionMet = matchBlankInclusion(word, f.val1);
+      }
+      
+      else if (f.type === 'begins') {
+        if (!f.val1) continue;
+        let reg = convertToRegex(f.val1);
+        isConditionMet = new RegExp("^" + reg.source).test(word);
+      }
+      
+      else if (f.type === 'ends') {
+        if (!f.val1) continue;
+        let reg = convertToRegex(f.val1);
+        isConditionMet = new RegExp(reg.source + "$").test(word);
+      }
+      
+      else if (f.type === 'anagram') {
+        if (!f.val1) continue;
+        isConditionMet = checkAnagramWithBlanks(word, f.val1);
+      }
+      
+      else if (f.type === 'pattern') {
+        if (!f.val1) continue;
+        let reg = convertToRegex(f.val1, true);
+        isConditionMet = reg.test(word);
+      }
+
+      // Invert Logic gracefully if NOT token is enabled
+      if (f.isNot) {
+        isConditionMet = !isConditionMet;
+      }
+      
+      // If any of the filters fail, drop word from sub-lexicon pool
+      if (!isConditionMet) return false;
     }
-
-    // 5. Structural Boundaries
-    if (begins && !word.startsWith(begins)) return false;
-    if (ends && !word.endsWith(ends)) return false;
-
-    // 6. Anagram Match
-    if (anaMatch) {
-      if (word.length !== anaMatch.length) return false;
-      if (word.split('').sort().join('') !== sortedAnaMatch) return false;
-    }
-
-    // 7. Regex Wildcard Evaluator
-    if (regex && !regex.test(word)) return false;
-
+    
     return true;
   });
 
   if (pool.length === 0) {
-    alert("❌ No words matched your complex filters! Try loosening the boundaries.");
+    alert("❌ No words found! The combined filters (with NOT settings) left 0 options.");
     return;
   }
 
@@ -581,22 +664,19 @@ function generateFilteredQuizPool() {
   quizState.questionCount = 0;
   quizState.correctCount = 0;
   
-  showToast(`Loaded ${pool.length} sub-lexicon query cards!`);
+  showToast(`Loaded ${pool.length} Custom Matches!`);
   nextQuizQuestion();
 }
 
 function nextQuizQuestion() {
   quizState.questionCount++;
   
-  // Pick from calculated pool
   const baseWord = quizState.filteredPool[Math.floor(Math.random() * quizState.filteredPool.length)];
   let rackChars = baseWord.split('');
   
-  // Scramble and set current rack
   quizState.currentRack = rackChars.sort().join('');
   quizState.solutions = [];
   
-  // Extract all matching sub-anagram legal combinations from the whole dictionary
   const targetLen = baseWord.length;
   const candidates = wordsByLength[targetLen] || [];
   
@@ -632,7 +712,7 @@ function renderQuizScreen() {
       </div>
 
       <div class="quiz-actions" id="quizControlArea">
-        <button class="btn-clear" onclick="revealQuizResult(false)">SKIP / SURRENDER</button>
+        <button class="btn-clear" onclick="revealQuizResult(false)">SURRENDER</button>
         <button class="btn-submit" onclick="submitQuizAnswer()">SUBMIT</button>
       </div>
 
@@ -685,7 +765,7 @@ function revealQuizResult(isCorrect, submittedAns = "") {
 
   html += `
       <div style="display:flex; gap:8px; margin-top:12px;">
-        <button class="btn-clear" style="flex:1;" onclick="initQuizSettings()">⚙️ CONFIG FILTER</button>
+        <button class="btn-clear" style="flex:1;" onclick="initQuizSettings()">⚙️ EDIT FILTERS</button>
         <button class="next-btn" style="flex:2; margin-top:0;" onclick="nextQuizQuestion()">NEXT QUESTION →</button>
       </div>
     </div>

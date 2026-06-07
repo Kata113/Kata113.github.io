@@ -106,13 +106,48 @@ function getWordMetadata(w) {
 // --- INITIALIZATION ---
 window.onload = async () => {
   try {
-    let r = await fetch('CSW24.txt');
-    dict = (await r.text()).split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
+    const response = await fetch('CSW24.txt');
+    if (!response.ok) throw new Error("Network response was not ok");
+    
+    const contentLength = response.headers.get('content-length');
+    const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+    
+    let loadedBytes = 0;
+    const reader = response.body.getReader();
+    const chunks = [];
+    
+    while(true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      loadedBytes += value.length;
+      
+      const statusEl = document.getElementById('loadingStatus');
+      if (statusEl) {
+        if (totalBytes > 0) {
+          const percent = Math.min(100, Math.round((loadedBytes / totalBytes) * 100));
+          statusEl.innerText = `Downloading Dictionary (${percent}%)`;
+        } else {
+          const kb = Math.round(loadedBytes / 1024);
+          statusEl.innerText = `Downloading Dictionary (${kb} KB)`;
+        }
+      }
+    }
+    
+    const statusEl = document.getElementById('loadingStatus');
+    if (statusEl) statusEl.innerText = "Processing Dictionary...";
+    
+    const blob = new Blob(chunks);
+    const text = await blob.text();
+    dict = text.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
     dictSet = new Set(dict);
     dict.forEach(w => { (wordsByL[w.length] = wordsByL[w.length] || []).push(w); });
     initProbabilityCache();
     document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " Words";
-  } catch(e) { document.getElementById('wCnt').innerText = "Sandbox Mode"; }
+  } catch(e) {
+    console.error("Failed to load dictionary:", e);
+    document.getElementById('wCnt').innerText = "Sandbox Mode";
+  }
   document.getElementById('loadingScreen').style.display = 'none';
   renderSaved();
 };
@@ -132,15 +167,17 @@ function toast(m, cls = '') {
 // --- FILTER INFRASTRUCTURE ---
 function addFilter(mode) {
   fId++; 
-  let type = document.getElementById(mode === 'S' ? 'sFType' : 'qFType').value;
-  let isR = (type === 'length' || type === 'point_value' || type === 'probability_order' || type === 'limit_probability_order');
-  let defaultV1 = '';
-  let defaultV2 = '';
+  const type = document.getElementById(mode === 'S' ? 'sFType' : 'qFType').value;
+  const isR = (type === 'length' || type === 'point_value' || type === 'probability_order' || type === 'limit_probability_order');
+  let defaultV1 = '', defaultV2 = '';
   if (type === 'length') { defaultV1 = '2'; defaultV2 = '8'; }
   else if (type === 'point_value') { defaultV1 = '1'; defaultV2 = '50'; }
   else if (type === 'probability_order') { defaultV1 = '1'; defaultV2 = '1000'; }
   else if (type === 'limit_probability_order') { defaultV1 = '1'; defaultV2 = '100'; }
-  let item = { id: fId, type, v1: defaultV1, v2: defaultV2, not: false };
+  else if (type === 'anagram_match') { defaultV1 = 'AEINRST'; }
+  else if (type === 'subanagram_match') { defaultV1 = 'AEINRST.'; }
+  else if (type === 'pattern_match') { defaultV1 = 'A...E'; }
+  const item = { id: fId, type, v1: defaultV1, v2: defaultV2, not: false };
   if (mode === 'S') { sFilters.push(item); renderFilters('S'); } else { qFilters.push(item); renderFilters('Q'); }
 }
 function toggleNot(mode, id) {
@@ -156,17 +193,26 @@ function updateFilterVal(mode, id, field, val) {
   let f = arr.find(x => x.id === id); if (f) f[field] = val.toUpperCase();
 }
 function renderFilters(mode) {
-  let arr = mode === 'S' ? sFilters : qFilters;
+  const arr = mode === 'S' ? sFilters : qFilters;
+  const placeholders = {
+    anagram_match: 'e.g. AEINRST or AE..RST',
+    subanagram_match: 'e.g. AEINRST. (. = blank)',
+    pattern_match: 'e.g. A...E or S*',
+    begins: 'e.g. RE',
+    ends: 'e.g. ING',
+    includes: 'e.g. QU',
+  };
   document.getElementById(mode === 'S' ? 'sStack' : 'qStack').innerHTML = arr.map(f => {
-    let isR = (f.type === 'length' || f.type === 'point_value' || f.type === 'probability_order' || f.type === 'limit_probability_order');
+    const isR = (f.type === 'length' || f.type === 'point_value' || f.type === 'probability_order' || f.type === 'limit_probability_order');
+    const ph = placeholders[f.type] || '';
     return `
       <div class="f-item">
         <div style="display:flex; gap:6px; align-items:center; flex:1;">
           <button class="btn-not ${f.not ? 'active' : ''}" onclick="toggleNot('${mode}', ${f.id})">NOT</button>
           <span class="mono" style="color:var(--accent); font-size:11px;">${f.type.toUpperCase().replace(/_/g, ' ')}</span>
-          ${isR ? 
-            `<input type="number" style="width:55px; background:var(--bg); color:#fff; border:1px solid var(--border); padding:2px;" value="${f.v1}" onchange="updateFilterVal('${mode}', ${f.id}, 'v1', this.value)"> - <input type="number" style="width:55px; background:var(--bg); color:#fff; border:1px solid var(--border); padding:2px;" value="${f.v2}" onchange="updateFilterVal('${mode}', ${f.id}, 'v2', this.value)">`
-            : `<input type="text" style="flex:1; background:var(--bg); color:#fff; border:1px solid var(--border); padding:2px;" value="${f.v1}" oninput="updateFilterVal('${mode}', ${f.id}, 'v1', this.value)">`
+          ${isR 
+            ? `<input type="number" style="width:55px; background:var(--bg); color:#fff; border:1px solid var(--border); padding:2px;" value="${f.v1}" onchange="updateFilterVal('${mode}', ${f.id}, 'v1', this.value)"> - <input type="number" style="width:55px; background:var(--bg); color:#fff; border:1px solid var(--border); padding:2px;" value="${f.v2}" onchange="updateFilterVal('${mode}', ${f.id}, 'v2', this.value)">`
+            : `<input type="text" placeholder="${ph}" style="flex:1; background:var(--bg); color:#fff; border:1px solid var(--border); padding:2px;" value="${f.v1}" oninput="updateFilterVal('${mode}', ${f.id}, 'v1', this.value)">`
           }
         </div>
         <span style="cursor:pointer; color:var(--danger);" onclick="deleteFilter('${mode}', ${f.id})">✕</span>
@@ -193,23 +239,37 @@ function matchFilters(w, arr) {
       m = true; // limit is evaluated post-filter
     }
     else if (f.type === 'anagram_match') {
+      // Exact length match using rack letters + blanks (. = blank tile)
       if (w.length !== v1.length) {
         m = false;
       } else {
-        let blanksCount = (v1.match(/\./g) || []).length;
-        let rackLetters = [...v1.replace(/\./g, '')];
-        let tempRack = [...rackLetters];
+        const blanksCount = (v1.match(/\./g) || []).length;
+        const tempRack = [...v1.replace(/\./g, '')];
         let neededBlanks = 0;
-        for (let char of w) {
-          let idx = tempRack.indexOf(char);
-          if (idx > -1) {
-            tempRack.splice(idx, 1);
-          } else {
-            neededBlanks++;
-          }
+        for (const char of w) {
+          const idx = tempRack.indexOf(char);
+          if (idx > -1) { tempRack.splice(idx, 1); } else { neededBlanks++; }
         }
         m = (neededBlanks <= blanksCount);
       }
+    }
+    else if (f.type === 'subanagram_match') {
+      // Word's letters must all fit within the rack (word can be any length <= rack)
+      const blanksCount = (v1.match(/\./g) || []).length;
+      const tempRack = [...v1.replace(/\./g, '')];
+      let neededBlanks = 0;
+      for (const char of w) {
+        const idx = tempRack.indexOf(char);
+        if (idx > -1) { tempRack.splice(idx, 1); } else { neededBlanks++; }
+      }
+      m = (neededBlanks <= blanksCount);
+    }
+    else if (f.type === 'pattern_match') {
+      // Pattern: . = any one letter, * = any sequence, e.g. "A...E" or "S*ING"
+      try {
+        const rx = new RegExp('^' + v1.replace(/\./g, '.').replace(/\*/g, '.*') + '$');
+        m = rx.test(w);
+      } catch(e) { m = false; }
     }
     if (f.not) m = !m; if (!m) return false;
   }

@@ -2,7 +2,8 @@ let qState = {
   pool: [], rawWords: [], rack: '', sol: [], 
   correctAnswers: [], incorrectAttempts: [],
   userSkipped: false, setsDone: 0,
-  analysis: null 
+  analysis: null,
+  lastFeedback: null // 👈 เก็บสถานะการตอบล่าสุด { text: '', color: '' }
 };
 
 function startQuiz() {
@@ -11,7 +12,7 @@ function startQuiz() {
   qState.rawWords = p; 
   let uniquePool = Array.from(new Set(p.map(w => [...w].sort().join('')))); 
   
-  qState.pool = standardShuffle(uniquePool); // สุ่มอิสระทันทีแบบกระจายตัว
+  qState.pool = standardShuffle(uniquePool); 
   qState.setsDone = 0;
   qState.analysis = null; 
   document.getElementById('qSettingsPane').style.display = 'none'; 
@@ -20,13 +21,14 @@ function startQuiz() {
 }
 
 function quitQuiz() {
-  qState.rawWords = []; qState.pool = []; qState.setsDone = 0; qState.analysis = null;
+  qState.rawWords = []; qState.pool = []; qState.setsDone = 0; qState.analysis = null; qState.lastFeedback = null;
   document.getElementById('qEnginePane').style.display = 'none'; 
   document.getElementById('qSettingsPane').style.display = 'block';
 }
 
 function nextQ() {
   qState.correctAnswers = []; qState.incorrectAttempts = []; qState.userSkipped = false;
+  qState.lastFeedback = null; // 👈 รีเซ็ตคำเตือนเมื่อขึ้นคำใหม่
   let currentRack = qState.pool[qState.setsDone]; 
   qState.rack = currentRack;
   qState.sol = dict.filter(w => w.length === currentRack.length && [...w].sort().join('') === currentRack);
@@ -58,6 +60,11 @@ function renderQuiz() {
     return `<div class="mono" style="font-size:14px; color:var(--orange); padding:2px 0;">• (${hk.f}) <b>${w}</b> (${hk.b}) [Missed]</div>`;
   }).join('') : "";
 
+  // สร้าง HTML สำหรับตัวอักษรเล็กๆ แจ้งเตือนใต้ช่องกรอก
+  let feedbackHtml = qState.lastFeedback 
+    ? `<div class="mono" style="font-size: 11px; color: ${qState.lastFeedback.color}; text-align: center; margin-top: 4px; font-weight: 500;">${qState.lastFeedback.text}</div>` 
+    : `<div style="height: 16px;"></div>`; // เว้นช่องไฟไว้กรณีไม่มีการตอบ
+
   document.getElementById('qEnginePane').innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
       <div class="mono" style="font-size:12px; color:var(--text2)">POOL: ${qState.setsDone + 1} / ${qState.pool.length}</div>
@@ -68,7 +75,10 @@ function renderQuiz() {
       <div class="quiz-history-pane" id="qHistBox" style="${(qState.correctAnswers.length || qState.userSkipped) ? '' : 'display:none;'}">
         ${historyHtml}${revealHtml}
       </div>
-      <input type="text" id="qInp" class="input-field mono" style="text-align:center;" placeholder="${isComplete ? 'Press Next to proceed...' : 'Type answer...'}" ${isComplete ? 'disabled' : ''} oninput="updateQuizButton()" onkeydown="if(event.key==='Enter')handleQuizAction()">
+      <div>
+        <input type="text" id="qInp" class="input-field mono" style="text-align:center;" placeholder="${isComplete ? 'Press Next to proceed...' : 'Type answer...'}" ${isComplete ? 'disabled' : ''} oninput="updateQuizButton()" onkeydown="if(event.key==='Enter')handleQuizAction()">
+        ${feedbackHtml}
+      </div>
       <div style="display:flex; gap:8px;">
         <button class="btn btn-p" id="qActionBtn" style="flex:1; color:#fff;" onclick="handleQuizAction()">${actionText}</button>
         <button class="btn" style="flex:1; color:var(--orange);" onclick="analyzeQuizSet(false)">ANALYZE</button>
@@ -89,11 +99,22 @@ function handleQuizAction() {
 
   let inp = document.getElementById('qInp');
   let v = inp.value.trim().toUpperCase();
-  if (!v) { qState.userSkipped = true; toast("Revealing Pool..."); renderQuiz(); return; }
+  if (!v) { qState.userSkipped = true; qState.lastFeedback = null; toast("Revealing Pool..."); renderQuiz(); return; }
   
-  if (qState.sol.includes(v)) { if (!qState.correctAnswers.includes(v)) qState.correctAnswers.push(v); } 
-  else { if (!qState.incorrectAttempts.includes(v)) qState.incorrectAttempts.push(v); }
-  inp.value = ''; renderQuiz();
+  if (qState.sol.includes(v)) { 
+    if (!qState.correctAnswers.includes(v)) {
+      qState.correctAnswers.push(v);
+      qState.lastFeedback = { text: `✓ "${v}" is Correct`, color: 'var(--accent)' };
+    } else {
+      qState.lastFeedback = { text: `ℹ️ "${v}" was already found`, color: 'var(--orange)' };
+    }
+  } 
+  else { 
+    if (!qState.incorrectAttempts.includes(v)) qState.incorrectAttempts.push(v); 
+    qState.lastFeedback = { text: `✕ "${v}" is Incorrect`, color: 'var(--danger)' };
+  }
+  inp.value = ''; 
+  renderQuiz();
 }
 
 function analyzeQuizSet(isGameOver = false) {

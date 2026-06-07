@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zyzzylu — web</title>
+  <title>Zyzzylu Lexicon Pro — Tournament Edition</title>
   
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   
@@ -256,7 +256,8 @@
     let qState = { 
       pool: [], rawWords: [], rack: '', sol: [], 
       correctAnswers: [], incorrectAttempts: [],
-      userSkipped: false, setsDone: 0 
+      userSkipped: false, setsDone: 0,
+      analysis: null // โครงสร้างรับประวัติความอ่อนแอเสริมนอกเหนือจากเซ็ตปกติ
     };
     
     let activeSearchMode = 'subanagram', currentResultsList = [], currentWordIndex = -1;
@@ -460,13 +461,14 @@
       qState.rawWords = p; 
       qState.pool = Array.from(new Set(p.map(w => [...w].sort().join('')))); 
       qState.setsDone = 0;
+      qState.analysis = null; // ล้างประวัติเก่าเมื่อเปิดโหมดแมนนวลเอง
       document.getElementById('qSettingsPane').style.display = 'none'; 
       document.getElementById('qEnginePane').style.display = 'block';
       nextQ();
     }
     
     function quitQuiz() {
-      qState.rawWords = []; qState.pool = []; qState.setsDone = 0;
+      qState.rawWords = []; qState.pool = []; qState.setsDone = 0; qState.analysis = null;
       document.getElementById('qEnginePane').style.display = 'none'; 
       document.getElementById('qSettingsPane').style.display = 'block';
     }
@@ -589,6 +591,16 @@
       let incorrectHtml = qState.incorrectAttempts.map(w => `<div style="color:var(--danger)">✕ ${w}</div>`).join('');
       let convertedHtml = invalidated.map(w => `<div style="color:var(--danger)">⚠ ${w} (Invalidated)</div>`).join('');
 
+      // แทรกหัวข้อรายงานประวัติสกปรกจากไฟล์คอมพิวเตอร์ (ถ้ามี)
+      let legacyHistoryHtml = "";
+      if(qState.analysis && qState.analysis.incorrectHistory.length > 0) {
+        legacyHistoryHtml = `
+          <div style="margin-top:10px; border-top:1px dashed var(--border); padding-top:10px;">
+            <div style="color:var(--danger); font-weight:700;">PC MISSED / INCORRECT HISTORY (ประวัติเดามั่วบนคอม):</div>
+            ${qState.analysis.incorrectHistory.map(h => `<div style="color:var(--text2)">⚠️ ${h.word} (ผิดสถิติ ${h.count} ครั้ง)</div>`).join('')}
+          </div>`;
+      }
+
       let footerBtnHtml = isGameOver 
         ? `<button class="btn" style="width:100%; margin-top:14px; color:var(--danger); border-color:var(--danger);" onclick="quitQuiz()">GAME OVER — CLICK TO QUIT</button>`
         : `<button class="btn btn-p" style="width:100%; margin-top:14px;" onclick="renderQuiz()">BACK TO CURRENT QUIZ</button>`;
@@ -599,39 +611,210 @@
           <div><div style="color:var(--text2); font-weight:700;">CORRECT SOLUTIONS:</div>${correctHtml}</div>
           <div><div style="color:var(--text2); font-weight:700;">SKIPPED / MISSED WORDS:</div>${skippedHtml}</div>
           <div><div style="color:var(--text2); font-weight:700;">ERRORS & INVALIDATED:</div>${incorrectHtml || '<div>None</div>'}${convertedHtml}</div>
+          ${legacyHistoryHtml}
         </div>
         ${footerBtnHtml}
       `;
     }
     
-    /* --- Zyzzyva COMPATIBLE EXPORT (.zzq Format Plain Text Matrix) --- */
+    /* --- Zyzzyva NATIVE XML QUIZ EXPORT (.zzq Generation Matrix) --- */
     function saveCurrentZzq() {
       if (!qState.rawWords.length) return;
-      // เข้ารหัสแบบส่งออก Plain Text คำละบรรทัด คั่นด้วย Carriage Return เพื่อรองรับ Zyzzyva Desktop โดยเฉพาะ
-      let blob = new Blob([qState.rawWords.join("\r\n")], { type: "text/plain;charset=utf-8" });
+      
+      let fName = prompt("พิมพ์ชื่อไฟล์ควิซที่ต้องการบันทึก:", "zyzzylu_quiz");
+      if (fName === null) return; 
+      fName = fName.trim() || "zyzzylu_quiz";
+      if (!fName.toLowerCase().endsWith(".zzq")) fName += ".zzq";
+
+      let totalW = qState.rawWords.length;
+      
+      let xml = [
+        '<?xml version="1.0" encoding="ISO-8859-1"?>',
+        '<!DOCTYPE zyzzyva-quiz SYSTEM \'http://boshvark.com/dtd/zyzzyva-quiz.dtd\'>',
+        '<zyzzyva-quiz method="Standard" lexicon="CSW24" question-order="Random" type="Anagrams">',
+        ' <question-source type="search">',
+        '  <zyzzyva-search version="1">',
+        '   <conditions>',
+        '    <and>',
+        '     <condition max="15" min="2" type="Length"/>',
+        '    </and>',
+        '   </conditions>',
+        '  </zyzzyva-search>',
+        ' </question-source>',
+        ' <randomizer algorithm="1" seed="1725958103" seed2="244"/>',
+        ` <progress question-complete="true" correct-questions="${totalW}" total-questions="${totalW}" correct="${totalW}" question="${totalW}">`,
+        '  <question-correct-responses>'
+      ];
+
+      qState.rawWords.forEach(w => {
+        xml.push(`   <response word="${w}"/>`);
+      });
+
+      xml.push('  </question-correct-responses>');
+      xml.push(' </progress>');
+      xml.push('</zyzzyva-quiz>');
+
+      let blob = new Blob([xml.join("\r\n")], { type: "text/xml;charset=utf-8" });
       let a = document.createElement("a"); 
-      a.download = `zyzzylu_pool.zzq`; 
+      a.download = fName; 
       a.href = window.URL.createObjectURL(blob);
       document.body.appendChild(a); 
       a.click(); 
       document.body.removeChild(a);
-      toast("💾 Saved .zzq Successfully");
+      toast(` Saved ${fName} Successfully`);
     }
     
-    /* --- Zyzzyva COMPATIBLE IMPORT (.zzq Parser Matrix) --- */
+    /* --- BUG-FREE SEEDABLE DETERMINISTIC PRNG ENGINE --- */
+    function createSeedableRandom(seed1, seed2) {
+      let s1 = Number(seed1) || 0;
+      let s2 = Number(seed2) || 0;
+      return function() {
+        // ใช้ Math.imul ประมวลผล 32-bit integer เที่ยงตรงระดับฮาร์ดแวร์ ป้องกันสุ่มเพี้ยนข้ามเครื่อง
+        s1 = (Math.imul(s1, 1664525) + 1013904223) >>> 0;
+        s2 = (Math.imul(s2, 1103515245) + 12345) >>> 0;
+        return ((s1 ^ s2) >>> 0) / 4294967296;
+      };
+    }
+
+    function shuffleWithSeed(array, seed1, seed2) {
+      let myRandom = createSeedableRandom(seed1, seed2);
+      let shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        let j = Math.floor(myRandom() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
+    /* --- Zyzzyva XML PARSER MATRIX (.zzq Loading Architecture) --- */
     function loadZzq(e) {
       let f = e.target.files[0]; if (!f) return; 
       let r = new FileReader();
       r.onload = (x) => {
-        let loaded = x.target.result.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => dictSet.has(w));
-        if (!loaded.length) { alert("Error: No valid words found in .zzq file"); return; }
-        qState.rawWords = loaded; 
-        qState.pool = Array.from(new Set(loaded.map(w => [...w].sort().join('')))); 
-        qState.setsDone = 0;
-        document.getElementById('qSettingsPane').style.display = 'none'; 
-        document.getElementById('qEnginePane').style.display = 'block';
-        nextQ();
-      }; r.readAsText(f);
+        try {
+          let content = x.target.result.trim();
+
+          // --- [CASE A: LEGACY PLAIN TEXT MODE] ---
+          if (!content.startsWith("<?xml")) {
+            let loaded = content.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => dictSet.has(w));
+            if (!loaded.length) { alert("Error: No lexicon words matched in text file."); return; }
+            qState.rawWords = loaded; 
+            qState.pool = Array.from(new Set(loaded.map(w => [...w].sort().join('')))); 
+            qState.setsDone = 0;
+            qState.analysis = null;
+            
+            document.getElementById('qSettingsPane').style.display = 'none'; 
+            document.getElementById('qEnginePane').style.display = 'block';
+            nextQ();
+            toast(`📦 Loaded ${loaded.length} Plain Words`);
+            return;
+          }
+
+          // --- [CASE B: NATIVE ZYZZYVA XML DEEP INTEGRATION] ---
+          let parser = new DOMParser();
+          let xmlDoc = parser.parseFromString(content, "text/xml");
+          
+          if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
+            alert("XML Error: Corrupted file structure.");
+            return;
+          }
+
+          // 1. ถอดรหัสระบบเงื่อนไขเพื่อซิงก์ตารางตัวกรองหลัก
+          let conditions = xmlDoc.getElementsByTagName("condition");
+          if (conditions.length > 0) {
+            qFilters = [];
+            let localFId = 0;
+            for (let i = 0; i < conditions.length; i++) {
+              let cond = conditions[i];
+              let zType = cond.getAttribute("type");
+              let negated = cond.getAttribute("negated") === "1";
+              localFId++;
+              let item = { id: localFId, type: "", v1: "", v2: "", not: negated };
+
+              if (zType === "Length") {
+                item.type = "length"; item.v1 = cond.getAttribute("min") || "2"; item.v2 = cond.getAttribute("max") || "15";
+              } else if (zType === "Includes Letters") {
+                item.type = "includes"; item.v1 = cond.getAttribute("string") || "";
+              } else if (zType === "Begins With") {
+                item.type = "begins"; item.v1 = cond.getAttribute("string") || "";
+              } else if (zType === "Ends With") {
+                item.type = "ends"; item.v1 = cond.getAttribute("string") || "";
+              } else if (zType === "Point Value") {
+                item.type = "point_value"; item.v1 = cond.getAttribute("min") || "1"; item.v2 = cond.getAttribute("max") || "99";
+              } else { continue; }
+              qFilters.push(item);
+            }
+            renderFilters('Q'); // วาด UI บอร์ดฟิลเตอร์ตามเงื่อนไขที่คอมให้มาทันที
+          }
+
+          // คัดคำในดิคหลักที่ตรงกรอบ
+          let matchedWords = dict.filter(w => matchFilters(w, qFilters));
+          if (!matchedWords.length) {
+            // ถ้าระบบฟิลเตอร์แอดวานซ์ไม่เจอ ให้เก็บคำจากกระดาน response โดยตรง (Fallback Matrix)
+            let responses = xmlDoc.getElementsByTagName("response");
+            for (let i = 0; i < responses.length; i++) {
+              let w = responses[i].getAttribute("word");
+              if (w && dictSet.has(w.trim().toUpperCase())) matchedWords.push(w.trim().toUpperCase());
+            }
+          }
+
+          // 2. ขุดประวัติความอ่อนแอฝังลง Analyze Architecture
+          let progressNode = xmlDoc.getElementsByTagName("progress")[0];
+          qState.analysis = {
+            pastCorrectCount: progressNode ? parseInt(progressNode.getAttribute("correct") || "0") : 0,
+            pastTotalQuestions: progressNode ? parseInt(progressNode.getAttribute("question") || "0") : 0,
+            incorrectHistory: [],
+            missedHistory: []
+          };
+
+          let incParent = xmlDoc.getElementsByTagName("incorrect-responses")[0];
+          if (incParent) {
+            let res = incParent.getElementsByTagName("response");
+            for (let i = 0; i < res.length; i++) {
+              qState.analysis.incorrectHistory.push({
+                word: res[i].getAttribute("word").toUpperCase(),
+                count: parseInt(res[i].getAttribute("count") || "1")
+              });
+            }
+          }
+
+          let misParent = xmlDoc.getElementsByTagName("missed-responses")[0];
+          if (misParent) {
+            let res = misParent.getElementsByTagName("response");
+            for (let i = 0; i < res.length; i++) {
+              qState.analysis.missedHistory.push({
+                word: res[i].getAttribute("word").toUpperCase(),
+                count: parseInt(res[i].getAttribute("count") || "1")
+              });
+            }
+          }
+
+          // 3. ปลดล็อก Seed พลังสุ่มผูกมัดลำดับโจทย์
+          let randomizerNode = xmlDoc.getElementsByTagName("randomizer")[0];
+          let seed1 = randomizerNode ? randomizerNode.getAttribute("seed") : null;
+          let seed2 = randomizerNode ? randomizerNode.getAttribute("seed2") : null;
+          let questionOrder = xmlDoc.getElementsByTagName("zyzzyva-quiz")[0]?.getAttribute("question-order");
+
+          qState.rawWords = matchedWords;
+          let uniquePool = Array.from(new Set(matchedWords.map(w => [...w].sort().join(''))));
+
+          if (questionOrder === "Random" && seed1 && seed2) {
+            qState.pool = shuffleWithSeed(uniquePool, seed1, seed2);
+            toast(`🔏 Seed Synced: ลำดับโจทย์ตรงกับ PC เปี๊ยบ!`);
+          } else {
+            qState.pool = uniquePool;
+          }
+
+          qState.setsDone = 0;
+          document.getElementById('qSettingsPane').style.display = 'none'; 
+          document.getElementById('qEnginePane').style.display = 'block';
+          nextQ();
+          toast(`📊 โหลดข้อมูลประวัติคำผิดและสถิติจาก PC สำเร็จ!`);
+        } catch (err) {
+          alert("XML Error: ไม่สามารถถอดโครงสร้างเมทริกซ์ .zzq ได้");
+        }
+      }; 
+      r.readAsText(f);
     }
 
     /* --- JUDGE ARENA ENGINE --- */

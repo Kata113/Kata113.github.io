@@ -179,6 +179,7 @@ function saveCurrentZzq() {
   let xml = [
     '<?xml version="1.0" encoding="ISO-8859-1"?>',
     '<!DOCTYPE zyzzyva-quiz SYSTEM \'http://boshvark.com/dtd/zyzzyva-quiz.dtd\'>',
+    `<!-- zyzzylu-pool-order: ${qState.pool.join(',')} -->`,
     '<zyzzyva-quiz method="Standard" lexicon="CSW24" question-order="Random" type="Anagrams">',
     ` <question-source type="search"><zyzzyva-search version="1"><conditions><and><condition min="${minL}" max="${maxL}" type="Length"/></and></conditions></zyzzyva-search></question-source>`,
     ` <randomizer algorithm="1" seed="${seed1}" seed2="${seed2}"/>`,
@@ -242,14 +243,20 @@ function loadZzq(e) {
       
       let xmlDoc = (new DOMParser()).parseFromString(content, "text/xml");
       
-      // 🌟 บั๊กฟิกซ์ส่วนที่ 3: ดึงคำจากแท็ก <response> ในไฟล์ตรงๆ ก่อน ป้องกันการไปดึงยกดิกชันนารีมาเอ๋อ
-      let responseNodes = xmlDoc.getElementsByTagName("response");
+      // ดึงคำ wordlist จาก <question-source> ผ่าน <question-correct-responses> ระดับบนสุดเท่านั้น
+      // ต้องแยกออกจาก <incorrect-responses> และ <question-correct-responses> ใน <progress>
+      // ไฟล์จากเว็บของเราจะไม่มี explicit word list → ใช้ fallback กรองจาก dictionary
+      // ไฟล์เก่าที่ยัดคำทั้งหมดไว้ → ดึงจาก <question-correct-responses> นอก <progress> เท่านั้น
       let explicitWords = [];
-      for (let i = 0; i < responseNodes.length; i++) {
-        let w = responseNodes[i].getAttribute("word");
-        if (w) {
-          w = w.trim().toUpperCase();
-          if (dictSet.has(w)) explicitWords.push(w);
+      let progressNode0 = xmlDoc.getElementsByTagName("progress")[0];
+      // หา <question-correct-responses> ที่เป็น direct child ของ root (ไม่ใช่ใน <progress>)
+      let allQcr = xmlDoc.getElementsByTagName("question-correct-responses");
+      for (let qi = 0; qi < allQcr.length; qi++) {
+        if (allQcr[qi].parentNode === progressNode0) continue; // ข้ามที่อยู่ใน <progress>
+        let rr = allQcr[qi].getElementsByTagName("response");
+        for (let i = 0; i < rr.length; i++) {
+          let w = rr[i].getAttribute("word");
+          if (w) { w = w.trim().toUpperCase(); if (dictSet.has(w)) explicitWords.push(w); }
         }
       }
       
@@ -274,7 +281,7 @@ function loadZzq(e) {
       
       if (!explicitWords.length) { alert("No valid words found in this quiz file."); return; }
 
-      let progressNode = xmlDoc.getElementsByTagName("progress")[0];
+      let progressNode = progressNode0;  // reuse — already fetched above
       let rNode = xmlDoc.getElementsByTagName("randomizer")[0];
       let s1 = rNode ? rNode.getAttribute("seed") : null, s2 = rNode ? rNode.getAttribute("seed2") : null;
 
@@ -313,7 +320,18 @@ function loadZzq(e) {
 
       qState.rawWords = explicitWords;
       let uniquePool = Array.from(new Set(explicitWords.map(w => [...w].sort().join(''))));
-      qState.pool = (s1 && s2) ? shuffleWithSeed(uniquePool, s1, s2) : standardShuffle(uniquePool);
+
+      // ลอง restore pool order จาก comment ที่เว็บฝังไว้ก่อน
+      // ถ้าไม่มี (ไฟล์มาจาก Zyzzyva โดยตรง) ค่อย shuffle ตาม seed
+      let poolOrderComment = content.match(/<!--\s*zyzzylu-pool-order:\s*([A-Z,]+)\s*-->/);
+      if (poolOrderComment) {
+        let savedPool = poolOrderComment[1].split(',').filter(rack => uniquePool.includes(rack));
+        // เติมส่วนที่หายไป (ถ้า dict เปลี่ยน) ต่อท้าย
+        let missing = uniquePool.filter(r => !savedPool.includes(r));
+        qState.pool = [...savedPool, ...missing];
+      } else {
+        qState.pool = (s1 && s2) ? shuffleWithSeed(uniquePool, s1, s2) : standardShuffle(uniquePool);
+      }
       qState.setsDone = Math.min(savedQuestion, qState.pool.length - 1);
       qState.incorrectHistory = incorrectHistory;
       qState.analysis = { pastCorrectCount: savedCorrectWords, incorrectHistory: Object.entries(incorrectHistory).map(([word, count]) => ({ word, count })) };

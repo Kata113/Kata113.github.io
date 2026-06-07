@@ -6,7 +6,7 @@ let qState = {
   analysis: null,
   lastFeedback: null 
 };
-
+ 
 function startQuiz() {
   let p = dict.filter(w => matchFilters(w, qFilters));
   if (!p.length) { alert("No pools found matching criteria"); return; }
@@ -20,13 +20,13 @@ function startQuiz() {
   document.getElementById('qEnginePane').style.display = 'block';
   nextQ();
 }
-
+ 
 function quitQuiz() {
   qState.rawWords = []; qState.pool = []; qState.setsDone = 0; qState.analysis = null; qState.lastFeedback = null;
   document.getElementById('qEnginePane').style.display = 'none'; 
   document.getElementById('qSettingsPane').style.display = 'block';
 }
-
+ 
 function nextQ() {
   qState.correctAnswers = []; qState.incorrectAttempts = []; qState.userSkipped = false;
   qState.lastFeedback = null; 
@@ -35,7 +35,7 @@ function nextQ() {
   qState.sol = dict.filter(w => w.length === currentRack.length && [...w].sort().join('') === currentRack);
   renderQuiz();
 }
-
+ 
 function updateQuizButton() {
   let inp = document.getElementById('qInp');
   let btn = document.getElementById('qActionBtn');
@@ -45,26 +45,26 @@ function updateQuizButton() {
   if (isComplete) btn.innerText = isLast ? "Analyze" : "Next";
   else btn.innerText = inp.value.trim() ? "Submit" : "Check Answer";
 }
-
+ 
 function renderQuiz() {
   let isComplete = (qState.correctAnswers.length === qState.sol.length) || qState.userSkipped;
   let isLast = (qState.setsDone === qState.pool.length - 1);
   let actionText = isComplete ? (isLast ? "Analyze" : "Next") : "Check Answer";
-
+ 
   let historyHtml = qState.correctAnswers.map(w => {
     let hk = getHooksAndDots(w);
     return `<div class="mono" style="font-size:14px; color:var(--accent); padding:2px 0;">✓ (${hk.f}) <b>${w}</b> (${hk.b})</div>`;
   }).join('');
-
+ 
   let revealHtml = qState.userSkipped ? qState.sol.filter(w => !qState.correctAnswers.includes(w)).map(w => {
     let hk = getHooksAndDots(w);
     return `<div class="mono" style="font-size:14px; color:var(--orange); padding:2px 0;">• (${hk.f}) <b>${w}</b> (${hk.b}) [Missed]</div>`;
   }).join('') : "";
-
+ 
   let feedbackHtml = qState.lastFeedback 
     ? `<div class="mono" style="font-size: 11px; color: ${qState.lastFeedback.color}; text-align: center; margin-top: 4px; font-weight: 500;">${qState.lastFeedback.text}</div>` 
     : `<div style="height: 16px;"></div>`;
-
+ 
   document.getElementById('qEnginePane').innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
       <div class="mono" style="font-size:12px; color:var(--text2)">POOL: ${qState.setsDone + 1} / ${qState.pool.length}</div>
@@ -91,12 +91,12 @@ function renderQuiz() {
   `;
   if (!isComplete) setTimeout(() => document.getElementById('qInp').focus(), 50);
 }
-
+ 
 function handleQuizAction() {
   let isComplete = (qState.correctAnswers.length === qState.sol.length) || qState.userSkipped;
   let isLast = (qState.setsDone === qState.pool.length - 1);
   if (isComplete) { if (isLast) analyzeQuizSet(true); else { qState.setsDone++; nextQ(); } return; }
-
+ 
   let inp = document.getElementById('qInp');
   let v = inp.value.trim().toUpperCase();
   if (!v) { qState.userSkipped = true; qState.lastFeedback = null; toast("Revealing Pool..."); renderQuiz(); return; }
@@ -116,26 +116,26 @@ function handleQuizAction() {
   inp.value = ''; 
   renderQuiz();
 }
-
+ 
 function analyzeQuizSet(isGameOver = false) {
   let corrected = [], skipped = [], invalidated = [];
   qState.sol.forEach(w => {
     if (qState.correctAnswers.includes(w)) { if (qState.incorrectAttempts.length > 0) invalidated.push(w); else corrected.push(w); } 
     else skipped.push(w);
   });
-
+ 
   let correctHtml = corrected.map(w => `<div style="color:var(--accent)">✓ ${w}</div>`).join('') || '<div>None</div>';
   let skippedHtml = skipped.map(w => `<div style="color:var(--orange)">• ${w}</div>`).join('') || '<div>None</div>';
   let incorrectHtml = qState.incorrectAttempts.map(w => `<div style="color:var(--danger)">✕ ${w}</div>`).join('') + invalidated.map(w => `<div style="color:var(--danger)">⚠ ${w} (Invalidated)</div>`).join('');
-
+ 
   let legacyHistoryHtml = (qState.analysis && qState.analysis.incorrectHistory.length > 0) ? `
     <div style="margin-top:10px; border-top:1px dashed var(--border); padding-top:10px;">
       <div style="color:var(--danger); font-weight:700;">INCORRECT HISTORY:</div>
       ${qState.analysis.incorrectHistory.map(h => `<div style="color:var(--text2)">⚠️ ${h.word} (${h.count} times)</div>`).join('')}
     </div>` : "";
-
+ 
   let footerBtnHtml = isGameOver ? `<button class="btn" style="width:100%; margin-top:14px; color:var(--danger); border-color:var(--danger);" onclick="quitQuiz()">GAME OVER — QUIT</button>` : `<button class="btn btn-p" style="width:100%; margin-top:14px;" onclick="renderQuiz()">BACK TO QUIZ</button>`;
-
+ 
   document.getElementById('qEnginePane').innerHTML = `
     <h3 class="mono" style="font-size:15px; margin-bottom:12px; border-bottom:1px solid var(--border); padding-bottom:6px;">Review Grid Analysis</h3>
     <div class="mono" style="font-size:12px; display:flex; flex-direction:column; gap:12px; max-height:280px; overflow-y:auto; background:#000; padding:10px; border-radius:6px;">
@@ -146,37 +146,43 @@ function analyzeQuizSet(isGameOver = false) {
     </div>${footerBtnHtml}
   `;
 }
-
+ 
 function saveCurrentZzq() {
   if (!qState.rawWords.length) return;
   let fName = prompt("ชื่อไฟล์ควิซ:", "zyzzylu_quiz"); if (fName === null) return;
   fName = fName.trim() || "zyzzylu_quiz"; if (!fName.toLowerCase().endsWith(".zzq")) fName += ".zzq";
-  
-  let totalW = qState.rawWords.length;
-  
-  // 🌟 บั๊กฟิกซ์ส่วนที่ 1: หาค่าความยาว Min/Max จริงของเซตคำศัพท์ ไม่ให้โปรแกรมฝั่ง PC เอ๋อค้าง
+ 
+  // จำนวน unique anagram sets = จำนวน questions จริงๆ ใน Zyzzyva
+  let uniquePool = Array.from(new Set(qState.rawWords.map(w => [...w].sort().join(''))));
+  let totalQuestions = uniquePool.length;
+ 
   let lengths = qState.rawWords.map(w => w.length);
   let minL = lengths.length ? Math.min(...lengths) : 2;
   let maxL = lengths.length ? Math.max(...lengths) : 15;
-
+ 
+  let seed1 = Math.floor(Date.now() / 1000);
+  let seed2 = 244;
+ 
+  // โครงสร้าง XML ที่ Zyzzyva อ่านได้ถูกต้อง:
+  // - ไม่มี <question-correct-responses> ใน <progress> (นั่นคือ state ของ question ปัจจุบัน ไม่ใช่ list คำทั้งหมด)
+  // - total-questions = จำนวน unique anagram pools
+  // - question-complete="false", question="0" = เริ่มต้นใหม่
   let xml = [
     '<?xml version="1.0" encoding="ISO-8859-1"?>',
     '<!DOCTYPE zyzzyva-quiz SYSTEM \'http://boshvark.com/dtd/zyzzyva-quiz.dtd\'>',
     '<zyzzyva-quiz method="Standard" lexicon="CSW24" question-order="Random" type="Anagrams">',
-    ` <question-source type="search"><zyzzyva-search version="1"><conditions><and><condition max="${maxL}" min="${minL}" type="Length"/></and></conditions></zyzzyva-search></question-source>`,
-    ' <randomizer algorithm="1" seed="' + Math.floor(Date.now() / 1000) + '" seed2="244"/>',
-    // 🌟 บั๊กฟิกซ์ส่วนที่ 2: ตั้งค่าก้าวหน้าเป็น false เพื่อให้เอาไฟล์ไปเปิดรันเป็นควิซใหม่บน PC ได้อย่างลื่นไหล
-    ` <progress question-complete="false" correct-questions="0" total-questions="${totalW}" correct="0" question="0"><question-correct-responses>`
+    ` <question-source type="search"><zyzzyva-search version="1"><conditions><and><condition min="${minL}" max="${maxL}" type="Length"/></and></conditions></zyzzyva-search></question-source>`,
+    ` <randomizer algorithm="1" seed="${seed1}" seed2="${seed2}"/>`,
+    ` <progress correct-questions="0" question="0" correct="0" question-complete="false" total-questions="${totalQuestions}"/>`,
+    '</zyzzyva-quiz>'
   ];
-  qState.rawWords.forEach(w => xml.push(`   <response word="${w}"/>`));
-  xml.push('  </question-correct-responses></progress></zyzzyva-quiz>');
-
+ 
   let blob = new Blob([xml.join("\r\n")], { type: "application/octet-stream" });
   let a = document.createElement("a"); a.download = fName; a.href = window.URL.createObjectURL(blob);
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  toast(`Saved ${fName}`);
+  toast(`Saved ${fName} (${totalQuestions} sets)`);
 }
-
+ 
 function createSeedableRandom(s1, s2) {
   let seed1 = Number(s1) || 0, seed2 = Number(s2) || 0;
   return () => { seed1 = (Math.imul(seed1, 1664525) + 1013904223) >>> 0; seed2 = (Math.imul(seed2, 1103515245) + 12345) >>> 0; return ((seed1 ^ seed2) >>> 0) / 4294967296; };
@@ -191,7 +197,7 @@ function standardShuffle(array) {
   for (let i = shuffled.length - 1; i > 0; i--) { let j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
   return shuffled;
 }
-
+ 
 function loadZzq(e) {
   let f = e.target.files[0]; if (!f) return;
   let r = new FileReader();

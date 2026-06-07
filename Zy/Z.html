@@ -3,28 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZYZZYVA — CSW24 Short</title>
+<title>ZYZZYVA — Emerald Pro</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-:root { --bg: #09090e; --surface: #111118; --surface2: #171724; --border: #232336; --accent: #7c6af7; --accent2: #f7a06a; --text: #f0f0f5; --text2: #8c8ca3; --danger: #f76a6a; --success: #6af7a0; --info: #6ae7f7; }
+/* CHANGED: New Emerald Cyber Theme (โทนสีเขียว-ฟ้าแนวเครื่องมือระดับโปร) */
+:root { --bg: #07090c; --surface: #0e131a; --surface2: #151c27; --border: #1e293b; --accent: #10b981; --accent2: #06b6d4; --text: #f1f5f9; --text2: #94a3b8; --danger: #f43f5e; --success: #34d399; }
 * { margin:0; padding:0; box-sizing:border-box; font-family:'Noto Sans', sans-serif; }
 body { background:var(--bg); color:var(--text); min-height:100vh; padding-bottom:30px; }
 .mono { font-family:'Space Mono', monospace; }
-header { position:sticky; top:0; z-index:100; background:rgba(9,9,14,0.9); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:16px; display:flex; justify-content:between; align-items:center; }
-.logo { font-size:20px; font-weight:700; letter-spacing:4px; color:var(--accent); }
-nav { display:flex; background:var(--surface); border-bottom:1px solid var(--border); overflow-x:auto; }
+#loadingScreen { position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:16px; }
+.spinner { width:40px; height:40px; border:4px solid var(--surface2); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+header { position:sticky; top:0; z-index:100; background:rgba(7,9,12,0.9); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:16px; display:flex; justify-content:space-between; align-items:center; }
+.logo { font-size:20px; font-weight:700; letter-spacing:4px; color:var(--accent); text-shadow:0 0 12px rgba(16,185,129,0.2); }
+nav { display:flex; background:var(--surface); border-bottom:1px solid var(--border); }
 .tab { flex:1; padding:12px; text-align:center; font-size:11px; font-weight:600; color:var(--text2); border:none; background:none; cursor:pointer; border-bottom:3px solid transparent; }
 .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
 main { padding:20px 16px; max-width:600px; margin:0 auto; }
 .section { display:none; } .section.active { display:block; }
-/* CENTERED SEARCH */
 .center-search { display:flex; flex-direction:column; align-items:center; margin-bottom:20px; gap:10px; }
 .search-box { display:flex; width:100%; max-width:450px; background:var(--surface); border:1px solid var(--border); border-radius:30px; padding:4px 6px; }
 .search-box input { flex:1; background:transparent; border:none; outline:none; color:var(--text); font-size:16px; padding:8px 16px; text-transform:uppercase; }
 .search-btn { width:38px; height:38px; border-radius:50%; background:var(--accent); border:none; color:#fff; cursor:pointer; }
 .drawer { height:0; overflow:hidden; transition:0.3s ease; background:var(--surface); width:100%; max-width:450px; border-radius:12px; }
 .drawer.open { height:auto; padding:12px; border:1px solid var(--border); }
-/* REUSABLE BUILDER */
 .f-row { display:flex; gap:8px; margin-bottom:10px; }
 .f-stack { max-height:150px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; }
 .f-item { display:flex; align-items:center; gap:8px; background:var(--surface2); border:1px solid var(--border); padding:6px 10px; border-radius:8px; font-size:12px; }
@@ -33,20 +35,23 @@ main { padding:20px 16px; max-width:600px; margin:0 auto; }
 .btn-not { padding:4px 8px; font-size:10px; border:1px solid var(--border); background:none; color:var(--text2); border-radius:4px; }
 .btn-not.active { color:var(--danger); border-color:var(--danger); }
 .input-field { width:100%; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; outline:none; }
-/* CARD & LIST */
 .card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; }
-.item-row { background:var(--surface); border:1px solid var(--border); padding:10px 16px; border-radius:10px; margin-bottom:6px; display:flex; justify-content:between; align-items:center; }
-.log-box { max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; margin-top:12px; }
-.log-item { padding:10px; border-radius:8px; font-size:13px; display:flex; justify-content:between; }
-.log-item.valid { background:rgba(106,247,160,0.05); color:var(--success); }
-.log-item.invalid { background:rgba(247,106,106,0.05); color:var(--danger); }
-.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 16px; border-radius:8px; font-size:12px; opacity:0; transition:0.2s; pointer-events:none; z-index:999; }
+.item-row { background:var(--surface); border:1px solid var(--border); padding:10px 16px; border-radius:10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; }
+.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 16px; border-radius:8px; font-size:12px; opacity:0; transition:0.2s; pointer-events:none; z-index:9999; text-align:center; max-width:90%; }
 .toast.show { opacity:1; }
+.toast.vld { border-color:var(--success); color:var(--success); background:rgba(52,211,153,0.1); }
+.toast.phn { border-color:var(--danger); color:var(--danger); background:rgba(244,63,94,0.1); }
+.q-layout { display:flex; flex-direction:column; gap:12px; }
+.q-word-list { max-height:200px; overflow-y:auto; display:grid; grid-template-columns:1fr 1fr; gap:6px; background:var(--surface2); padding:10px; border-radius:8px; border:1px solid var(--border); }
+.q-word { font-size:13px; font-weight:600; color:var(--text2); text-decoration:line-through; opacity:0.4; }
+.q-word.revealed { color:var(--success); text-decoration:none; opacity:1; }
 </style>
 </head>
 <body>
 
-<header><div class="logo mono">ZYZZYVA</div><div class="mono" id="wCnt" style="font-size:11px;color:var(--text2)">Loading...</div></header>
+<div id="loadingScreen"><div class="spinner"></div><div class="mono" style="font-size:14px; color:var(--text2)">LOADING LEXICON...</div></div>
+
+<header><div class="logo mono">ZYZZYVA</div><div class="mono" id="wCnt" style="font-size:11px;color:var(--text2)">0 Words</div></header>
 
 <nav>
   <button class="tab active" onclick="tab(0,this)">🔍 SEARCH</button>
@@ -56,7 +61,6 @@ main { padding:20px 16px; max-width:600px; margin:0 auto; }
 </nav>
 
 <main>
-  <!-- SEARCH TAB -->
   <div class="section active" id="t0">
     <div class="center-search">
       <div class="search-box">
@@ -72,7 +76,7 @@ main { padding:20px 16px; max-width:600px; margin:0 auto; }
             <option value="begins">Begins With</option>
             <option value="ends">Ends With</option>
           </select>
-          <button class="btn" onclick="addFilter('S')" style="color:var(--info)">+ Add</button>
+          <button class="btn" onclick="addFilter('S')" style="color:var(--accent2)">+ Add</button>
         </div>
         <div class="f-stack" id="sStack"></div>
       </div>
@@ -80,11 +84,10 @@ main { padding:20px 16px; max-width:600px; margin:0 auto; }
     <div id="sRes"></div>
   </div>
 
-  <!-- QUIZ TAB -->
   <div class="section" id="t1">
     <div class="card" id="qBox">
       <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-        <span style="font-weight:700; font-size:18px;">Quiz</span>
+        <span style="font-weight:700; font-size:18px;">Quiz Settings</span>
         <button class="btn mono" style="padding:4px 8px; font-size:11px;" onclick="document.getElementById('fInp').click()">📂 LOAD</button>
       </div>
       <div class="f-row">
@@ -101,21 +104,17 @@ main { padding:20px 16px; max-width:600px; margin:0 auto; }
     </div>
   </div>
 
-  <!-- CHALLENGE TAB -->
   <div class="section" id="t2">
     <div class="card">
-      <h3 style="text-align:center; margin-bottom:4px;">Challenge</h3>
-      <p style="text-align:center; font-size:12px; color:var(--text2); margin-bottom:16px;">Type word below to validate inside CSW24.</p>
+      <h3 style="text-align:center; margin-bottom:4px;">Challenge Arena</h3>
+      <p style="text-align:center; font-size:12px; color:var(--text2); margin-bottom:16px;">Type words (space-separated) to challenge the lexicon.</p>
       <div class="f-row">
-        <input type="text" id="cInp" class="input-field mono" placeholder="Enter word..." onkeydown="if(event.key==='Enter')chkChal()" oninput="this.value=this.value.toUpperCase()">
-        <button class="btn btn-p" onclick="chkChal()">CHECK</button>
+        <input type="text" id="cInp" class="input-field mono" placeholder="Enter word(s)..." onkeydown="if(event.key==='Enter')chkChal()">
+        <button class="btn btn-p" onclick="chkChal()">CHALLENGE</button>
       </div>
-      <div style="display:flex; justify-content:space-between; margin-top:10px;"><span style="font-size:11px; color:var(--text2)">JOURNAL LOGS:</span><span style="font-size:11px; color:var(--danger); cursor:pointer;" onclick="document.getElementById('cLog').innerHTML=''; cHistory=[]">Reset</span></div>
-      <div class="log-box" id="cLog"></div>
     </div>
   </div>
 
-  <!-- SAVED WORDS TAB -->
   <div class="section" id="t3">
     <div style="display:flex; justify-content:space-between; margin-bottom:12px;"><h3>Bookmarks</h3><button class="btn" style="color:var(--danger)" onclick="clearSaved()">Clear</button></div>
     <div id="bList"></div>
@@ -127,8 +126,8 @@ main { padding:20px 16px; max-width:600px; margin:0 auto; }
 
 <script>
 let dict = [], dictSet = new Set(), wordsByL = {}, saved = JSON.parse(localStorage.getItem('zyz_sv') || '[]');
-let sFilters = [], qFilters = [], fId = 0, cHistory = [];
-let qState = { pool:[], rack:'', sol:[], found:[], sets:0, total:0 };
+let sFilters = [], qFilters = [], fId = 0;
+let qState = { pool:[], rawWords:[], rack:'', sol:[], found:[], setsDone:0 };
 
 window.onload = async () => {
   try {
@@ -138,6 +137,7 @@ window.onload = async () => {
     dict.forEach(w => { (wordsByL[w.length] = wordsByL[w.length] || []).push(w); });
     document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " Words";
   } catch(e) { document.getElementById('wCnt').innerText = "Sandbox Mode"; }
+  document.getElementById('loadingScreen').style.display = 'none';
   renderSaved();
 };
 
@@ -145,9 +145,11 @@ function tab(idx, b) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); b.classList.add('active');
   document.querySelectorAll('.section').forEach((s,i)=>s.classList.toggle('active', i===idx));
 }
-function toast(m) { let t=document.getElementById('tst'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1500); }
+function toast(m, cls='') {
+  let t=document.getElementById('tst'); t.innerText=m; t.className='toast show '+cls;
+  setTimeout(()=>t.classList.remove('show'), 2000);
+}
 
-// FILTER UI GENERATOR
 function addFilter(mode) {
   fId++; let type = document.getElementById(mode==='S'?'sFType':'qFType').value;
   let item = { id:fId, type, v1:type==='length'?'2':'', v2:type==='length'?'8':'', not:false };
@@ -159,9 +161,8 @@ function renderFilters(mode) {
     <div class="f-item">
       <button class="btn-not ${f.not?'active':''}" onclick="f.not=!f.not; renderFilters('${mode}')">NOT</button>
       <span class="mono" style="color:var(--accent2)">${f.type}</span>
-      ${f.type==='length'? `<input type="number" style="width:50px;background:var(--bg);color:#fff;border:1px solid var(--border)" value="${f.v1}" onchange="f.v1=this.value"> - <input type="number" style="width:50px;background:var(--bg);color:#fff;border:1px solid var(--border)" value="${f.v2}" onchange="f.v2=this.value">`
-      : `<input type="text" style="flex:1;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px 6px" value="${f.v1}" oninput="f.v1=this.value.toUpperCase()">`}
-      <span style="cursor:pointer;color:var(--text2)" onclick="(mode==='S'?sFilters:qFilters)=(mode==='S'?sFilters:qFilters).filter(x=>x.id!==${f.id}); renderFilters('${mode}')">✕</span>
+      ${f.type==='length'? `<input type="number" style="width:40px;background:var(--bg);color:#fff;border:1px solid var(--border)" value="${f.v1}" onchange="f.v1=this.value"> - <input type="number" style="width:40px;background:var(--bg);color:#fff;border:1px solid var(--border)" value="${f.v2}" onchange="f.v2=this.value">`
+      : `<input type="text" style="flex:1;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px 4px" value="${f.v1}" oninput="f.v1=this.value.toUpperCase()">`}
     </div>
   `).join('');
 }
@@ -169,17 +170,19 @@ function renderFilters(mode) {
 function matchFilters(w, arr) {
   for(let f of arr) {
     let m = true;
-    if(f.type==='subanagram') { let r=[...f.v1]; m=[...w].every(c=>{let i=r.indexOf(c); if(i>-1){r.splice(i,1);return 1;}}); }
+    if(f.type==='subanagram') {
+      let r=[...f.v1.toUpperCase()], pool=[...w];
+      m = pool.every(c => { let i=r.indexOf(c); if(i>-1) { r.splice(i,1); return true; } return false; });
+    }
     else if(f.type==='length') m = (w.length >= parseInt(f.v1) && w.length <= parseInt(f.v2));
-    else if(f.type==='begins') m = w.startsWith(f.v1);
-    else if(f.type==='ends') m = w.endsWith(f.v1);
-    else if(f.type==='includes') m = [...f.v1].every(c=>w.includes(c));
+    else if(f.type==='begins') m = w.startsWith(f.v1.toUpperCase());
+    else if(f.type==='ends') m = w.endsWith(f.v1.toUpperCase());
+    else if(f.type==='includes') m = [...f.v1.toUpperCase()].every(c=>w.includes(c));
     if(f.not) m = !m; if(!m) return false;
   }
   return true;
 }
 
-// SEARCH
 function search() {
   let q = document.getElementById('sInp').value.trim().toUpperCase();
   let rx = q ? new RegExp("^"+q.replace(/[\.\?]/g,'.')+"$") : null;
@@ -189,52 +192,87 @@ function search() {
   `).join('') || '<p style="text-align:center;color:var(--text2)">No results</p>';
 }
 
-// QUIZ ENGINE
+// QUIZ SYSTEM (ADDED BACK: .zzq Save Feature Track)
 function startQuiz() {
   let p = dict.filter(w => matchFilters(w, qFilters));
-  if(!p.length) { alert("0 matches found"); return; } qState.pool = p; qState.sets=0; qState.total=0; nextQ();
+  if(!p.length) { alert("0 unique pools found"); return; }
+  qState.rawWords = p;
+  qState.pool = Array.from(new Set(p.map(w => [...w].sort().join(''))));
+  qState.setsDone = 0; nextQ();
 }
 function nextQ() {
-  qState.total++; qState.found = [];
-  let base = qState.pool[Math.floor(Math.random()*qState.pool.length)];
-  qState.rack = [...base].sort().join('');
-  qState.sol = (wordsByL[base.length]||qState.pool).filter(w => [...w].sort().join('') === qState.rack);
+  if(qState.setsDone >= qState.pool.length) { toast("🎉 All sets completed!"); return; }
+  qState.found = [];
+  let currentRack = qState.pool[qState.setsDone]; qState.rack = currentRack;
+  qState.sol = dict.filter(w => w.length === currentRack.length && [...w].sort().join('') === currentRack);
   renderQuiz();
 }
 function renderQuiz() {
+  let wordListHtml = qState.sol.map(w => {
+    let active = qState.found.includes(w);
+    return `<div class="mono q-word ${active?'revealed':''}" style="font-size:14px;">${w}</div>`;
+  }).join('');
+
   document.getElementById('qBox').innerHTML = `
-    <div class="mono" style="font-size:11px;color:var(--text2)">SETS: ${qState.sets} | TARGETS: ${qState.total}</div>
-    <div class="mono" style="font-size:32px;font-weight:700;color:var(--accent2);text-align:center;margin:12px 0;letter-spacing:4px;">${qState.rack}</div>
-    <div style="text-align:center;font-size:12px;color:var(--accent3);margin-bottom:10px;">FOUND: ${qState.found.length} / ${qState.sol.length}</div>
-    <input type="text" id="qInp" class="input-field mono" style="text-align:center;margin-bottom:12px;" placeholder="Type answer..." onkeydown="if(event.key==='Enter')chkAns()">
-    <div style="font-size:12px;color:var(--success);margin-bottom:10px;">${qState.found.join(', ')}</div>
-    <div style="display:flex;gap:8px;">
-      <button class="btn" style="flex:1" onclick="toast('Solutions: '+qState.sol.join(', ')); nextQ()">SURRENDER</button>
-      <button class="btn btn-p" style="flex:1" onclick="chkAns()">SUBMIT</button>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <div class="mono" style="font-size:12px;color:var(--text2)">SET: ${qState.setsDone} / ${qState.pool.length}</div>
+      <div class="mono" style="font-size:14px;color:var(--accent);font-weight:700;">${qState.found.length} / ${qState.sol.length}</div>
     </div>
-    <button class="btn" style="width:100%;margin-top:8px;color:var(--danger)" onclick="location.reload()">⚙️ QUIT</button>
+    <div class="mono" style="font-size:36px;font-weight:700;color:var(--accent2);text-align:center;margin:10px 0;letter-spacing:6px;">${qState.rack}</div>
+    
+    <div class="q-layout">
+      <div class="q-word-list" id="qShowList">${wordListHtml}</div>
+      <input type="text" id="qInp" class="input-field mono" style="text-align:center;" placeholder="Type answer..." onkeydown="if(event.key==='Enter')chkAns()">
+      <div style="display:flex;gap:8px;">
+        <button class="btn" style="flex:1" onclick="surrenderQuiz()">ANALYZE</button>
+        <button class="btn btn-p" style="flex:1" onclick="chkAns()">SUBMIT</button>
+      </div>
+      <button class="btn mono" style="width:100%; color:var(--accent2); background:none; border-color:var(--border)" onclick="saveCurrentZzq()">💾 SAVE CURRENT POOL (.ZZQ)</button>
+    </div>
   `;
   setTimeout(()=>document.getElementById('qInp').focus(), 50);
 }
 function chkAns() {
   let v = document.getElementById('qInp').value.trim().toUpperCase(); if(!v) return;
-  if(qState.sol.includes(v) && !qState.found.includes(v)) {
-    qState.found.push(v); toast("✓ Correct");
-    if(qState.found.length === qState.sol.length) { qState.sets++; toast("🎉 Set Clean!"); nextQ(); return; }
-  } else { toast("❌ Incorrect"); }
+  if(qState.sol.includes(v)) {
+    if(!qState.found.includes(v)) {
+      qState.found.push(v); toast("✓ Correct", 'vld');
+      if(qState.found.length === qState.sol.length) { qState.setsDone++; toast("🎉 Set Cleared!", 'vld'); setTimeout(nextQ, 1000); return; }
+    } else { toast("Already found"); }
+  } else { toast("❌ Phony", 'phn'); }
   document.getElementById('qInp').value=''; renderQuiz();
+}
+function surrenderQuiz() {
+  document.querySelectorAll('.q-word').forEach(el => el.classList.add('revealed'));
+  toast("Revealed all combinations");
+  setTimeout(() => { qState.setsDone++; nextQ(); }, 3000);
+}
+function saveCurrentZzq() {
+  if(!qState.rawWords.length) return;
+  let blob = new Blob([qState.rawWords.join("\r\n")], { type: "text/plain;charset=utf-8" });
+  let a = document.createElement("a"); a.download = `quiz_pool.zzq`;
+  a.href = window.URL.createObjectURL(blob); document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  toast("💾 Saved .zzq layout configuration!");
 }
 function loadZzq(e) {
   let f = e.target.files[0]; if(!f) return; let r = new FileReader();
-  r.onload = (x) => { qState.pool = x.target.result.split(/\r?\n/).map(w=>w.trim().toUpperCase()).filter(w=>dictSet.has(w)); startQuiz(); }; r.readAsText(f);
+  r.onload = (x) => {
+    let loaded = x.target.result.split(/\r?\n/).map(w=>w.trim().toUpperCase()).filter(w=>dictSet.has(w));
+    if(!loaded.length) { alert("No valid words inside file"); return; }
+    qState.rawWords = loaded;
+    qState.pool = Array.from(new Set(loaded.map(w => [...w].sort().join(''))));
+    qState.setsDone = 0; nextQ();
+  }; r.readAsText(f);
 }
 
 // CHALLENGE
 function chkChal() {
-  let v = document.getElementById('cInp').value.trim().toUpperCase(); if(!v || cHistory.includes(v)) return;
-  let valid = dictSet.has(v); cHistory.unshift(v);
-  document.getElementById('cLog').innerHTML = `<div class="log-item ${valid?'valid':'invalid'}"><b>${v}</b><span>${valid?'✓ VALID':'✗ PHONY'}</span></div>` + document.getElementById('cLog').innerHTML;
-  document.getElementById('cInp').value='';
+  let val = document.getElementById('cInp').value.trim().toUpperCase(); if(!val) return;
+  let words = val.split(/\s+/);
+  let allValid = words.every(w => dictSet.has(w));
+  if(allValid) { toast("✓ ALL WORDS VALID", "vld"); } 
+  else { toast("❌ CONTAINS PHONY WORDS", "phn"); }
+  document.getElementById('cInp').value = '';
 }
 
 // BOOKMARKS
@@ -248,4 +286,5 @@ function toggleSave(w) {
 function clearSaved() { if(confirm("Clear all?")){saved=[]; localStorage.setItem('zyz_sv','[]'); renderSaved();} }
 </script>
 </body>
-</html>
+  </html>
+                                                                                     

@@ -3,566 +3,154 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zyzzylu - ผมตั้งใจ</title>
+  <title>Zyzzylu Lexicon Pro — Tournament Edition</title>
   
-  <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   
   <style>
-    /* --- ULU Color Palette Design Tokens --- */
+    /* --- DESIGN SYSTEM TOKENS --- */
     :root { 
       --bg: #000000; 
       --surface: #1C1C1E; 
       --surface2: #2C2C2E; 
       --border: #3A3A3C; 
-      --accent: #34C759; /* Neon Green */
-      --danger: #FF3B30; /* Bright Red */
-      --orange: #FF9500; /* Score Orange */
+      --accent: #34C759; 
+      --danger: #FF3B30; 
+      --orange: #FF9500; 
       --text: #FFFFFF; 
       --text2: #8E8E93; 
     }
 
-    /* --- Base Styles --- */
-    * { 
-      margin: 0; 
-      padding: 0; 
-      box-sizing: border-box; 
-      font-family: 'Inter', sans-serif; 
-      -webkit-tap-highlight-color: transparent;
-    }
-    
-    body { 
-      background: var(--bg); 
-      color: var(--text); 
-      min-height: 100vh; 
-      padding-bottom: 90px; /* Space for Bottom Nav Bar */
-    }
-    
-    .mono { 
-      font-family: 'JetBrains Mono', monospace; 
-    }
+    /* --- BASE STYLE RESETS --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 90px; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    mark { background: #FFE600; color: #000; border-radius: 2px; padding: 0 1px; font-weight: 700; }
 
-    /* --- Loading Component --- */
-    #loadingScreen { 
-      position: fixed; 
-      inset: 0; 
-      background: var(--bg); 
-      z-index: 9999; 
-      display: flex; 
-      flex-direction: column; 
-      justify-content: center; 
-      align-items: center; 
-      gap: 16px; 
-    }
-    
-    .spinner { 
-      width: 42px; 
-      height: 42px; 
-      border: 4px solid var(--surface); 
-      border-top-color: var(--accent); 
-      border-radius: 50%; 
-      animation: spin 0.8s linear infinite; 
-    }
-    
-    @keyframes spin { 
-      to { transform: rotate(360deg); } 
-    }
+    /* --- LOADING INFRASTRUCTURE --- */
+    #loadingScreen { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; }
+    .spinner { width: 42px; height: 42px; border: 4px solid var(--surface); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* --- ULU Tournament Header (No Logo - Right Aligned) --- */
-    header { 
-      position: sticky; 
-      top: 0; 
-      z-index: 100; 
-      background: rgba(0, 0, 0, 0.85); 
-      backdrop-filter: blur(20px); 
-      border-bottom: 1px solid var(--border); 
-      padding: 16px; 
-      display: flex; 
-      justify-content: flex-end; /* Align elements to the right */
-      align-items: center; 
-    }
+    /* --- APPLICATION LAYOUT & NAVIGATION --- */
+    header { position: sticky; top: 0; z-index: 100; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 16px; display: flex; justify-content: flex-end; }
+    nav.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 68px; background: var(--surface); border-top: 1px solid var(--border); display: flex; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
+    .nav-item { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; color: var(--text2); border: none; background: none; cursor: pointer; }
+    .nav-item.active { color: var(--accent); }
+    main { padding: 16px; max-width: 650px; margin: 0 auto; }
+    .section { display: none; } 
+    .section.active { display: block; }
 
-    /* --- Minimalist Bottom Navigation Bar --- */
-    nav.bottom-nav { 
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 68px;
-      background: var(--surface); 
-      border-top: 1px solid var(--border); 
-      display: flex; 
-      z-index: 1000;
-      padding-bottom: env(safe-area-inset-bottom);
-    }
-    
-    .nav-item { 
-      flex: 1; 
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      gap: 4px;
-      font-size: 10px; 
-      font-weight: 600; 
-      color: var(--text2); 
-      border: none; 
-      background: none; 
-      cursor: pointer; 
-      transition: color 0.2s;
-    }
-    
-    .nav-item .nav-icon {
-      font-size: 18px;
-    }
-    
-    .nav-item.active { 
-      color: var(--accent); 
-    }
+    /* --- CAPSULE NAVIGATION ELEMENT --- */
+    .capsule-wrapper { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 30px; padding: 4px; display: flex; margin-bottom: 14px; }
+    .capsule-btn { flex: 1; background: none; border: none; color: var(--text2); font-size: 13px; font-weight: 600; padding: 8px 0; cursor: pointer; border-radius: 25px; transition: 0.2s; text-align: center; }
+    .capsule-btn.active { background: var(--text); color: var(--bg); }
 
-    main { 
-      padding: 16px; 
-      max-width: 650px; 
-      margin: 0 auto; 
-    }
+    /* --- FORM CONTROLS & CARDS --- */
+    .search-box { display: flex; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px 8px; align-items: center; margin-bottom: 14px; }
+    .search-box input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-size: 16px; padding: 10px 12px; text-transform: uppercase; }
+    .search-btn { width: 34px; height: 34px; border-radius: 8px; background: var(--surface2); border: none; color: var(--text); cursor: pointer; }
+    .drawer { height: 0; overflow: hidden; transition: 0.25s ease-in-out; background: var(--surface); border-radius: 12px; }
+    .drawer.open { height: auto; padding: 14px; border: 1px solid var(--border); margin-bottom: 14px; }
+    .f-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+    .f-stack { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .f-item { display: flex; align-items: center; justify-content: space-between; background: var(--surface2); border: 1px solid var(--border); padding: 6px 12px; border-radius: 8px; font-size: 13px; }
+    .btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; }
+    .btn-p { background: var(--accent); border: none; color: var(--text); font-weight: 700; }
+    .btn-not { padding: 4px 8px; font-size: 11px; font-weight: 700; border: 1px solid var(--border); background: none; color: var(--text2); border-radius: 4px; }
+    .btn-not.active { color: var(--danger); border-color: var(--danger); background: rgba(255, 59, 48, 0.1); }
+    .input-field { width: 100%; padding: 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 15px; outline: none; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; position: relative; }
     
-    .section { 
-      display: none; 
-    } 
-    
-    .section.active { 
-      display: block; 
-    }
+    /* --- RESULT LIST ARCHITECTURE --- */
+    .item-row { border-bottom: 1px solid rgba(58, 58, 60, 0.5); padding: 12px 4px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .hook-box { color: var(--text2); font-size: 12px; padding: 2px 4px; background: rgba(44, 44, 46, 0.5); border-radius: 4px; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .word-core { font-weight: 700; color: var(--text); cursor: pointer; font-size: 20px; letter-spacing: 0.5px; }
+    .word-core:hover { color: var(--accent); }
+    .dot-indicator { color: var(--danger); font-weight: 700; margin: 0 1px; font-size: 16px; }
+    .score-badge { font-size: 14px; font-weight: 700; color: var(--orange); }
 
-    /* --- Search & Header UI Controls --- */
-    .center-search { 
-      display: flex; 
-      flex-direction: column; 
-      align-items: center; 
-      margin-bottom: 16px; 
-      gap: 14px; 
-      width: 100%; 
-    }
+    /* --- QUIZ & REVEAL WINDOW SYSTEM --- */
+    .q-clean-layout { display: flex; flex-direction: column; gap: 16px; }
+    .quiz-history-pane { max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; border: 1px solid var(--border); }
     
-    .search-box { 
-      display: flex; 
-      width: 100%; 
-      background: var(--surface); 
-      border: 1px solid var(--border); 
-      border-radius: 12px; 
-      padding: 4px 8px; 
-      align-items: center;
-    }
-    
-    .search-box .search-icon {
-      color: var(--text2);
-      margin-left: 8px;
-      font-size: 16px;
-    }
-    
-    .search-box input { 
-      flex: 1; 
-      background: transparent; 
-      border: none; 
-      outline: none; 
-      color: var(--text); 
-      font-size: 16px; 
-      padding: 10px 12px; 
-      text-transform: uppercase; 
-      font-weight: 500;
-    }
-    
-    .search-btn { 
-      width: 34px; 
-      height: 34px; 
-      border-radius: 8px; 
-      background: var(--surface2); 
-      border: none; 
-      color: var(--text); 
-      cursor: pointer; 
-      font-weight: 600;
-    }
+    /* --- FULL SCREEN OVERLAYS --- */
+    .judge-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 5000; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 24px; text-align: center; cursor: pointer; }
+    .judge-overlay.open { display: flex; }
+    .judge-symbol { font-size: 96px; font-weight: bold; margin-bottom: 10px; line-height: 1; }
+    .judge-status-text { font-size: 32px; font-weight: 800; text-transform: uppercase; margin-bottom: 24px; }
+    .judge-sub-list { font-size: 14px; color: var(--text2); max-width: 80%; overflow-y: auto; max-height: 30vh; }
 
-    /* --- Horizontal Filter Pills --- */
-    .search-mode-selector { 
-      display: flex; 
-      gap: 8px; 
-      width: 100%; 
-      overflow-x: auto;
-      padding-bottom: 2px;
-    }
-    
-    .search-mode-selector::-webkit-scrollbar {
-      display: none;
-    }
-    
-    .sm-btn { 
-      background: var(--surface); 
-      border: 1px solid var(--border); 
-      color: var(--text2); 
-      padding: 8px 16px; 
-      font-size: 13px; 
-      font-weight: 600; 
-      border-radius: 20px; /* Capsule Shape */
-      cursor: pointer; 
-      transition: all 0.2s; 
-      white-space: nowrap;
-    }
-    
-    .sm-btn.active { 
-      background: var(--text); 
-      color: var(--bg); 
-      border-color: var(--text);
-    }
-
-    /* --- Advanced Filters Drawer --- */
-    .drawer { 
-      height: 0; 
-      overflow: hidden; 
-      transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
-      background: var(--surface); 
-      width: 100%; 
-      border-radius: 12px; 
-    }
-    
-    .drawer.open { 
-      height: auto; 
-      padding: 14px; 
-      border: 1px solid var(--border); 
-      margin-bottom: 10px;
-    }
-    
-    .f-row { 
-      display: flex; 
-      gap: 8px; 
-      margin-bottom: 10px; 
-      align-items: center; 
-    }
-    
-    .f-stack { 
-      max-height: 150px; 
-      overflow-y: auto; 
-      display: flex; 
-      flex-direction: column; 
-      gap: 6px; 
-    }
-    
-    .f-item { 
-      display: flex; 
-      align-items: center; 
-      gap: 8px; 
-      background: var(--surface2); 
-      border: 1px solid var(--border); 
-      padding: 6px 12px; 
-      border-radius: 8px; 
-      font-size: 13px; 
-      justify-content: space-between; 
-    }
-
-    /* --- Shared Buttons & Containers --- */
-    .btn { 
-      background: var(--surface); 
-      border: 1px solid var(--border); 
-      color: var(--text); 
-      padding: 10px 16px; 
-      border-radius: 8px; 
-      cursor: pointer; 
-      font-size: 13px; 
-      font-weight: 500;
-    }
-    
-    .btn-p { 
-      background: var(--accent); 
-      border: none; 
-      color: var(--text); 
-      font-weight: 700; 
-    }
-    
-    .btn-not { 
-      padding: 4px 8px; 
-      font-size: 11px; 
-      font-weight: 700;
-      border: 1px solid var(--border); 
-      background: none; 
-      color: var(--text2); 
-      border-radius: 4px; 
-    }
-    
-    .btn-not.active { 
-      color: var(--danger); 
-      border-color: var(--danger); 
-      background: rgba(255, 59, 48, 0.1); 
-    }
-    
-    .input-field { 
-      width: 100%; 
-      padding: 12px; 
-      background: var(--surface2); 
-      border: 1px solid var(--border); 
-      border-radius: 8px; 
-      color: var(--text); 
-      font-size: 14px; 
-      outline: none; 
-    }
-    
-    .card { 
-      background: var(--surface); 
-      border: 1px solid var(--border); 
-      border-radius: 14px; 
-      padding: 18px; 
-    }
-    
-    /* --- ULU Custom Result Row List --- */
-    .item-row { 
-      background: transparent; 
-      border-bottom: 1px solid rgba(58, 58, 60, 0.5); 
-      padding: 12px 4px; 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center; 
-      gap: 12px; 
-    }
-    
-    .hook-box { 
-      color: var(--text2); 
-      font-size: 12px; 
-      padding: 2px 4px; 
-      background: rgba(44, 44, 46, 0.5); 
-      border-radius: 4px; 
-      max-width: 100px; 
-      overflow: hidden; 
-      text-overflow: ellipsis; 
-      white-space: nowrap; 
-    }
-    
-    .word-core { 
-      font-weight: 700; 
-      color: var(--text); /* Main Word White */
-      cursor: pointer; 
-      font-size: 20px; /* Big & Clear */
-      letter-spacing: 0.5px; 
-    }
-    
-    .word-core:hover { 
-      color: var(--accent); 
-    }
-    
-    .dot-indicator { 
-      color: var(--danger); 
-      font-weight: 700; 
-      margin: 0 1px; 
-      font-size: 16px;
-    }
-    
-    .score-badge {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--orange); /* Score Orange */
-    }
-
-    /* --- Quiz Viewports --- */
-    .q-layout { 
-      display: flex; 
-      flex-direction: column; 
-      gap: 12px; 
-    }
-    
-    .q-word-list { 
-      max-height: 250px; 
-      overflow-y: auto; 
-      display: flex; 
-      flex-direction: column; 
-      gap: 6px; 
-      background: var(--bg); 
-      padding: 12px; 
-      border-radius: 8px; 
-      border: 1px solid var(--border); 
-    }
-    
-    .q-word { 
-      font-size: 15px; 
-      font-weight: 600; 
-      color: var(--text2); 
-      text-decoration: line-through; 
-      opacity: 0.25; 
-      display: flex; 
-      justify-content: space-between; 
-    }
-    
-    .q-word.revealed { 
-      color: var(--text); 
-      text-decoration: none; 
-      opacity: 1; 
-    }
-
-    /* --- Toasts Alerts System --- */
-    .toast { 
-      position: fixed; 
-      bottom: 84px; 
-      left: 50%; 
-      transform: translateX(-50%); 
-      background: var(--surface2); 
-      border: 1px solid var(--border); 
-      color: var(--text); 
-      padding: 12px 20px; 
-      border-radius: 10px; 
-      font-size: 13px; 
-      font-weight: 600;
-      opacity: 0; 
-      transition: 0.2s; 
-      pointer-events: none; 
-      z-index: 9999; 
-      text-align: center; 
-      max-width: 90%; 
-      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-    }
-    
+    /* --- TOASTS & MODAL VIEWPORTS --- */
+    .toast { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%); background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; opacity: 0; transition: 0.2s; pointer-events: none; z-index: 9999; }
     .toast.show { opacity: 1; } 
-    .toast.vld { border-color: var(--accent); color: var(--accent); background: rgba(52, 199, 89, 0.1); } 
-    .toast.phn { border-color: var(--danger); color: var(--danger); background: rgba(255, 59, 48, 0.1); }
-
-    /* --- ULU Word Info Screen Modal --- */
-    .modal-overlay { 
-      position: fixed; 
-      inset: 0; 
-      background: rgba(0, 0, 0, 0.85); 
-      backdrop-filter: blur(10px); 
-      z-index: 2000; 
-      display: none; 
-      justify-content: center; 
-      align-items: center; 
-      padding: 16px; 
-    }
-    
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); z-index: 2000; display: none; justify-content: center; align-items: center; padding: 16px; }
     .modal-overlay.open { display: flex; }
-    
-    .modal-card { 
-      background: var(--surface); 
-      border: 1px solid var(--border); 
-      border-radius: 16px; 
-      width: 100%; 
-      max-width: 480px; 
-      overflow: hidden; 
-      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.8); 
-    }
-    
-    .modal-header { 
-      padding: 20px; 
-      background: var(--surface2); 
-      border-bottom: 1px solid var(--border); 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: flex-start; 
-    }
-    
-    .modal-body { 
-      padding: 20px; 
-      display: flex; 
-      flex-direction: column; 
-      gap: 16px; 
-      max-height: 55vh; 
-      overflow-y: auto; 
-    }
-    
-    .modal-footer { 
-      padding: 14px 16px; 
-      background: var(--surface2); 
-      border-top: 1px solid var(--border); 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center; 
-    }
-    
-    .info-label { 
-      font-size: 11px; 
-      color: var(--text2); 
-      text-transform: uppercase; 
-      letter-spacing: 1px; 
-      margin-bottom: 4px; 
-      font-weight: 700; 
-    }
-    
-    .info-val { 
-      font-size: 14px; 
-      color: var(--text); 
-    }
-    
-    .info-grid { 
-      display: grid; 
-      grid-template-columns: 1fr 1fr; 
-      gap: 12px; 
-    }
+    .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 480px; overflow: hidden; }
+    .modal-header { padding: 20px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+    .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; max-height: 55vh; overflow-y: auto; }
+    .modal-footer { padding: 14px 16px; background: var(--surface2); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .info-label { font-size: 11px; color: var(--text2); text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+    .info-val { font-size: 14px; color: var(--text); }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   </style>
 </head>
 <body>
 
-  <!-- Loading Screen Animation Matrix -->
   <div id="loadingScreen">
     <div class="spinner"></div>
-    <div class="mono" style="font-size: 13px; color: var(--text2)">LOADING CSW24 LEXICON...</div>
+    <div class="mono" style="font-size: 13px; color: var(--text2)">LOADING Zyzzylu CORE...</div>
   </div>
 
-  <!-- Sticky Top Header (Clean Word Count Only) -->
   <header>
     <div class="mono" id="wCnt" style="font-size: 12px; color: var(--text2)">0 Words</div>
   </header>
 
-  <!-- --- ULU BOTTOM NAVIGATION BAR --- -->
   <nav class="bottom-nav">
     <button class="nav-item active" id="nb-0" onclick="tab(0, this)">
-      <span class="nav-icon">🔍</span><span>Search</span>
+      <span style="font-size:18px;">🔍</span><span>Search</span>
     </button>
     <button class="nav-item" id="nb-1" onclick="tab(1, this)">
-      <span class="nav-icon">🧠</span><span>Quiz</span>
+      <span style="font-size:18px;">🧠</span><span>Quiz</span>
     </button>
     <button class="nav-item" id="nb-2" onclick="tab(2, this)">
-      <span class="nav-icon">⚖️</span><span>Judge</span>
+      <span style="font-size:18px;">⚖️</span><span>Judge</span>
     </button>
     <button class="nav-item" id="nb-3" onclick="tab(3, this)">
-      <span class="nav-icon">📚</span><span>Saved</span>
+      <span style="font-size:18px;">📚</span><span>Saved</span>
     </button>
   </nav>
 
   <main>
-    <!-- 01. SEARCH VIEW SECTION -->
     <div class="section active" id="t0">
-      <div class="center-search">
-        <!-- Modern Rounded Search Input Bar -->
-        <div class="search-box">
-          <span class="search-icon">🔍</span>
-          <input class="mono" id="sInp" type="text" placeholder="Enter rack for Subanagrams..." onkeydown="if(event.key==='Enter')search()">
-          <button class="search-btn" onclick="search()">→</button>
-        </div>
+      <div class="capsule-wrapper mono">
+        <button class="capsule-btn active" id="sm-subanagram" onclick="setSearchMode('subanagram')">Subanagram</button>
+        <button class="capsule-btn" id="sm-anagram" onclick="setSearchMode('anagram')">Anagram</button>
+        <button class="capsule-btn" id="sm-pattern" onclick="setSearchMode('pattern')">Pattern</button>
+      </div>
 
-        <!-- Horizontal ULU Capsule Filter Pills -->
-        <div class="search-mode-selector mono">
-          <button class="sm-btn active" id="sm-subanagram" onclick="setSearchMode('subanagram')">Subanagram</button>
-          <button class="sm-btn" id="sm-anagram" onclick="setSearchMode('anagram')">Anagram</button>
-          <button class="sm-btn" id="sm-pattern" onclick="setSearchMode('pattern')">Pattern</button>
-        </div>
-        
-        <button class="btn mono" style="width:100%; text-align:center; padding:8px;" onclick="document.getElementById('sDrw').classList.toggle('open')">⚙️ ADVANCED FILTERS</button>
-        
-        <!-- Drawer Component Stack Container -->
-        <div class="drawer" id="sDrw">
-          <div class="f-row">
-            <select class="input-field" id="sFType" style="padding:6px; flex:1; background:var(--bg);">
-              <option value="length">Length Range</option>
-              <option value="point_value">Point Value Range</option>
-              <option value="begins">Begins With</option>
-              <option value="ends">Ends With</option>
-            </select>
-            <button class="btn btn-p" onclick="addFilter('S')" style="padding:6px 12px;">+ Add</button>
-          </div>
-          <div class="f-stack" id="sStack"></div>
-        </div>
+      <div class="search-box">
+        <input class="mono" id="sInp" type="text" placeholder="Enter rack for Subanagrams..." onkeydown="if(event.key==='Enter')search()">
+        <button class="search-btn" onclick="search()">→</button>
       </div>
       
-      <!-- List Destination Context Node Container -->
+      <button class="btn mono" style="width:100%; padding:8px; margin-bottom:14px;" onclick="document.getElementById('sDrw').classList.toggle('open')">⚙️ ADVANCED FILTERS</button>
+      
+      <div class="drawer" id="sDrw">
+        <div class="f-row">
+          <select class="input-field" id="sFType" style="padding:6px; flex:1; background:var(--bg);">
+            <option value="length">Length Range</option>
+            <option value="point_value">Point Value Range</option>
+            <option value="begins">Begins With</option>
+            <option value="ends">Ends With</option>
+          </select>
+          <button class="btn btn-p" onclick="addFilter('S')" style="padding:6px 12px;">+ Add</button>
+        </div>
+        <div class="f-stack" id="sStack"></div>
+      </div>
       <div id="sRes"></div>
     </div>
 
-    <!-- 02. QUIZ VIEW SECTION -->
     <div class="section" id="t1">
       <div class="card" id="qBox">
         <div id="qSettingsPane">
@@ -577,7 +165,6 @@
               <option value="includes">Includes Letters</option>
               <option value="begins">Begins With</option>
               <option value="ends">Ends With</option>
-              <option value="pattern">Pattern Match</option>
             </select>
             <button class="btn" onclick="addFilter('Q')">+ Add</button>
           </div>
@@ -588,19 +175,15 @@
       </div>
     </div>
 
-    <!-- 03. JUDGE (CHALLENGE) VIEW SECTION -->
     <div class="section" id="t2">
-      <div class="card">
-        <h3 style="text-align: center; margin-bottom: 4px; font-size: 16px;">Tournament Judge Arena</h3>
-        <p style="text-align: center; font-size: 12px; color: var(--text2); margin-bottom: 16px;">Validate words instantly against the live lexicon data.</p>
-        <div class="f-row">
-          <input type="text" id="cInp" class="input-field mono" placeholder="Enter word(s) to check..." onkeydown="if(event.key==='Enter')chkChal()">
-          <button class="btn btn-p" onclick="chkChal()">JUDGE</button>
+      <div class="card" style="min-height: 180px; padding-top: 50px;">
+        <button class="btn btn-p" onclick="chkChal()" style="position: absolute; top: 14px; right: 14px; padding: 6px 14px; font-size: 12px;">JUDGE</button>
+        <div class="f-row" style="margin-top: 10px;">
+          <input type="text" id="cInp" class="input-field mono" style="background: transparent; border-color: transparent; border-bottom: 2px solid var(--border); border-radius: 0; font-size: 20px; text-align: center;" placeholder="Enter words..." onkeydown="if(event.key==='Enter')chkChal()">
         </div>
       </div>
     </div>
 
-    <!-- 04. SAVED WORDS VIEW SECTION -->
     <div class="section" id="t3">
       <div style="display: flex; justify-content: space-between; margin-bottom: 14px; align-items: center;">
         <h3 style="font-size: 16px;">Bookmarks</h3>
@@ -610,32 +193,37 @@
     </div>
   </main>
 
-  <!-- --- ULU WORD INFO SCREEN MODAL OVERLAY --- -->
+  <div class="judge-overlay" id="jOverlay" onclick="this.classList.remove('open')">
+    <div class="judge-symbol" id="jSymbol">✓</div>
+    <div class="judge-status-text" id="jStatus">Valid</div>
+    <div class="mono judge-sub-list" id="jSubList"></div>
+  </div>
+
   <div class="modal-overlay" id="uluModal">
     <div class="modal-card">
       <div class="modal-header">
         <div>
-          <h2 class="mono" id="mWord" style="font-size: 32px; font-weight: 700; color: #fff; line-height: 1; letter-spacing: 0.5px;">WORD</h2>
-          <span class="mono" id="mPos" style="font-size: 13px; color: var(--accent); font-weight: 600;">n.</span>
+          <h2 class="mono" id="mWord" style="font-size: 32px; font-weight: 700;">WORD</h2>
+          <span class="mono" id="mPos" style="font-size: 13px; color: var(--accent);">n.</span>
         </div>
         <div style="text-align: right;">
-          <div class="mono id-badge" id="mScore" style="font-size: 28px; font-weight: 700; color: var(--orange)">00</div>
-          <span style="font-size: 10px; color: var(--text2); font-weight:600;">BASE SCORE</span>
+          <div class="mono" id="mScore" style="font-size: 28px; font-weight: 700; color: var(--orange)">00</div>
+          <span style="font-size: 10px; color: var(--text2);">BASE SCORE</span>
         </div>
       </div>
       <div class="modal-body">
         <div>
           <div class="info-label">Definitions</div>
-          <div class="info-val" id="mDef" style="line-height: 1.4; color: var(--text2);">No definition available in sandbox database.</div>
+          <div class="info-val" id="mDef" style="color: var(--text2);"></div>
         </div>
         <div class="info-grid">
           <div>
             <div class="info-label">Front Hooks</div>
-            <div class="info-val mono" id="mFHooks" style="color: var(--accent); font-weight: 600;">-</div>
+            <div class="info-val mono" id="mFHooks" style="color: var(--accent);">-</div>
           </div>
           <div>
             <div class="info-label">Back Hooks</div>
-            <div class="info-val mono" id="mBHooks" style="color: var(--accent); font-weight: 600;">-</div>
+            <div class="info-val mono" id="mBHooks" style="color: var(--accent);">-</div>
           </div>
         </div>
         <div>
@@ -644,131 +232,77 @@
         </div>
         <div>
           <div class="info-label">Inflections</div>
-          <div class="info-val mono" id="mInflections" style="font-size: 13px; color: var(--orange)">None</div>
+          <div class="info-val mono" id="mInflections" style="color: var(--orange)">None</div>
         </div>
       </div>
       <div class="modal-footer">
+        <div style="display: flex; gap: 6px;"><button class="btn" onclick="navWord(-1)">◀</button><button class="btn" onclick="navWord(1)">▶</button></div>
         <div style="display: flex; gap: 6px;">
-          <button class="btn" onclick="navWord(-1)">◀ PREV</button>
-          <button class="btn" onclick="navWord(1)">NEXT ▶</button>
-        </div>
-        <div style="display: flex; gap: 6px;">
-          <button class="btn" onclick="copyWord()" title="Copy Word">📋 COPY</button>
-          <button class="btn" id="mFavBtn" onclick="favWord()">⭐ BOOKMARK</button>
-          <button class="btn" onclick="closeUlu()" style="color: var(--danger); border-color:transparent;">CLOSE</button>
+          <button class="btn" id="mFavBtn" onclick="favWord()">⭐</button>
+          <button class="btn" onclick="closeUlu()" style="color:var(--danger);">CLOSE</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Layout Utility Toasts & Inputs Nodes -->
   <div class="toast" id="tst"></div>
   <input type="file" id="fInp" style="display: none" accept=".zzq" onchange="loadZzq(event)">
 
-  <!-- --- APPLICATION JAVASCRIPT ENGINE --- -->
   <script>
-    /* === 1. ARCHITECTURE GLOBAL CONFIG & STATE === */
-    let dict = [];
-    let dictSet = new Set();
-    let wordsByL = {};
+    let dict = [], dictSet = new Set(), wordsByL = {};
     let saved = JSON.parse(localStorage.getItem('zyz_sv') || '[]');
-    let sFilters = [];
-    let qFilters = [];
-    let fId = 0;
+    let sFilters = [], qFilters = [], fId = 0;
     
     let qState = { 
-      pool: [], 
-      rawWords: [], 
-      rack: '', 
-      sol: [], 
-      found: [], 
-      setsDone: 0 
+      pool: [], rawWords: [], rack: '', sol: [], 
+      correctAnswers: [], incorrectAttempts: [],
+      userSkipped: false, setsDone: 0 
     };
     
-    let activeSearchMode = 'subanagram';
-    let currentResultsList = [];
-    let currentWordIndex = -1;
-
-    const letterScores = {
-      A:1, E:1, I:1, O:1, U:1, L:1, N:1, S:1, T:1, R:1,
-      D:2, G:2,
-      B:3, C:3, M:3, P:3,
-      F:4, H:4, V:4, W:4, Y:4,
-      K:5, J:8, X:8, Q:10, Z:10
-    };
-    
+    let activeSearchMode = 'subanagram', currentResultsList = [], currentWordIndex = -1;
+    const letterScores = { A:1,E:1,I:1,O:1,U:1,L:1,N:1,S:1,T:1,R:1, D:2,G:2, B:3,C:3,M:3,P:3, F:4,H:4,V:4,W:4,Y:4, K:5, J:8,X:8, Q:10,Z:10 };
     const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-    /* === 2. INTERNALS ALGORITHMIC UTILITIES === */
-    function getWordScore(w) {
-      return [...w].reduce((acc, char) => acc + (letterScores[char] || 0), 0);
-    }
+    /* --- MATH & CORE DICTIONARY UTILITIES --- */
+    const getWordScore = w => [...w].reduce((a, c) => a + (letterScores[c] || 0), 0);
 
-    // Advanced Live Hook & Structural Cut Dots Evaluator Matrix
     function getHooksAndDots(w) {
-      let fHooks = '';
-      let bHooks = '';
-      
+      let f = '', b = '';
       for (let i = 0; i < 26; i++) {
-        if (dictSet.has(alpha[i] + w)) fHooks += alpha[i];
-        if (dictSet.has(w + alpha[i])) bHooks += alpha[i];
+        if (dictSet.has(alpha[i] + w)) f += alpha[i];
+        if (dictSet.has(w + alpha[i])) b += alpha[i];
       }
-      
-      let hasFrontCut = w.length > 2 && dictSet.has(w.substring(1));
-      let hasBackCut = w.length > 2 && dictSet.has(w.substring(0, w.length - 1));
-      
-      return {
-        f: fHooks || '-',
-        b: bHooks || '-',
-        dotF: hasFrontCut ? '•' : '&nbsp;',
-        dotB: hasBackCut ? '•' : '&nbsp;'
+      return { 
+        f: f || '-', b: b || '-', 
+        dotF: (w.length > 2 && dictSet.has(w.substring(1))) ? '•' : '&nbsp;', 
+        dotB: (w.length > 2 && dictSet.has(w.substring(0, w.length - 1))) ? '•' : '&nbsp;' 
       };
     }
 
-    // Core Word Structural Metadata Processor
     function getWordMetadata(w) {
-      let anagrams = dict.filter(x => x.length === w.length && x !== w && [...x].sort().join('') === [...w].sort().join(''));
-      let inflections = [];
-      
-      if (dictSet.has(w + 'S')) inflections.push(w + 'S');
-      if (dictSet.has(w + 'ES')) inflections.push(w + 'ES');
-      if (dictSet.has(w + 'ED')) inflections.push(w + 'ED');
-      if (dictSet.has(w + 'ING')) inflections.push(w + 'ING');
-      
-      let pseudoPos = "n.";
-      if (w.endsWith('ED') || w.endsWith('ING')) pseudoPos = "v.";
-      else if (w.endsWith('LY')) pseudoPos = "adv.";
-      else if (w.endsWith('ABLE') || w.endsWith('FUL')) pseudoPos = "adj.";
-
-      return {
-        pos: pseudoPos,
-        def: `Official ULU lexicon definition placeholder for "${w}" entry within CSW24 reference.`,
-        anagrams: anagrams.join(', ') || 'None',
-        inflections: inflections.join(', ') || 'None'
-      };
+      let ana = dict.filter(x => x.length === w.length && x !== w && [...x].sort().join('') === [...w].sort().join(''));
+      let inf = ['S','ES','ED','ING'].filter(s => dictSet.has(w + s)).map(s => w + s);
+      let p = "n.";
+      if (w.endsWith('ED') || w.endsWith('ING')) p = "v.";
+      else if (w.endsWith('LY')) p = "adv.";
+      else if (w.endsWith('ABLE') || w.endsWith('FUL')) p = "adj.";
+      return { pos: p, def: "", anagrams: ana.join(', ') || 'None', inflections: inf.join(', ') || 'None' };
     }
 
-    /* === 3. LIFECYCLE INITIALIZER ASYNC BOOTSTRAP === */
+    /* --- INITIALIZATION STAGE --- */
     window.onload = async () => {
       try {
         let r = await fetch('CSW24.txt');
-        if (!r.ok) throw 1;
-        
         dict = (await r.text()).split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
         dictSet = new Set(dict);
-        dict.forEach(w => { 
-          (wordsByL[w.length] = wordsByL[w.length] || []).push(w); 
-        });
-        
+        dict.forEach(w => { (wordsByL[w.length] = wordsByL[w.length] || []).push(w); });
         document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " Words";
-      } catch(e) { 
-        document.getElementById('wCnt').innerText = "Sandbox Mode"; 
-      }
+      } catch(e) { document.getElementById('wCnt').innerText = "Sandbox Mode"; }
       document.getElementById('loadingScreen').style.display = 'none';
       renderSaved();
     };
 
-    /* === 4. UI BOTTOM NAVIGATION SYSTEM --- */
+    /* --- UI MANAGEMENT ENGINE --- */
     function tab(idx, b) {
       document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active')); 
       b.classList.add('active');
@@ -776,169 +310,127 @@
     }
     
     function toast(m, cls = '') {
-      let t = document.getElementById('tst'); 
-      t.innerText = m; 
-      t.className = 'toast show ' + cls;
+      let t = document.getElementById('tst'); t.innerText = m; t.className = 'toast show ' + cls;
       setTimeout(() => t.classList.remove('show'), 2000);
     }
 
     function setSearchMode(mode) {
       activeSearchMode = mode;
-      document.querySelectorAll('.sm-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.capsule-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('sm-' + mode).classList.add('active');
-      
-      let p = "Enter search query...";
-      if (mode === 'anagram') p = "Enter letters for Anagrams...";
-      if (mode === 'subanagram') p = "Enter rack for Subanagrams...";
-      if (mode === 'pattern') p = "Use ? (1 char) or * (multi)...";
-      document.getElementById('sInp').placeholder = p;
+      document.getElementById('sInp').placeholder = mode === 'pattern' ? "Use . (1 char) or * (multi)..." : "Enter letters...";
     }
 
-    /* === 5. FILTERS ENGINE CONTROL MATRIX === */
+    /* --- FILTER CRITERIA GENERATOR --- */
     function addFilter(mode) {
       fId++; 
       let type = document.getElementById(mode === 'S' ? 'sFType' : 'qFType').value;
-      let isRange = (type === 'length' || type === 'point_value');
-      let item = { id: fId, type, v1: isRange ? '2' : '', v2: isRange ? '8' : '', not: false };
-      
-      if (mode === 'S') { 
-        sFilters.push(item); 
-        renderFilters('S'); 
-      } else { 
-        qFilters.push(item); 
-        renderFilters('Q'); 
-      }
+      let isR = (type === 'length' || type === 'point_value');
+      let item = { id: fId, type, v1: isR ? '2' : '', v2: isR ? '8' : '', not: false };
+      if (mode === 'S') { sFilters.push(item); renderFilters('S'); } else { qFilters.push(item); renderFilters('Q'); }
     }
-    
     function toggleNot(mode, id) {
-      let arr = (mode === 'S') ? sFilters : qFilters;
-      let f = arr.find(x => x.id === id); 
-      if (f) f.not = !f.not;
-      renderFilters(mode);
+      let arr = mode === 'S' ? sFilters : qFilters;
+      let f = arr.find(x => x.id === id); if (f) f.not = !f.not; renderFilters(mode);
     }
-    
     function deleteFilter(mode, id) {
-      if (mode === 'S') { 
-        sFilters = sFilters.filter(x => x.id !== id); 
-        renderFilters('S'); 
-      } else { 
-        qFilters = qFilters.filter(x => x.id !== id); 
-        renderFilters('Q'); 
-      }
+      if (mode === 'S') { sFilters = sFilters.filter(x => x.id !== id); renderFilters('S'); } 
+      else { qFilters = qFilters.filter(x => x.id !== id); renderFilters('Q'); }
     }
-    
     function updateFilterVal(mode, id, field, val) {
-      let arr = (mode === 'S') ? sFilters : qFilters;
-      let f = arr.find(x => x.id === id); 
-      if (f) f[field] = val.toUpperCase();
+      let arr = mode === 'S' ? sFilters : qFilters;
+      let f = arr.find(x => x.id === id); if (f) f[field] = val.toUpperCase();
     }
-    
     function renderFilters(mode) {
-      let arr = (mode === 'S') ? sFilters : qFilters;
-      let html = arr.map(f => {
-        let isRange = (f.type === 'length' || f.type === 'point_value');
+      let arr = mode === 'S' ? sFilters : qFilters;
+      document.getElementById(mode === 'S' ? 'sStack' : 'qStack').innerHTML = arr.map(f => {
+        let isR = (f.type === 'length' || f.type === 'point_value');
         return `
           <div class="f-item">
-            <div style="display: flex; gap: 6px; align-items: center; flex: 1;">
+            <div style="display:flex; gap:6px; align-items:center; flex:1;">
               <button class="btn-not ${f.not ? 'active' : ''}" onclick="toggleNot('${mode}', ${f.id})">NOT</button>
-              <span class="mono" style="color: var(--accent); font-size: 11px;">${f.type.toUpperCase()}</span>
-              ${isRange ? 
-                `<input type="number" style="width: 44px; background: var(--bg); color: #fff; border: 1px solid var(--border); padding: 2px 4px; border-radius:4px;" value="${f.v1}" onchange="updateFilterVal('${mode}', ${f.id}, 'v1', this.value)"> - <input type="number" style="width: 44px; background: var(--bg); color: #fff; border: 1px solid var(--border); padding: 2px 4px; border-radius:4px;" value="${f.v2}" onchange="updateFilterVal('${mode}', ${f.id}, 'v2', this.value)">`
-                : `<input type="text" style="flex: 1; min-width: 60px; background: var(--bg); color: #fff; border: 1px solid var(--border); padding: 2px 4px; border-radius:4px;" value="${f.v1}" oninput="updateFilterVal('${mode}', ${f.id}, 'v1', this.value)">`
+              <span class="mono" style="color:var(--accent); font-size:11px;">${f.type.toUpperCase()}</span>
+              ${isR ? 
+                `<input type="number" style="width:44px; background:var(--bg); color:#fff; border:1px solid var(--border); padding:2px;" value="${f.v1}" onchange="updateFilterVal('${mode}', ${f.id}, 'v1', this.value)"> - <input type="number" style="width:44px; background:var(--bg); color:#fff; border:1px solid var(--border); padding:2px;" value="${f.v2}" onchange="updateFilterVal('${mode}', ${f.id}, 'v2', this.value)">`
+                : `<input type="text" style="flex:1; background:var(--bg); color:#fff; border:1px solid var(--border); padding:2px;" value="${f.v1}" oninput="updateFilterVal('${mode}', ${f.id}, 'v1', this.value)">`
               }
             </div>
-            <span style="cursor: pointer; color: var(--danger); font-weight: 700; padding-left: 8px;" onclick="deleteFilter('${mode}', ${f.id})">✕</span>
+            <span style="cursor:pointer; color:var(--danger);" onclick="deleteFilter('${mode}', ${f.id})">✕</span>
           </div>
         `;
       }).join('');
-      document.getElementById(mode === 'S' ? 'sStack' : 'qStack').innerHTML = html;
     }
 
     function matchFilters(w, arr) {
       for (let f of arr) {
-        let m = true; 
-        let v1 = f.v1.trim().toUpperCase();
-        
-        if (f.type === 'length') {
-          m = (w.length >= parseInt(f.v1) && w.length <= parseInt(f.v2));
-        } else if (f.type === 'point_value') { 
-          let score = getWordScore(w); 
-          m = (score >= parseInt(f.v1) && score <= parseInt(f.v2)); 
-        } else if (f.type === 'begins') {
-          m = w.startsWith(v1);
-        } else if (f.type === 'ends') {
-          m = w.endsWith(v1);
-        } else if (f.type === 'includes') {
-          m = [...v1].every(c => w.includes(c));
-        } else if (f.type === 'pattern') {
-          m = new RegExp("^" + v1.replace(/[\.\?]/g, '.').replace(/\*/g, '.*') + "$").test(w);
-        }
-        
-        if (f.not) m = !m; 
-        if (!m) return false;
+        let m = true, v1 = f.v1.trim().toUpperCase();
+        if (f.type === 'length') m = (w.length >= parseInt(f.v1) && w.length <= parseInt(f.v2));
+        else if (f.type === 'point_value') { let s = getWordScore(w); m = (s >= parseInt(f.v1) && s <= parseInt(f.v2)); }
+        else if (f.type === 'begins') m = w.startsWith(v1);
+        else if (f.type === 'ends') m = w.endsWith(v1);
+        else if (f.type === 'includes') m = [...v1].every(c => w.includes(c));
+        if (f.not) m = !m; if (!m) return false;
       }
       return true;
     }
 
-    /* === 6. TOURNAMENT SEARCH STRATEGY ENGINE === */
+    /* --- SEARCH STRATEGY & WILDCARD HIGHLIGHT --- */
+    function highlightPatternMatches(word, query) {
+      if (!query.includes('.')) return word;
+      let res = "";
+      for (let i = 0; i < word.length; i++) {
+        if (query[i] === '.') res += `<mark>${word[i]}</mark>`;
+        else res += word[i];
+      }
+      return res;
+    }
+
     function search() {
       let q = document.getElementById('sInp').value.trim().toUpperCase();
       let res = [];
+      if (!q) return;
 
       if (activeSearchMode === 'anagram') {
-        if (!q) return; 
-        let sortedQ = [...q].sort().join('');
-        res = dict.filter(w => w.length === q.length && [...w].sort().join('') === sortedQ && matchFilters(w, sFilters));
-      } 
-      else if (activeSearchMode === 'subanagram') {
-        if (!q) return;
+        let sq = [...q].sort().join('');
+        res = dict.filter(w => w.length === q.length && [...w].sort().join('') === sq && matchFilters(w, sFilters));
+      } else if (activeSearchMode === 'subanagram') {
         res = dict.filter(w => {
-          let r = [...q], pool = [...w];
-          return pool.every(c => { 
-            let i = r.indexOf(c); 
-            if (i > -1) { r.splice(i, 1); return true; } 
-            return false; 
-          }) && matchFilters(w, sFilters);
+          let r = [...q];
+          return [...w].every(c => { let i = r.indexOf(c); if (i > -1) { r.splice(i, 1); return true; } return false; }) && matchFilters(w, sFilters);
         });
-      } 
-      else if (activeSearchMode === 'pattern') {
-        if (!q) return;
-        let rx = new RegExp("^" + q.replace(/[\.\?]/g, '.').replace(/\*/g, '.*') + "$");
+      } else if (activeSearchMode === 'pattern') {
+        let rx = new RegExp("^" + q.replace(/\./g, '.').replace(/\*/g, '.*') + "$");
         res = dict.filter(w => rx.test(w) && matchFilters(w, sFilters));
       }
 
       currentResultsList = res.slice(0, 100);
-
-      // Rendering Premium ULU Core Word Block Row List View Interface
       document.getElementById('sRes').innerHTML = currentResultsList.map((w, idx) => {
         let hk = getHooksAndDots(w);
+        let showW = activeSearchMode === 'pattern' ? highlightPatternMatches(w, q) : w;
         return `
           <div class="item-row">
-            <div style="display: flex; align-items: center; gap: 8px; flex: 1; overflow: hidden;">
-              <div class="mono hook-box" title="Front Hooks: ${hk.f}">${hk.f}</div>
-              <div class="mono" style="white-space: nowrap; display: flex; align-items: center;">
+            <div style="display:flex; align-items:center; gap:8px; flex:1; overflow:hidden;">
+              <div class="mono hook-box">${hk.f}</div>
+              <div class="mono" style="white-space:nowrap; display:flex; align-items:center;">
                 <span class="dot-indicator">${hk.dotF}</span>
-                <span class="word-core" onclick="openUlu(${idx})">${w}</span>
+                <span class="word-core" onclick="openUlu(${idx})">${showW}</span>
                 <span class="dot-indicator">${hk.dotB}</span>
               </div>
-              <div class="mono hook-box" title="Back Hooks: ${hk.b}">${hk.b}</div>
+              <div class="mono hook-box">${hk.b}</div>
             </div>
-            <div class="mono score-badge" style="flex-shrink: 0;">
-              <span style="font-size:10px; color:var(--text2); font-weight:500; margin-right:4px;">${w.length}L</span>${getWordScore(w)}
+            <div class="mono score-badge">
+              <span style="font-size:10px; color:var(--text2); margin-right:4px;">${w.length}L</span>${getWordScore(w)}
             </div>
           </div>
         `;
-      }).join('') || '<p style="text-align: center; color: var(--text2); padding-top:20px;">No results found</p>';
+      }).join('') || '<p style="text-align:center; color:var(--text2); padding-top:20px;">No results found</p>';
     }
 
-    /* === 7. MODAL DETAILED ULU INFO SCREEN CONTROLLER === */
+    /* --- WORD DETAIL MODAL CORE --- */
     function openUlu(idx) {
       if (idx < 0 || idx >= currentResultsList.length) return;
       currentWordIndex = idx;
-      
-      let w = currentResultsList[idx];
-      let hk = getHooksAndDots(w);
-      let meta = getWordMetadata(w);
+      let w = currentResultsList[idx], hk = getHooksAndDots(w), meta = getWordMetadata(w);
 
       document.getElementById('mWord').innerText = w;
       document.getElementById('mPos').innerText = meta.pos;
@@ -949,209 +441,231 @@
       document.getElementById('mAnagrams').innerText = meta.anagrams;
       document.getElementById('mInflections').innerText = meta.inflections;
 
-      let favBtn = document.getElementById('mFavBtn');
-      if (saved.includes(w)) { 
-        favBtn.innerText = "⭐ BOOKMARKED"; 
-        favBtn.style.color = "var(--accent)"; 
-      } else { 
-        favBtn.innerText = "☆ BOOKMARK"; 
-        favBtn.style.color = "var(--text2)"; 
-      }
-
+      let btn = document.getElementById('mFavBtn');
+      btn.innerText = saved.includes(w) ? "⭐" : "☆";
       document.getElementById('uluModal').classList.add('open');
     }
-    
-    function closeUlu() { 
-      document.getElementById('uluModal').classList.remove('open'); 
-    }
-    
-    function navWord(dir) {
-      let nextIdx = currentWordIndex + dir;
-      if (nextIdx >= 0 && nextIdx < currentResultsList.length) openUlu(nextIdx);
-      else toast("End of list");
-    }
-    
-    function copyWord() {
-      let w = currentResultsList[currentWordIndex];
-      navigator.clipboard.writeText(w); 
-      toast("📋 Copied: " + w);
-    }
-    
+    const closeUlu = () => document.getElementById('uluModal').classList.remove('open');
+    function navWord(dir) { let n = currentWordIndex + dir; if (n >= 0 && n < currentResultsList.length) openUlu(n); }
     function favWord() {
       let w = currentResultsList[currentWordIndex];
       if (saved.includes(w)) saved = saved.filter(x => x !== w); else saved.push(w);
-      localStorage.setItem('zyz_sv', JSON.stringify(saved));
-      renderSaved(); 
-      openUlu(currentWordIndex); 
-      toast("Updated Bookmark");
+      localStorage.setItem('zyz_sv', JSON.stringify(saved)); renderSaved(); openUlu(currentWordIndex);
     }
 
-    /* === 8. COMPACT QUIZ OPERATIONAL SCHEDULER === */
+    /* --- Zyzzylu MANUAL FLOW QUIZ ENGINE --- */
     function startQuiz() {
       let p = dict.filter(w => matchFilters(w, qFilters));
-      if (!p.length) { alert("0 unique pools found match criteria"); return; }
-      
+      if (!p.length) { alert("No pools found matching criteria"); return; }
       qState.rawWords = p; 
       qState.pool = Array.from(new Set(p.map(w => [...w].sort().join('')))); 
       qState.setsDone = 0;
-      
       document.getElementById('qSettingsPane').style.display = 'none'; 
       document.getElementById('qEnginePane').style.display = 'block';
       nextQ();
     }
     
     function quitQuiz() {
-      qState.rawWords = []; 
-      qState.pool = []; 
-      qState.setsDone = 0;
+      qState.rawWords = []; qState.pool = []; qState.setsDone = 0;
       document.getElementById('qEnginePane').style.display = 'none'; 
       document.getElementById('qSettingsPane').style.display = 'block';
     }
     
     function nextQ() {
-      if (qState.setsDone >= qState.pool.length) { 
-        toast("🎉 All sets completed!", "vld"); 
-        quitQuiz(); 
-        return; 
-      }
-      qState.found = []; 
+      qState.correctAnswers = []; qState.incorrectAttempts = []; qState.userSkipped = false;
       let currentRack = qState.pool[qState.setsDone]; 
       qState.rack = currentRack;
       qState.sol = dict.filter(w => w.length === currentRack.length && [...w].sort().join('') === currentRack);
       renderQuiz();
     }
     
+    function updateQuizButton() {
+      let inp = document.getElementById('qInp');
+      let btn = document.getElementById('qActionBtn');
+      if (!inp || !btn) return;
+
+      let isComplete = (qState.correctAnswers.length === qState.sol.length) || qState.userSkipped;
+      let isLast = (qState.setsDone === qState.pool.length - 1);
+
+      if (isComplete) {
+        btn.innerText = isLast ? "Analyze" : "Next";
+      } else {
+        btn.innerText = inp.value.trim() ? "Submit" : "Check Answer";
+      }
+    }
+
     function renderQuiz() {
-      let wordListHtml = qState.sol.map(w => {
-        let active = qState.found.includes(w);
-        let hk = active ? getHooksAndDots(w) : { f: '', b: '' };
-        let hookStr = active ? `<span style="color: var(--accent)">(${hk.f}) <b>${w}</b> (${hk.b})</span>` : `<span>${w}</span>`;
-        return `<div class="mono q-word ${active ? 'revealed' : ''}"> ${hookStr} <span class="score-badge">[${getWordScore(w)}P]</span> </div>`;
+      let isComplete = (qState.correctAnswers.length === qState.sol.length) || qState.userSkipped;
+      let isLast = (qState.setsDone === qState.pool.length - 1);
+      
+      let actionText = isComplete ? (isLast ? "Analyze" : "Next") : "Check Answer";
+
+      let historyHtml = qState.correctAnswers.map(w => {
+        let hk = getHooksAndDots(w);
+        return `<div class="mono" style="font-size:14px; color:var(--accent); padding:2px 0;">✓ (${hk.f}) <b>${w}</b> (${hk.b})</div>`;
       }).join('');
 
+      let revealHtml = "";
+      if (qState.userSkipped) {
+        let missed = qState.sol.filter(w => !qState.correctAnswers.includes(w));
+        revealHtml = missed.map(w => {
+          let hk = getHooksAndDots(w);
+          return `<div class="mono" style="font-size:14px; color:var(--orange); padding:2px 0;">• (${hk.f}) <b>${w}</b> (${hk.b}) [Missed]</div>`;
+        }).join('');
+      }
+
       document.getElementById('qEnginePane').innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <div class="mono" style="font-size: 12px; color: var(--text2)">SET: ${qState.setsDone} / ${qState.pool.length}</div>
-          <div class="mono" style="font-size: 14px; color: var(--accent); font-weight: 700;">${qState.found.length} / ${qState.sol.length}</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div class="mono" style="font-size:12px; color:var(--text2)">POOL: ${qState.setsDone + 1} / ${qState.pool.length}</div>
+          <div class="mono" style="font-size:14px; color:var(--accent); font-weight:700;">${qState.correctAnswers.length} / ${qState.sol.length}</div>
         </div>
-        <div class="mono" style="font-size: 34px; font-weight: 700; color: var(--text); text-align: center; margin: 12px 0; letter-spacing: 5px;">${qState.rack}</div>
-        <div class="q-layout">
-          <div class="q-word-list" id="qShowList">${wordListHtml}</div>
-          <input type="text" id="qInp" class="input-field mono" style="text-align: center; font-size:16px;" placeholder="Type answer..." onkeydown="if(event.key==='Enter')chkAns()">
-          <div style="display: flex; gap: 8px;">
-            <button class="btn" style="flex: 1" onclick="surrenderQuiz()">ANALYZE</button>
-            <button class="btn btn-p" style="flex: 1" onclick="chkAns()">SUBMIT</button>
+        <div class="mono" style="font-size:34px; font-weight:700; text-align:center; margin:12px 0; letter-spacing:5px;">${qState.rack}</div>
+        
+        <div class="q-clean-layout">
+          <div class="quiz-history-pane" id="qHistBox" style="${(qState.correctAnswers.length || qState.userSkipped) ? '' : 'display:none;'}">
+            ${historyHtml}
+            ${revealHtml}
           </div>
-          <div style="display: flex; gap: 8px; margin-top: 4px;">
-            <button class="btn" style="flex: 1; color: var(--orange); border-color: var(--border)" onclick="saveCurrentZzq()">💾 SAVE POOL</button>
-            <button class="btn" style="flex: 1; color: var(--danger); border-color: var(--border)" onclick="quitQuiz()">❌ QUIT</button>
+
+          <input type="text" id="qInp" class="input-field mono" style="text-align:center;" 
+            placeholder="${isComplete ? 'Press Next/Analyze to proceed...' : 'Type answer...'}" 
+            ${isComplete ? 'disabled' : ''} 
+            oninput="updateQuizButton()"
+            onkeydown="if(event.key==='Enter')handleQuizAction()">
+          
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-p" id="qActionBtn" style="flex:1; color:#fff;" onclick="handleQuizAction()">${actionText}</button>
+            <button class="btn" style="flex:1; color:var(--orange);" onclick="analyzeQuizSet(false)">ANALYZE</button>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" style="flex:1; color:var(--orange);" onclick="saveCurrentZzq()">💾 SAVE</button>
+            <button class="btn" style="flex:1; color:var(--danger);" onclick="quitQuiz()">❌ QUIT</button>
           </div>
         </div>
       `;
-      setTimeout(() => document.getElementById('qInp').focus(), 50);
+      if (!isComplete) setTimeout(() => document.getElementById('qInp').focus(), 50);
     }
     
-    function chkAns() {
-      let v = document.getElementById('qInp').value.trim().toUpperCase(); 
-      if (!v) return;
+    function handleQuizAction() {
+      let isComplete = (qState.correctAnswers.length === qState.sol.length) || qState.userSkipped;
+      let isLast = (qState.setsDone === qState.pool.length - 1);
+
+      if (isComplete) {
+        if (isLast) { analyzeQuizSet(true); } 
+        else { qState.setsDone++; nextQ(); }
+        return;
+      }
+
+      let inp = document.getElementById('qInp');
+      let v = inp.value.trim().toUpperCase();
+      
+      if (!v) {
+        qState.userSkipped = true;
+        toast("Revealing Pool...");
+        renderQuiz();
+        return;
+      }
       
       if (qState.sol.includes(v)) {
-        if (!qState.found.includes(v)) {
-          qState.found.push(v); 
-          toast("✓ VALID WORD", 'vld');
-          if (qState.found.length === qState.sol.length) { 
-            qState.setsDone++; 
-            toast("🎉 Set Cleared!", 'vld'); 
-            setTimeout(nextQ, 1000); 
-            return; 
-          }
-        } else { 
-          toast("Already discovered"); 
-        }
-      } else { 
-        toast("❌ PHONY WORD", 'phn'); 
+        if (!qState.correctAnswers.includes(v)) qState.correctAnswers.push(v);
+      } else {
+        if (!qState.incorrectAttempts.includes(v)) qState.incorrectAttempts.push(v);
       }
-      document.getElementById('qInp').value = ''; 
+      
+      inp.value = '';
       renderQuiz();
     }
     
-    function surrenderQuiz() {
-      let html = qState.sol.map(w => {
-        let hk = getHooksAndDots(w);
-        return `<div class="mono q-word revealed"><span style="color: var(--accent)">(${hk.f}) <b style="color: var(--danger)">${w}</b> (${hk.b})</span> <span class="score-badge">[${getWordScore(w)}P]</span> </div>`;
-      }).join('');
-      document.getElementById('qShowList').innerHTML = html;
-      toast("Revealed missing solutions");
-      setTimeout(() => { qState.setsDone++; nextQ(); }, 4000);
+    function analyzeQuizSet(isGameOver = false) {
+      let corrected = [], skipped = [], invalidated = [];
+      qState.sol.forEach(w => {
+        if (qState.correctAnswers.includes(w)) {
+          if (qState.incorrectAttempts.length > 0) invalidated.push(w); else corrected.push(w);
+        } else { skipped.push(w); }
+      });
+
+      let correctHtml = corrected.map(w => `<div style="color:var(--accent)">✓ ${w}</div>`).join('') || '<div>None</div>';
+      let skippedHtml = skipped.map(w => `<div style="color:var(--orange)">• ${w}</div>`).join('') || '<div>None</div>';
+      let incorrectHtml = qState.incorrectAttempts.map(w => `<div style="color:var(--danger)">✕ ${w}</div>`).join('');
+      let convertedHtml = invalidated.map(w => `<div style="color:var(--danger)">⚠ ${w} (Invalidated)</div>`).join('');
+
+      let footerBtnHtml = isGameOver 
+        ? `<button class="btn" style="width:100%; margin-top:14px; color:var(--danger); border-color:var(--danger);" onclick="quitQuiz()">GAME OVER — CLICK TO QUIT</button>`
+        : `<button class="btn btn-p" style="width:100%; margin-top:14px;" onclick="renderQuiz()">BACK TO CURRENT QUIZ</button>`;
+
+      document.getElementById('qEnginePane').innerHTML = `
+        <h3 class="mono" style="font-size:15px; margin-bottom:12px; border-bottom:1px solid var(--border); padding-bottom:6px;">Review Grid Analysis</h3>
+        <div class="mono" style="font-size:12px; display:flex; flex-direction:column; gap:12px; max-height:280px; overflow-y:auto; background:#000; padding:10px; border-radius:6px;">
+          <div><div style="color:var(--text2); font-weight:700;">CORRECT SOLUTIONS:</div>${correctHtml}</div>
+          <div><div style="color:var(--text2); font-weight:700;">SKIPPED / MISSED WORDS:</div>${skippedHtml}</div>
+          <div><div style="color:var(--text2); font-weight:700;">ERRORS & INVALIDATED:</div>${incorrectHtml || '<div>None</div>'}${convertedHtml}</div>
+        </div>
+        ${footerBtnHtml}
+      `;
     }
     
+    /* --- Zyzzyva COMPATIBLE EXPORT (.zzq Format Plain Text Matrix) --- */
     function saveCurrentZzq() {
       if (!qState.rawWords.length) return;
+      // เข้ารหัสแบบส่งออก Plain Text คำละบรรทัด คั่นด้วย Carriage Return เพื่อรองรับ Zyzzyva Desktop โดยเฉพาะ
       let blob = new Blob([qState.rawWords.join("\r\n")], { type: "text/plain;charset=utf-8" });
       let a = document.createElement("a"); 
-      a.download = `ulu_quiz_pool.zzq`; 
+      a.download = `zyzzylu_pool.zzq`; 
       a.href = window.URL.createObjectURL(blob);
       document.body.appendChild(a); 
       a.click(); 
-      document.body.removeChild(a); 
-      toast("💾 Saved Successfully");
+      document.body.removeChild(a);
+      toast("💾 Saved .zzq Successfully");
     }
     
+    /* --- Zyzzyva COMPATIBLE IMPORT (.zzq Parser Matrix) --- */
     function loadZzq(e) {
-      let f = e.target.files[0]; 
-      if (!f) return; 
+      let f = e.target.files[0]; if (!f) return; 
       let r = new FileReader();
       r.onload = (x) => {
         let loaded = x.target.result.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => dictSet.has(w));
-        if (!loaded.length) { alert("Error: No valid words found in file context"); return; }
+        if (!loaded.length) { alert("Error: No valid words found in .zzq file"); return; }
         qState.rawWords = loaded; 
         qState.pool = Array.from(new Set(loaded.map(w => [...w].sort().join('')))); 
         qState.setsDone = 0;
         document.getElementById('qSettingsPane').style.display = 'none'; 
         document.getElementById('qEnginePane').style.display = 'block';
         nextQ();
-      }; 
-      r.readAsText(f);
+      }; r.readAsText(f);
     }
 
-    /* === 9. TOURNAMENT JUDGE CORE ENGINE === */
+    /* --- JUDGE ARENA ENGINE --- */
     function chkChal() {
-      let val = document.getElementById('cInp').value.trim().toUpperCase(); 
-      if (!val) return;
+      let val = document.getElementById('cInp').value.trim().toUpperCase(); if (!val) return;
+      let words = val.split(/\s+/), allValid = words.every(w => dictSet.has(w));
+      let sym = document.getElementById('jSymbol'), stat = document.getElementById('jStatus');
       
-      let words = val.split(/\s+/); 
-      let allValid = words.every(w => dictSet.has(w));
-      
-      if (allValid) toast("✓ WORD(S) VALID", "vld"); 
-      else toast("❌ WORD(S) PHONY", "phn");
-      
+      document.getElementById('jSubList').innerText = words.join(', ');
+      if (allValid) {
+        sym.innerText = "✓"; sym.style.color = "var(--accent)";
+        stat.innerText = "Valid"; stat.style.color = "var(--accent)";
+      } else {
+        sym.innerText = "✕"; sym.style.color = "var(--danger)";
+        stat.innerText = "Not valid"; stat.style.color = "var(--danger)";
+      }
+      document.getElementById('jOverlay').classList.add('open');
       document.getElementById('cInp').value = '';
     }
 
-    /* === 10. LOCAL BOOKMARKS MANAGER OPERATORS === */
+    /* --- LOCAL STORAGE BOOKMARKS --- */
     function renderSaved() {
       document.getElementById('bList').innerHTML = saved.map(w => `
         <div class="item-row">
           <span class="mono" style="font-size:18px; font-weight:700;">${w}</span>
-          <button class="btn" style="padding: 4px 8px; color: var(--danger); border-color:transparent;" onclick="toggleSave('${w}')">🗑️</button>
+          <button class="btn" style="padding:4px 8px; color:var(--danger); border-color:transparent;" onclick="toggleSave('${w}')">🗑️</button>
         </div>
-      `).join('') || '<p style="text-align: center; color: var(--text2); padding-top:16px;">No saved items</p>';
+      `).join('') || '<p style="text-align:center; color:var(--text2); padding-top:16px;">No saved items</p>';
     }
-    
     function toggleSave(w) {
-      if (saved.includes(w)) saved = saved.filter(x => x !== w); else saved.push(w);
-      localStorage.setItem('zyz_sv', JSON.stringify(saved)); 
-      renderSaved(); 
-      toast("Saved list updated");
+      saved = saved.includes(w) ? saved.filter(x => x !== w) : [...saved, w];
+      localStorage.setItem('zyz_sv', JSON.stringify(saved)); renderSaved();
     }
-    
-    function clearSaved() { 
-      if (confirm("Purge all stored words?")) { 
-        saved = []; 
-        localStorage.setItem('zyz_sv', '[]'); 
-        renderSaved(); 
-      } 
-    }
+    function clearSaved() { if (confirm("Purge all stored words?")) { saved = []; localStorage.setItem('zyz_sv', '[]'); renderSaved(); } }
   </script>
 </body>
 </html>

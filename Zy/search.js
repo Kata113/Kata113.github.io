@@ -1,8 +1,9 @@
+// search.js
 function setSearchMode(mode) {
   activeSearchMode = mode;
   document.querySelectorAll('.capsule-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('sm-' + mode).classList.add('active');
-  document.getElementById('sInp').placeholder = mode === 'pattern' ? "Use . (1 char) or * (multi)..." : "Enter letters...";
+  document.getElementById('sInp').placeholder = mode === 'pattern' ? "Use . (1 char) or * (multi)..." : "Enter letters (use . for blanks)...";
 }
 
 function highlightPatternMatches(word, query) {
@@ -20,17 +21,34 @@ function search() {
   let res = [];
   if (!q) return;
 
-  if (activeSearchMode === 'anagram') {
-    let sq = [...q].sort().join('');
-    res = dict.filter(w => w.length === q.length && [...w].sort().join('') === sq && matchFilters(w, sFilters));
-  } else if (activeSearchMode === 'subanagram') {
-    res = dict.filter(w => {
-      let r = [...q];
-      return [...w].every(c => { let i = r.indexOf(c); if (i > -1) { r.splice(i, 1); return true; } return false; }) && matchFilters(w, sFilters);
-    });
-  } else if (activeSearchMode === 'pattern') {
+  if (activeSearchMode === 'pattern') {
     let rx = new RegExp("^" + q.replace(/\./g, '.').replace(/\*/g, '.*') + "$");
     res = dict.filter(w => rx.test(w) && matchFilters(w, sFilters));
+  } 
+  else if (activeSearchMode === 'anagram' || activeSearchMode === 'subanagram') {
+    let blanksCount = (q.match(/\./g) || []).length;
+    let rackLetters = [...q.replace(/\./g, '')]; // ตัดจุดออกเพื่อเก็บแค่อักษรแท้ในแร็ก
+
+    res = dict.filter(w => {
+      // โหมด Anagram บังคับความยาวคำต้องเท่ากับจำนวนเบี้ยในมือพอดี
+      if (activeSearchMode === 'anagram' && w.length !== q.length) return false;
+      
+      let tempRack = [...rackLetters];
+      let neededBlanks = 0;
+
+      // ตรวจสอบว่าคำในพจนานุกรมสามารถสร้างจากอักษรในมือ + ตัวว่างได้ไหม
+      for (let char of w) {
+        let idx = tempRack.indexOf(char);
+        if (idx > -1) {
+          tempRack.splice(idx, 1);
+        } else {
+          neededBlanks++;
+        }
+      }
+
+      // คำนั้นใช้ได้ถ้าจำนวนตัวว่างที่ต้องใช้ ไม่เกินจำนวนจุดที่ผู้ใช้พิมพ์เข้ามา
+      return neededBlanks <= blanksCount && matchFilters(w, sFilters);
+    });
   }
 
   currentResultsList = res.slice(0, 100);
@@ -54,5 +72,4 @@ function search() {
       </div>
     `;
   }).join('') || '<p style="text-align:center; color:var(--text2); padding-top:20px;">No results found</p>';
-      }
-    
+}

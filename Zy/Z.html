@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ZYZZYVA — CSW24 Suite</title>
-<link href="https://fonts.googleapis.com/css2 family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<title>ZYZZYVA — CSW24 Ultimate Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #0a0a0f;
@@ -23,27 +23,31 @@
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; min-height:100vh; overflow-x:hidden; }
 body::before {
-  content:''; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0.3;
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0.2;
   background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
 }
 
-header {
-  position:sticky; top:0; z-index:100;
-  background:rgba(10,10,15,0.92); backdrop-filter:blur(16px);
-  border-bottom:1px solid var(--border);
-  padding:14px 20px; display:flex; align-items:center; justify-content:space-between;
+/* NEW BEAUTIFUL NEON LOADER */
+#loadingScreen {
+  position:fixed; inset:0; background:var(--bg); z-index:9999;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;
 }
-.logo { font-family:'Space Mono',monospace; font-size:18px; font-weight:700; letter-spacing:4px;
-  background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.score-badge { font-family:'Space Mono',monospace; font-size:12px; color:var(--accent3);
-  border:1px solid var(--accent3); padding:4px 10px; border-radius:20px; }
+.spinner-box { width: 70px; height: 70px; display: flex; justify-content: center; align-items: center; background: transparent; }
+.circle-border { width: 60px; height: 60px; padding: 3px; display: flex; justify-content: center; align-items: center; border-radius: 50%; background: linear-gradient(0deg, rgba(124,106,247,0.1) 33%, rgba(124,106,247,1) 100%); animation: spin .8s linear infinite; }
+.circle-core { width: 100%; height: 100%; background-color: var(--bg); border-radius: 50%; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.load-status-text { font-family:'Space Mono',monospace; font-size:13px; color:var(--accent3); letter-spacing:1px; text-transform:uppercase; text-shadow:0 0 10px rgba(106,247,196,0.2); }
+
+header {
+  position:sticky; top:0; z-index:100; background:rgba(10,10,15,0.92); backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border); padding:14px 20px; display:flex; align-items:center; justify-content:space-between;
+}
+.logo { font-family:'Space Mono',monospace; font-size:18px; font-weight:700; letter-spacing:4px; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.score-badge { font-family:'Space Mono',monospace; font-size:12px; color:var(--accent3); border:1px solid var(--accent3); padding:4px 10px; border-radius:20px; }
 .word-count { font-family:'Space Mono',monospace; font-size:10px; color:var(--text2); }
 
-nav { display:flex; background:var(--surface); border-bottom:1px solid var(--border);
-  position:sticky; top:57px; z-index:99; }
-.tab { flex:1; padding:12px 8px; text-align:center; font-size:11px; font-weight:600;
-  letter-spacing:1px; text-transform:uppercase; color:var(--text2);
-  border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
+nav { display:flex; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:57px; z-index:99; }
+.tab { flex:1; padding:12px 8px; text-align:center; font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--text2); border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
 .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
 .tab-icon { font-size:16px; display:block; margin-bottom:2px; }
 
@@ -52,51 +56,17 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 .section.active { display:block; }
 @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
 
-/* SEARCH & WIDGETS */
-.search-wrap { position:relative; margin-bottom:20px; }
-.search-input {
-  width:100%; padding:16px 50px 16px 18px;
-  background:var(--surface); border:1px solid var(--border); border-radius:14px;
-  color:var(--text); font-family:'Space Mono',monospace; font-size:18px;
-  outline:none; text-transform:uppercase; letter-spacing:3px; transition:all 0.2s;
-}
-.search-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(124,106,247,0.15); }
-.search-btn {
-  position:absolute; right:10px; top:50%; transform:translateY(-50%);
-  background:var(--accent); border:none; border-radius:8px; width:34px; height:34px; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-}
+/* SEARCH TAB LIST UI */
+.search-results-list { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+.list-word-row { background:var(--surface); border:1px solid var(--border); padding:12px 16px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.list-word-title { font-family:'Space Mono',monospace; font-size:18px; font-weight:700; color:var(--text); letter-spacing:1px; }
+.list-word-score { font-family:'Space Mono',monospace; font-size:12px; color:var(--accent2); }
 
-.word-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:12px; }
-.word-title { font-family:'Space Mono',monospace; font-size:32px; font-weight:700; color:var(--accent); letter-spacing:4px; margin-bottom:4px; word-break:break-all; }
-.word-valid { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:4px 12px; border-radius:20px; margin-bottom:12px; }
-.word-valid.yes { background:rgba(106,247,160,0.1); color:var(--success); border:1px solid var(--success); }
-.word-valid.no { background:rgba(247,106,106,0.1); color:var(--danger); border:1px solid var(--danger); }
-.hooks-label { font-size:11px; color:var(--text2); margin-bottom:6px; font-family:'Space Mono',monospace; letter-spacing:1px; }
-.hooks-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
-.hook-pill { font-family:'Space Mono',monospace; font-size:13px; padding:4px 10px; border-radius:8px; background:rgba(124,106,247,0.1); color:var(--accent); border:1px solid rgba(124,106,247,0.3); cursor:pointer; }
-
-/* QUIZ & FILTERS */
-.quiz-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:24px 20px; width:100%; }
-.quiz-progress { display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:11px; color:var(--text2); margin-bottom:12px; }
-.progress-bar { width:100%; height:4px; background:var(--surface2); border-radius:2px; margin-bottom:20px; overflow:hidden; }
-.progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:2px; transition:width 0.4s ease; }
-.anagram-display { font-family:'Space Mono',monospace; font-size:34px; font-weight:700; color:var(--accent2); letter-spacing:6px; text-align:center; margin:16px 0; word-break:break-all; }
-
-.quiz-actions { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
-.btn-clear { padding:12px 4px; border-radius:10px; background:var(--surface2); border:1px solid var(--border); color:var(--text2); font-size:12px; font-weight:600; cursor:pointer; text-align:center; }
-.btn-submit { padding:12px 4px; border-radius:10px; background:var(--accent); border:none; color:#fff; font-size:12px; font-weight:700; cursor:pointer; text-align:center; }
-.btn-analyze-trigger { padding:12px 4px; border-radius:10px; background:rgba(106,231,247,0.1); border:1px solid rgba(106,231,247,0.3); color:var(--info); font-size:12px; font-weight:700; cursor:pointer; text-align:center; }
-
-/* FILE SYNC BAR */
-.file-sync-bar { display:flex; gap:8px; margin-bottom:14px; background:rgba(0,0,0,0.2); padding:10px; border-radius:10px; border:1px dashed var(--border); }
-.btn-sync { flex:1; padding:8px; border-radius:6px; background:var(--surface2); border:1px solid var(--border); color:var(--text); font-size:11px; font-weight:700; cursor:pointer; font-family:'Space Mono',monospace; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
-
-/* FILTER UI BUILDER */
-.filter-builder { border:1px dashed var(--border); padding:14px; border-radius:12px; margin-bottom:18px; background:rgba(0,0,0,0.1); }
+/* FILTER STYLING USED BY BOTH SEARCH & QUIZ */
+.filter-builder { border:1px dashed var(--border); padding:14px; border-radius:12px; margin-bottom:14px; background:rgba(0,0,0,0.1); }
 .filter-selector-row { display:flex; gap:8px; }
 .quiz-select { flex:1; min-width:0; padding:10px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; outline:none; font-family:inherit; }
-.btn-add-filter { padding:0 16px; background:var(--accent); border:none; border-radius:8px; color:#fff; font-weight:700; cursor:pointer; font-size:13px; white-space:nowrap; }
+.btn-add-filter { padding:0 16px; background:var(--accent); border:none; border-radius:8px; color:#fff; font-weight:700; cursor:pointer; font-size:13px; }
 .filter-stack { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
 .filter-item { display:flex; align-items:center; gap:8px; background:var(--surface2); border:1px solid var(--border); padding:10px; border-radius:8px; flex-wrap:wrap; }
 .not-toggle { display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:var(--text2); cursor:pointer; padding:6px 10px; border-radius:6px; border:1px solid var(--border); background:transparent; min-width:46px; }
@@ -106,54 +76,59 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 .filter-value-input { width:100%; min-width:0; padding:8px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'Space Mono',monospace; font-size:13px; outline:none; }
 .btn-remove-filter { background:none; border:none; color:var(--text2); cursor:pointer; font-size:18px; padding:4px; margin-left:auto; }
 
-/* ANALYZE MODAL / PANEL COMPONENTS */
-.analyze-panel { background:var(--surface2); border:1px solid var(--border); border-radius:14px; padding:16px; margin-top:14px; display:none; animation:fadeUp 0.2s ease; }
-.analyze-section-title { font-family:'Space Mono',monospace; font-size:11px; font-weight:700; margin-bottom:8px; letter-spacing:1px; display:flex; align-items:center; gap:6px; }
-.word-flex-grid { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:18px; }
-.word-badge-info { padding:6px 12px; background:var(--info); color:#000; font-family:'Space Mono',monospace; font-size:14px; font-weight:700; border-radius:6px; }
-.word-badge-danger { padding:6px 12px; background:var(--danger); color:#000; font-family:'Space Mono',monospace; font-size:14px; font-weight:700; border-radius:6px; }
+/* QUIZ UI */
+.quiz-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:24px 20px; width:100%; }
+.quiz-progress { display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:11px; color:var(--text2); margin-bottom:12px; }
+.progress-bar { width:100%; height:4px; background:var(--surface2); border-radius:2px; margin-bottom:20px; overflow:hidden; }
+.progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:2px; transition:width 0.4s ease; }
+.anagram-display { font-family:'Space Mono',monospace; font-size:36px; font-weight:700; color:var(--accent2); letter-spacing:6px; text-align:center; margin:14px 0; word-break:break-all; text-shadow:0 0 20px rgba(247,160,106,0.15); }
+.quiz-word-status-bubble { text-align:center; font-family:'Space Mono',monospace; font-size:13px; color:var(--accent3); margin-bottom:14px; background:rgba(106,247,196,0.05); padding:6px; border-radius:8px; border:1px solid rgba(106,247,196,0.1); }
 
-.quiz-analysis { border-radius:12px; padding:16px; margin:12px 0; background:rgba(255,255,255,0.02); border:1px solid var(--border); }
+.quiz-actions-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+.quiz-actions-triple { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px; }
+.btn-clear, .btn-submit, .btn-analyze-trigger, .btn-mid-save { padding:12px 4px; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; text-align:center; font-family:inherit; }
+.btn-clear { background:var(--surface2); border:1px solid var(--border); color:var(--text2); }
+.btn-submit { background:var(--accent); border:none; color:#fff; }
+.btn-analyze-trigger { background:rgba(106,231,247,0.1); border:1px solid rgba(106,231,247,0.3); color:var(--info); }
+.btn-mid-save { background:rgba(247,160,106,0.1); border:1px solid rgba(247,160,106,0.3); color:var(--accent2); }
+
+/* ANALYZE PANEL */
+.analyze-panel { background:var(--surface2); border:1px solid var(--border); border-radius:14px; padding:16px; margin-top:14px; display:none; animation:fadeUp 0.2s ease; }
+.analyze-section-title { font-family:'Space Mono',monospace; font-size:11px; font-weight:700; margin-bottom:8px; letter-spacing:1px; }
+.word-flex-grid { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:18px; }
+.word-badge-info { padding:6px 12px; background:var(--info); color:#000; font-family:'Space Mono',monospace; font-size:13px; font-weight:700; border-radius:6px; }
+.word-badge-danger { padding:6px 12px; background:var(--danger); color:#000; font-family:'Space Mono',monospace; font-size:13px; font-weight:700; border-radius:6px; }
+
+.quiz-analysis { border-radius:12px; padding:16px; margin:12px 0; background:rgba(255,255,255,0.01); border:1px solid var(--border); }
 .analysis-result { font-size:18px; font-weight:800; margin-bottom:8px; }
 .analysis-result.correct { color:var(--success); }
 .analysis-result.wrong { color:var(--danger); }
 .analysis-word-block { margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.05); }
-.analysis-word { font-family:'Space Mono',monospace; font-size:22px; color:var(--accent); letter-spacing:2px; }
-.analysis-detail { font-size:13px; color:var(--text2); margin-top:2px; }
-.next-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:12px; color:#fff; font-size:15px; font-weight:700; cursor:pointer; }
+.analysis-word { font-family:'Space Mono',monospace; font-size:22px; color:var(--accent); }
+.analysis-detail { font-size:13px; color:var(--text2); }
+.next-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:12px; color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
 
-/* BLITZ CHALLENGE */
-.challenge-intro { text-align:center; padding:10px 0 20px; }
-.challenge-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:24px; }
-.stat-box { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 10px; text-align:center; }
-.stat-val { font-family:'Space Mono',monospace; font-size:24px; font-weight:700; color:var(--accent); }
-.stat-lbl { font-size:11px; color:var(--text2); }
-.start-btn { width:100%; padding:18px; border:none; border-radius:14px; background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; font-size:18px; font-weight:800; cursor:pointer; letter-spacing:1px; }
-.c-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-.timer { font-family:'Space Mono',monospace; font-size:28px; color:var(--accent3); background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:8px 18px; }
-.c-word-display { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:28px 20px; text-align:center; margin-bottom:16px; }
-.c-word { font-family:'Space Mono',monospace; font-size:38px; font-weight:700; color:var(--text); letter-spacing:6px; word-break:break-all; }
-.c-buttons { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.btn-valid { padding:20px 10px; border-radius:16px; border:2px solid var(--success); background:rgba(106,247,160,0.08); color:var(--success); font-size:18px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; }
-.btn-invalid { padding:20px 10px; border-radius:16px; border:2px solid var(--danger); background:rgba(247,106,106,0.08); color:var(--danger); font-size:18px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; }
+/* CHALLENGE LOG */
+.challenge-log-container { display:flex; flex-direction:column; gap:8px; margin-top:16px; max-height:220px; overflow-y:auto; }
+.challenge-log-item { display:flex; justify-content:space-between; padding:10px 14px; border-radius:8px; font-family:'Space Mono',monospace; font-size:14px; }
+.challenge-log-item.valid { background:rgba(106,247,160,0.08); border:1px solid rgba(106,247,160,0.2); color:var(--success); }
+.challenge-log-item.invalid { background:rgba(247,106,106,0.08); border:1px solid rgba(247,106,106,0.2); color:var(--danger); }
 
-/* BOOKMARKS */
-.wl-item { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.wli-word { font-family:'Space Mono',monospace; font-size:20px; font-weight:700; color:var(--accent); letter-spacing:2px; cursor:pointer; }
-.toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:12px 20px; border-radius:12px; font-size:14px; z-index:999; transition:all 0.3s ease; opacity:0; white-space:nowrap; }
+.wl-item { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
+.wli-word { font-family:'Space Mono',monospace; font-size:20px; font-weight:700; color:var(--accent); cursor:pointer; }
+.toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:12px 20px; border-radius:12px; font-size:13px; z-index:999; transition:all 0.3s ease; opacity:0; }
 .toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
 </style>
 </head>
 <body>
 
 <div id="loadingScreen">
-  <div class="load-logo">ZYZZYVA</div>
-  <div class="connect-card">
-    <div class="connect-title">🔌 Connecting Lexicon...</div>
-    <div class="connect-desc">Downloading and parsing <b>CSW24.txt</b> database. Please wait a moment.</div>
-    <div class="progress-bar"><div class="progress-fill" id="initProgress" style="width: 15%;"></div></div>
-    <div class="status-text" id="statusText">Fetching dictionary file...</div>
+  <div class="spinner-box">
+    <div class="circle-border">
+      <div class="circle-core"></div>
+    </div>
   </div>
+  <div class="load-status-text" id="statusText">Loading CSW24 Lexicon Assets...</div>
 </div>
 
 <header style="display:none" id="appHeader">
@@ -173,12 +148,29 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 
 <main style="display:none" id="appMain">
   <div class="section active" id="search">
-    <div class="search-wrap">
-      <input class="search-input" id="searchInput" type="text" placeholder="WORD..." autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key==='Enter')searchWord()" oninput="this.value=this.value.toUpperCase()">
-      <button class="search-btn" style="border:none;" onclick="searchWord()">→</button>
+    <div class="search-wrap" style="margin-bottom:12px;">
+      <input class="search-input" id="searchInput" type="text" placeholder="WORD OR WILDCARD (?, .)..." autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key==='Enter')executeAdvancedSearch()" oninput="this.value=this.value.toUpperCase()">
+      <button class="search-btn" style="border:none;" onclick="executeAdvancedSearch()">→</button>
     </div>
-    <div id="searchResult">
-      <div class="empty-state"><div class="empty-icon">🔤</div>Type any word to check validity in CSW24</div>
+    
+    <div class="filter-builder" style="border-style:solid; border-color:rgba(255,255,255,0.05);">
+      <div style="font-size:11px; color:var(--text2); margin-bottom:8px; font-family:'Space Mono',monospace;">⚡ FILTER & SUBANAGRAM SEARCH EXTENSIONS</div>
+      <div class="filter-selector-row">
+        <select class="quiz-select" id="searchFilterTypeSelect">
+          <option value="none">[No Extra Filter]</option>
+          <option value="subanagram">Subanagram Match</option>
+          <option value="length">Length Range</option>
+          <option value="score">Score Range</option>
+          <option value="begins">Begins With</option>
+          <option value="ends">Ends With</option>
+        </select>
+        <input type="text" class="filter-value-input" id="searchFilterValue" placeholder="Criteria value..." style="flex:1;">
+        <button class="btn-add-filter" style="background:var(--surface2); border:1px solid var(--border);" onclick="executeAdvancedSearch()">APPLY</button>
+      </div>
+    </div>
+
+    <div id="searchResultsContainer">
+      <div class="empty-state" style="text-align:center; padding:40px; color:var(--text2); font-size:13px;">Use alphabets or wildcards like <b>P?TH.N</b> to crawl the dictionary.</div>
     </div>
   </div>
 
@@ -192,7 +184,7 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 
   <div class="section" id="wordlist">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <div style="font-size:20px; font-weight:800;">📚 Saved Words</div>
+      <div style="font-size:20px; font-weight:800;">📚 Bookmarked Words</div>
       <button class="btn-clear" style="padding:5px 12px;" onclick="clearWordList()">Clear All</button>
     </div>
     <div id="wordListContent"></div>
@@ -214,36 +206,29 @@ const tileScores = {
   N:1, O:1, P:3, Q:10, R:1, S:1, T:1, U:1, V:4, W:4, X:8, Y:4, Z:10
 };
 
-// State Variables
-let quizState = { 
-  active: false, filteredPool: [], currentRack: '', solutions: [], 
-  questionCount: 0, correctCount: 0, activeFilters: [],
-  currentWordMistakes: 0, isCurrentQuestionFaulty: false,
-  // Analytics History Tracking Arrays
-  historyWrongAndSkipped: [], 
-  historyPureWrong: []
+// Application States
+let quizState = {
+  active: false, filteredPool: [], currentRack: '', solutions: [], foundSolutions: [],
+  setsCompleted: 0, questionCount: 0, correctCount: 0, activeFilters: [],
+  isCurrentQuestionFaulty: false, historyWrongAndSkipped: [], historyPureWrong: []
 };
 let filterIdCounter = 0;
-let challengeState = { active: false, currentWord: '', isValid: false, score: 0, timeLeft: 60, timerInterval: null };
+let challengeState = { active: false, score: 0, timeLeft: 60, timerInterval: null, loggedWords: [] };
 
 window.addEventListener('DOMContentLoaded', () => { autoLoadDictionary(); });
 
 async function autoLoadDictionary() {
   const statusText = document.getElementById('statusText');
-  const bar = document.getElementById('initProgress');
   try {
-    statusText.innerText = "Downloading CSW24.txt...";
-    bar.style.width = "50%";
+    statusText.innerText = "Downloading CSW24 Lexicon...";
     const response = await fetch('CSW24.txt');
     if (!response.ok) throw new Error("Could not find CSW24.txt");
-    statusText.innerText = "Indexing lexicon database...";
-    bar.style.width = "85%";
+    statusText.innerText = "Indexing CSW24 Assets...";
     const text = await response.text();
     dictionary = text.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
-    if (dictionary.length === 0) throw new Error("Dictionary file is empty.");
+    if (dictionary.length === 0) throw new Error("Dictionary empty.");
     processDictionary();
-    bar.style.width = "100%";
-    statusText.innerText = "Launch Successful!";
+    statusText.innerText = "Assets Loaded!";
     setTimeout(() => {
       document.getElementById('loadingScreen').style.display = 'none';
       document.getElementById('appHeader').style.display = 'flex';
@@ -252,11 +237,10 @@ async function autoLoadDictionary() {
       loadSavedWords();
       initQuizSettings();
       initChallengeIntro();
-    }, 400);
+    }, 500);
   } catch (err) {
-    statusText.innerText = "⚠️ Error: Make sure 'CSW24.txt' is placed beside index.html";
+    statusText.innerText = "⚠️ Missing 'CSW24.txt' database.";
     statusText.style.color = "var(--danger)";
-    bar.style.background = "var(--danger)";
     console.error(err);
   }
 }
@@ -274,110 +258,123 @@ function processDictionary() {
 }
 
 function calculateWordScore(word) {
-  let s = 0;
-  for (let char of word) { s += tileScores[char] || 0; }
-  return s;
+  let s = 0; for (let char of word) { s += tileScores[char] || 0; } return s;
 }
 
 function showTab(tabId, btn) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById(tabId).classList.add('active');
+  btn.classList.add('active'); document.getElementById(tabId).classList.add('active');
 }
 
 function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.innerText = msg; t.classList.add('show');
+  const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2000);
 }
 
-// SEARCH
-function searchWord() {
-  const input = document.getElementById('searchInput');
-  const word = input.value.trim().toUpperCase();
-  if (!word) return;
-  const resultDiv = document.getElementById('searchResult');
-  const isValid = dictionarySet.has(word);
-  const hooks = getHooks(word);
-  const anagrams = findAnagramsOfWord(word);
-  const isSaved = savedWords.includes(word);
-  let html = `<div class="word-card"><div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;"><div><div class="word-title">${word}</div><div class="word-valid ${isValid ? 'yes' : 'no'}">${isValid ? '✓ VALID IN CSW24' : '✗ INVALID IN CSW24'}</div></div>${isValid ? `<button class="hook-pill" style="font-size:18px;" onclick="toggleSaveWord('${word}')">${isSaved?'⭐':'☆'}</button>`:''}</div>`;
-  if (isValid) {
-    html += `<div class="word-hooks"><div class="hooks-label">FRONT HOOKS</div><div class="hooks-row">${hooks.front.length ? hooks.front.map(h => `<span class="hook-pill" onclick="quickSearch('${h+word}')">${h}</span>`).join('') : '<span style="color:var(--text2);font-size:12px;">None</span>'}</div></div><div class="word-hooks"><div class="hooks-label">BACK HOOKS</div><div class="hooks-row">${hooks.back.length ? hooks.back.map(h => `<span class="hook-pill" onclick="quickSearch('${word+h}')">${h}</span>`).join('') : '<span style="color:var(--text2);font-size:12px;">None</span>'}</div></div>`;
+// Helper: Check Subanagram conditions
+function isSubanagram(candidate, rack) {
+  let rChars = rack.split('');
+  for (let char of candidate) {
+    let idx = rChars.indexOf(char);
+    if (idx !== -1) rChars.splice(idx, 1); else return false;
   }
-  if (anagrams.length > 1) {
-    html += `<div class="anagram-section"><div class="hooks-label">ANAGRAMS (${anagrams.length - 1})</div><div class="anagram-row">${anagrams.filter(a => a !== word).map(a => `<span class="anagram-pill" onclick="quickSearch('${a}')">${a}</span>`).join('')}</div></div>`;
-  }
-  html += `</div>`;
-  resultDiv.innerHTML = html;
-}
-function quickSearch(word) { document.getElementById('searchInput').value = word; searchWord(); }
-function getHooks(word) {
-  const alphas = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; const front = []; const back = [];
-  for (let a of alphas) { if (dictionarySet.has(a + word)) front.push(a); if (dictionarySet.has(word + a)) back.push(a); }
-  return { front, back };
-}
-function findAnagramsOfWord(word) {
-  const sorted = word.split('').sort().join(''); const candidates = wordsByLength[word.length] || [];
-  return candidates.filter(w => w.split('').sort().join('') === sorted);
+  return true;
 }
 
 // ============================================================
-// QUIZ ENGINE WITH LIVE ANALYZE AND ZZQ SYNC
+// ADVANCED SEARCH SYSTEMS (LISTS, WILDCARDS, EXTENDED FILTERS)
+// ============================================================
+function executeAdvancedSearch() {
+  const queryInput = document.getElementById('searchInput').value.trim().toUpperCase();
+  const container = document.getElementById('searchResultsContainer');
+  const filterType = document.getElementById('searchFilterTypeSelect').value;
+  const filterVal = document.getElementById('searchFilterValue').value.trim().toUpperCase();
+
+  let regexQuery = null;
+  if (queryInput) {
+    // Replace dots or question marks into standard JavaScript RegEx matches
+    let formattedPattern = queryInput.replace(/[\.\?]/g, '.');
+    regexQuery = new RegExp("^" + formattedPattern + "$");
+  }
+
+  let results = dictionary.filter(word => {
+    // 1. Wildcard query test
+    if (regexQuery && !regexQuery.test(word)) return false;
+
+    // 2. Inline extra filters logic
+    if (filterType === 'subanagram' && filterVal) { if (!isSubanagram(word, filterVal)) return false; }
+    else if (filterType === 'length' && filterVal) { if (word.length != parseInt(filterVal)) return false; }
+    else if (filterType === 'score' && filterVal) { if (calculateWordScore(word) != parseInt(filterVal)) return false; }
+    else if (filterType === 'begins' && filterVal) { if (!word.startsWith(filterVal)) return false; }
+    else if (filterType === 'ends' && filterVal) { if (!word.endsWith(filterVal)) return false; }
+
+    return true;
+  });
+
+  // Render list rows output
+  if (results.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="text-align:center; padding:40px; color:var(--text2);">0 matching records found.</div>`;
+    return;
+  }
+
+  let slicedResults = results.slice(0, 250); // Performance boundary limit
+  let html = `<div style="font-size:12px; color:var(--text2); margin-bottom:8px; font-family:monospace;">Showing ${slicedResults.length} of ${results.length} results:</div>`;
+  html += `<div class="search-results-list">`;
+  html += slicedResults.map(w => `
+    <div class="list-word-row">
+      <div>
+        <span class="list-word-title" onclick="quickBookmark('${w}')" style="cursor:pointer;" title="Click to Save">${w}</span>
+        <div style="font-size:11px; color:var(--text2); margin-top:2px;">${w.length} letters</div>
+      </div>
+      <div class="list-word-score">${calculateWordScore(w)} PTS</div>
+    </div>
+  `).join('');
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function quickBookmark(word) { toggleSaveWord(word); }
+
+// ============================================================
+// QUIZ CORE ENGINE (MULTI-WORD CONFIGURATIONS)
 // ============================================================
 function initQuizSettings() {
   quizState.active = false;
   const content = document.getElementById('quizContent');
   content.innerHTML = `
     <div class="quiz-card">
-      <h2 style="font-size:20px; font-weight:800; margin-bottom:12px; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">🧠 Anagram Quiz Settings</h2>
+      <h2 style="font-size:18px; font-weight:800; margin-bottom:14px; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">🧠 Anagram Training Module</h2>
       
-      <div class="file-sync-bar">
-        <button class="btn-sync" onclick="document.getElementById('zzqFileInput').click()">📂 LOAD .ZZQ</button>
-        <button class="btn-sync" id="exportZzqBtn" style="opacity:0.5; cursor:not-allowed;" disabled onclick="exportCurrentPoolToZzq()">💾 SAVE TO .ZZQ</button>
-      </div>
+      <button class="btn-sync" style="width:100%; margin-bottom:14px; padding:12px;" onclick="document.getElementById('zzqFileInput').click()">📂 LOAD .ZZQ EXTERNAL FILE</button>
 
       <div class="filter-builder">
-        <div class="quiz-setting-label">ADD NEW FILTER CRITERIA</div>
+        <div style="font-size:11px; color:var(--text2); margin-bottom:8px; font-family:'Space Mono',monospace;">BUILD FILTER PARAMETERS</div>
         <div class="filter-selector-row">
           <select class="quiz-select" id="filterTypeSelect">
+            <option value="subanagram">Subanagram Match</option>
             <option value="length">Length Range</option>
-            <option value="probability">Probability Range</option>
             <option value="score">Score Range</option>
             <option value="includes">Includes Letters</option>
             <option value="begins">Begins With</option>
             <option value="ends">Ends With</option>
-            <option value="anagram">Anagram Match</option>
             <option value="pattern">Pattern Match</option>
           </select>
           <button class="btn-add-filter" onclick="addNewFilterItem()">+ ADD</button>
         </div>
       </div>
       <div class="filter-stack" id="filterStack"></div>
-      <button class="start-btn" style="margin-top:10px;" onclick="compileFiltersAndStart()">START CUSTOM QUIZ</button>
+      <button class="start-btn" style="margin-top:8px;" onclick="compileFiltersAndStart()">START COMPILATION QUIZ</button>
     </div>
   `;
   renderFilterStack();
-  updateExportBtnStatus();
-}
-
-function updateExportBtnStatus() {
-  const btn = document.getElementById('exportZzqBtn');
-  if(!btn) return;
-  if(quizState.filteredPool && quizState.filteredPool.length > 0) {
-    btn.disabled = false;
-    btn.style.opacity = "1";
-    btn.style.cursor = "pointer";
-  }
 }
 
 function addNewFilterItem() {
   const type = document.getElementById('filterTypeSelect').value; filterIdCounter++;
   let newItem = { id: filterIdCounter, type: type, val1: '', val2: '', isNot: false };
-  if (type === 'length') { newItem.val1 = '2'; newItem.val2 = '8'; }
-  if (type === 'probability') { newItem.val1 = '1'; newItem.val2 = '2000'; }
-  if (type === 'score') { newItem.val1 = '10'; newItem.val2 = '40'; }
+  if (type === 'length') { newItem.val1 = '2'; newItem.val2 = '6'; }
+  if (type === 'score') { newItem.val1 = '5'; newItem.val2 = '25'; }
   quizState.activeFilters.push(newItem);
   renderFilterStack();
 }
@@ -389,101 +386,64 @@ function updateFilterVal(id, field, value) { const item = quizState.activeFilter
 function renderFilterStack() {
   const container = document.getElementById('filterStack'); if (!container) return;
   if (quizState.activeFilters.length === 0) {
-    container.innerHTML = `<div style="text-align:center; color:var(--text2); font-size:12px; padding:10px 0;">No filters active. Quiz will pick randomly from all loaded words.</div>`;
+    container.innerHTML = `<div style="text-align:center; color:var(--text2); font-size:12px; padding:10px 0;">No parameters active. Randomly scaling database.</div>`;
     return;
   }
   container.innerHTML = quizState.activeFilters.map(f => {
     let inputsHtml = '';
-    if (f.type === 'length' || f.type === 'probability' || f.type === 'score') {
+    if (f.type === 'length' || f.type === 'score') {
       inputsHtml = `
         <input type="number" class="filter-value-input" style="flex:1;" value="${f.val1}" placeholder="Min" onchange="updateFilterVal(${f.id}, 'val1', this.value)">
         <span style="color:var(--text2); font-size:11px;">-</span>
         <input type="number" class="filter-value-input" style="flex:1;" value="${f.val2}" placeholder="Max" onchange="updateFilterVal(${f.id}, 'val2', this.value)">
       `;
     } else {
-      let placeholderText = "Value...";
-      if (f.type === 'pattern') placeholderText = "?A?E or *ING";
-      if (f.type === 'includes') placeholderText = "e.g. QX or ...";
-      inputsHtml = `<input type="text" class="filter-value-input" value="${f.val1}" placeholder="${placeholderText}" oninput="updateFilterVal(${f.id}, 'val1', this.value)">`;
+      let ph = "Value..."; if (f.type === 'subanagram') ph = "Available rack letters...";
+      inputsHtml = `<input type="text" class="filter-value-input" value="${f.val1}" placeholder="${ph}" oninput="updateFilterVal(${f.id}, 'val1', this.value)">`;
     }
     return `
       <div class="filter-item">
         <button class="not-toggle ${f.isNot ? 'active' : ''}" onclick="toggleFilterNot(${f.id})">NOT</button>
         <div class="filter-label">${f.type}</div>
-        <div class="filter-input-container">
-          ${inputsHtml}
-        </div>
+        <div class="filter-input-container">${inputsHtml}</div>
         <button class="btn-remove-filter" onclick="removeFilterItem(${f.id})">✕</button>
       </div>
     `;
   }).join('');
 }
 
-// Wildcard processor rules
-function matchBlankInclusion(word, filterStr) {
-  let wordChars = word.split('');
-  for (let fChar of filterStr) {
-    if (fChar === '.') { if (wordChars.length > 0) wordChars.pop(); else return false; } 
-    else { let index = wordChars.indexOf(fChar); if (index !== -1) wordChars.splice(index, 1); else return false; }
-  }
-  return true;
-}
-
-function convertToRegex(pattern, strictAnchor = false) {
-  let rStr = pattern.replace(/\?/g, '.').replace(/\*/g, '.*').replace(/\./g, '.');
-  if (strictAnchor) return new RegExp("^" + rStr + "$"); return new RegExp(rStr);
-}
-
-function checkAnagramWithBlanks(word, targetPattern) {
-  if (word.length !== targetPattern.length) return false; let wChars = word.split('');
-  for (let pChar of targetPattern) { if (pChar === '.') continue; let idx = wChars.indexOf(pChar); if (idx !== -1) wChars.splice(idx, 1); else return false; }
-  return true;
-}
-
 function compileFiltersAndStart() {
-  let pool = dictionary.filter((word, index) => {
+  let pool = dictionary.filter((word) => {
     for (let f of quizState.activeFilters) {
-      let isConditionMet = true;
-      if (f.type === 'length') { let min = parseInt(f.val1) || 0; let max = parseInt(f.val2) || Infinity; isConditionMet = (word.length >= min && word.length <= max); }
-      else if (f.type === 'probability') { let min = parseInt(f.val1) || 1; let max = parseInt(f.val2) || Infinity; let currentProbIdx = index + 1; isConditionMet = (currentProbIdx >= min && currentProbIdx <= max); }
-      else if (f.type === 'score') { let min = parseInt(f.val1) || 0; let max = parseInt(f.val2) || Infinity; let score = calculateWordScore(word); isConditionMet = (score >= min && score <= max); }
-      else if (f.type === 'includes') { if (!f.val1) continue; isConditionMet = matchBlankInclusion(word, f.val1); }
-      else if (f.type === 'begins') { if (!f.val1) continue; let reg = convertToRegex(f.val1); isConditionMet = new RegExp("^" + reg.source).test(word); }
-      else if (f.type === 'ends') { if (!f.val1) continue; let reg = convertToRegex(f.val1); isConditionMet = new RegExp(reg.source + "$").test(word); }
-      else if (f.type === 'anagram') { if (!f.val1) continue; isConditionMet = checkAnagramWithBlanks(word, f.val1); }
-      else if (f.type === 'pattern') { if (!f.val1) continue; let reg = convertToRegex(f.val1, true); isConditionMet = reg.test(word); }
-      if (f.isNot) isConditionMet = !isConditionMet; if (!isConditionMet) return false;
+      let match = true;
+      if (f.type === 'length') { match = (word.length >= (parseInt(f.val1)||0) && word.length <= (parseInt(f.val2)||Infinity)); }
+      else if (f.type === 'score') { let s = calculateWordScore(word); match = (s >= (parseInt(f.val1)||0) && s <= (parseInt(f.val2)||Infinity)); }
+      else if (f.type === 'subanagram') { if (!f.val1) continue; match = isSubanagram(word, f.val1); }
+      else if (f.type === 'includes') { if (!f.val1) continue; match = f.val1.split('').every(c => word.includes(c)); }
+      else if (f.type === 'begins') { if (!f.val1) continue; match = word.startsWith(f.val1); }
+      else if (f.type === 'ends') { if (!f.val1) continue; match = word.endsWith(f.val1); }
+      else if (f.type === 'pattern') { if (!f.val1) continue; match = new RegExp("^" + f.val1.replace(/\?/g, '.').replace(/\*/g, '.*') + "$").test(word); }
+      if (f.isNot) match = !match; if (!match) return false;
     }
     return true;
   });
-  if (pool.length === 0) { alert("❌ No words matched! 0 configurations left."); return; }
+  if (pool.length === 0) { alert("❌ Filter configurations generated 0 words pool."); return; }
   
-  quizState.filteredPool = pool;
-  quizState.active = true;
-  quizState.questionCount = 0;
-  quizState.correctCount = 0;
-  quizState.historyWrongAndSkipped = [];
-  quizState.historyPureWrong = [];
-  
-  showToast(`Loaded ${pool.length} Matches!`);
+  quizState.filteredPool = pool; quizState.active = true; quizState.setsCompleted = 0; quizState.questionCount = 0;
+  quizState.correctCount = 0; quizState.historyWrongAndSkipped = []; quizState.historyPureWrong = [];
   nextQuizQuestion();
 }
 
 function nextQuizQuestion() {
-  quizState.questionCount++;
-  quizState.currentWordMistakes = 0;
-  quizState.isCurrentQuestionFaulty = false; // Reset mistake flag for this word set
+  quizState.questionCount++; quizState.isCurrentQuestionFaulty = false;
+  quizState.foundSolutions = []; // Clear current set counter tracking array
   
   const baseWord = quizState.filteredPool[Math.floor(Math.random() * quizState.filteredPool.length)];
-  let rackChars = baseWord.split('');
-  quizState.currentRack = rackChars.sort().join('');
+  quizState.currentRack = baseWord.split('').sort().join('');
   quizState.solutions = [];
   
-  const targetLen = baseWord.length; 
-  const candidates = wordsByLength[targetLen] || [];
-  candidates.forEach(w => { 
-    if (w.split('').sort().join('') === quizState.currentRack) quizState.solutions.push(w); 
-  });
+  const candidates = wordsByLength[baseWord.length] || [];
+  candidates.forEach(w => { if (w.split('').sort().join('') === quizState.currentRack) quizState.solutions.push(w); });
   renderQuizScreen();
 }
 
@@ -492,222 +452,170 @@ function renderQuizScreen() {
   content.innerHTML = `
     <div class="quiz-card">
       <div class="quiz-progress">
-        <span>QUESTION ${quizState.questionCount}</span>
-        <span>SCORE: ${quizState.correctCount} / ${quizState.questionCount - 1}</span>
+        <span>SETS COMPLETED: <b>${quizState.setsCompleted}</b></span>
+        <span>RACK TARGETS: ${quizState.questionCount}</span>
       </div>
-      <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(100, (quizState.questionCount / 20) * 100)}%"></div></div>
-      <div class="quiz-mode-label" style="text-align:center;">ANAGRAM THIS RACK</div>
+      <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(100, (quizState.setsCompleted / 10) * 100)}%"></div></div>
+      
+      <div class="quiz-mode-label" style="text-align:center;">ANAGRAM RACK</div>
       <div class="anagram-display">${quizState.currentRack}</div>
       
-      <div style="margin: 20px 0;">
-        <input type="text" id="quizInput" class="search-input" placeholder="ANSWERS..." autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" style="text-align:center; font-size:22px; letter-spacing:4px;" onkeydown="if(event.key==='Enter')submitQuizAnswer()" oninput="this.value=this.value.toUpperCase()">
-        <div id="quizTryCountFeedback" style="text-align:center; font-size:11px; color:var(--text2); margin-top:6px; font-family:'Space Mono',monospace;"></div>
+      <div class="quiz-word-status-bubble">
+         🎯 STATS FOR THIS RACK: <b>${quizState.foundSolutions.length}</b> / <b>${quizState.solutions.length}</b> WORDS FOUND
+      </div>
+
+      <div style="margin: 14px 0;">
+        <input type="text" id="quizInput" class="search-input" placeholder="TYPE INDIVIDUAL WORD..." autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" style="text-align:center;" onkeydown="if(event.key==='Enter')submitQuizAnswer()" oninput="this.value=this.value.toUpperCase()">
+        <div id="quizSetTrackerLive" style="margin-top:8px; font-family:monospace; font-size:12px; color:var(--success); text-align:center;">
+           ${quizState.foundSolutions.length > 0 ? 'Found: ' + quizState.foundSolutions.join(', ') : ''}
+        </div>
       </div>
       
-      <div class="quiz-actions" id="quizControlArea">
+      <div class="quiz-actions-grid">
         <button class="btn-clear" onclick="revealQuizResult(false)">SURRENDER</button>
+        <button class="btn-submit" onclick="submitQuizAnswer()">SUBMIT WORD</button>
+      </div>
+
+      <div class="quiz-actions-triple">
+        <button class="btn-mid-save" onclick="exportCurrentPoolToZzq()">💾 SAVE .ZZQ</button>
         <button class="btn-analyze-trigger" onclick="toggleAnalyzePanel()">📊 ANALYZE</button>
-        <button class="btn-submit" onclick="submitQuizAnswer()">SUBMIT</button>
+        <button class="btn-clear" style="color:var(--danger);" onclick="initQuizSettings()">⚙️ QUIT</button>
       </div>
 
       <div class="analyze-panel" id="liveAnalyzePanel">
-        <div class="analyze-section-title" style="color:var(--info);">📘 WRONG & SKIPPED WORDS (${quizState.historyWrongAndSkipped.length})</div>
+        <div class="analyze-section-title" style="color:var(--info);">📘 WRONG / SKIPPED WORDS HISTORY</div>
         <div class="word-flex-grid" id="analyzeInfoContainer"></div>
-        
-        <div class="analyze-section-title" style="color:var(--danger);">📕 WRONG ANSWER ATTEMPTS (${quizState.historyPureWrong.length})</div>
+        <div class="analyze-section-title" style="color:var(--danger);">📕 INCORRECT GUESS ATTEMPTS</div>
         <div class="word-flex-grid" id="analyzeDangerContainer"></div>
       </div>
 
       <div id="quizFeedbackSlot"></div>
     </div>
   `;
-  setTimeout(() => { const inp = document.getElementById('quizInput'); if(inp) inp.focus(); }, 100);
-}
-
-function toggleAnalyzePanel() {
-  const pnl = document.getElementById('liveAnalyzePanel');
-  if(!pnl) return;
-  if(pnl.style.display === "block") {
-    pnl.style.display = "none";
-  } else {
-    // Re-render dataset cleanly before displaying
-    document.getElementById('analyzeInfoContainer').innerHTML = quizState.historyWrongAndSkipped.map(w => `<span class="word-badge-info">${w}</span>`).join('') || '<span style="font-size:12px; color:var(--text2); font-family:monospace;">None</span>';
-    document.getElementById('analyzeDangerContainer').innerHTML = quizState.historyPureWrong.map(w => `<span class="word-badge-danger">${w}</span>`).join('') || '<span style="font-size:12px; color:var(--text2); font-family:monospace;">None</span>';
-    pnl.style.display = "block";
-  }
+  setTimeout(() => { const i = document.getElementById('quizInput'); if(i) i.focus(); }, 100);
 }
 
 function submitQuizAnswer() {
-  const input = document.getElementById('quizInput');
-  if (!input) return;
-  const ans = input.value.trim().toUpperCase();
-  if (!ans) return;
+  const input = document.getElementById('quizInput'); if (!input) return;
+  const ans = input.value.trim().toUpperCase(); if (!ans) return;
 
-  const isCorrect = quizState.solutions.includes(ans);
-  
-  if (isCorrect) {
-    // If correct, let them know or complete the rack set
-    showToast(`✨ Valid: ${ans}!`);
-    // Check if they found all anagram configurations or choice is a lock match
-    // To allow flexible multi-attempt training, completion triggers on correct guess submission
-    if(!quizState.isCurrentQuestionFaulty) {
-       quizState.correctCount++;
+  if (quizState.solutions.includes(ans)) {
+    if (quizState.foundSolutions.includes(ans)) {
+      showToast(`Already answered: ${ans}`);
+    } else {
+      quizState.foundSolutions.push(ans);
+      showToast(`✓ Found word: ${ans}!`);
+      
+      // CRITICAL LOGIC: Checking if ALL anagram configurations inside this set are successfully cleared
+      if (quizState.foundSolutions.length === quizState.solutions.length) {
+        if (!quizState.isCurrentQuestionFaulty) quizState.setsCompleted++;
+        revealQuizResult(true);
+        return;
+      }
     }
-    revealQuizResult(true, ans);
   } else {
-    // WRONG ANSWER ATTEMPT: Count increments, track logs, but let them retry!
-    quizState.currentWordMistakes++;
-    quizState.isCurrentQuestionFaulty = true; // Flaw registered for this problem set 
-    
-    // Push into analytical data structures if not tracked already
-    if(!quizState.historyPureWrong.includes(ans)) {
-       quizState.historyPureWrong.push(ans);
-    }
-    
-    document.getElementById('quizTryCountFeedback').innerText = `❌ "${ans}" is invalid. Mistakes: ${quizState.currentWordMistakes} (Keep guessing!)`;
-    input.value = "";
-    input.focus();
+    // Flag set as mistake pattern, but do not terminate attempts
+    quizState.isCurrentQuestionFaulty = true;
+    if (!quizState.historyPureWrong.includes(ans)) quizState.historyPureWrong.push(ans);
+    showToast(`❌ ${ans} is invalid!`);
   }
+  input.value = ""; input.focus(); renderQuizScreen();
 }
 
-function revealQuizResult(isCorrect, submittedAns = "") {
+function revealQuizResult(isComplete) {
   document.getElementById('quizControlArea').style.pointerEvents = 'none';
   document.getElementById('quizControlArea').style.opacity = '0.4';
-  const input = document.getElementById('quizInput'); 
-  if (input) input.disabled = true;
+  const input = document.getElementById('quizInput'); if (input) input.disabled = true;
 
-  // Handle analytical registration if they hit surrender or skipped, or finished faulty
-  if(!isCorrect || quizState.isCurrentQuestionFaulty) {
-     quizState.solutions.forEach(word => {
-        if(!quizState.historyWrongAndSkipped.includes(word)) {
-          quizState.historyWrongAndSkipped.push(word);
-        }
-     });
+  if (!isComplete || quizState.isCurrentQuestionFaulty) {
+    quizState.solutions.forEach(w => { if(!quizState.historyWrongAndSkipped.includes(w)) quizState.historyWrongAndSkipped.push(w); });
   }
 
-  const slot = document.getElementById('quizFeedbackSlot'); 
-  let finalStatus = (!quizState.isCurrentQuestionFaulty && isCorrect);
-  let statusClass = finalStatus ? 'correct' : 'wrong'; 
-  let titleText = finalStatus ? '✓ CORRECT!' : (quizState.isCurrentQuestionFaulty ? '✗ FINISHED WITH MISTAKES' : 'SKIPPED / SURRENDERED');
-  
-  let html = `<div class="quiz-analysis"><div class="analysis-result ${statusClass}">${titleText}</div><div class="hooks-label" style="margin-bottom:12px; color:var(--text)">SOLUTION SET:</div>`;
-  
+  const slot = document.getElementById('quizFeedbackSlot');
+  let sClass = (isComplete && !quizState.isCurrentQuestionFaulty) ? 'correct' : 'wrong';
+  let title = (isComplete && !quizState.isCurrentQuestionFaulty) ? '✓ SET COMPLETED!' : (isComplete ? '⚠ CLEARED WITH ERRORS' : 'SURRENDERED SET');
+
+  let html = `<div class="quiz-analysis"><div class="analysis-result ${sClass}">${title}</div><div class="hooks-label">FULL SOLUTIONS IN RACK:</div>`;
   quizState.solutions.forEach(word => {
     const hooks = getHooks(word);
-    html += `<div class="analysis-word-block"><div class="analysis-word">${word} <span style="font-size:12px;color:var(--text2)">(${calculateWordScore(word)} pts)</span></div><div style="margin-top:4px; display:flex; flex-direction:column; gap:4px;"><div class="analysis-detail"><span style="color:var(--accent3); font-weight:700;">[F]</span> ${hooks.front.length ? hooks.front.join(', ') : '-'}</div><div class="analysis-detail"><span style="color:var(--accent2); font-weight:700;">[B]</span> ${hooks.back.length ? hooks.back.join(', ') : '-'}</div></div></div>`;
+    html += `<div class="analysis-word-block"><div class="analysis-word">${word}</div><div class="analysis-detail">Hooks: F[${hooks.front.join('') || '-'}] B[${hooks.back.join('') || '-'}]</div></div>`;
   });
-  
-  html += `<div style="display:flex; gap:8px; margin-top:12px;"><button class="btn-clear" style="flex:1;" onclick="initQuizSettings()">⚙️ CONFIGS</button><button class="next-btn" style="flex:2; margin-top:0;" onclick="nextQuizQuestion()">NEXT QUESTION →</button></div></div>`;
-  slot.innerHTML = html; 
-  
-  score = quizState.correctCount * 10; 
-  document.getElementById('globalScore').innerText = `⭐ ${score} pts`;
+  html += `<button class="next-btn" onclick="nextQuizQuestion()">NEXT RACK →</button></div>`;
+  slot.innerHTML = html;
 }
 
-// ============================================================
-// SYSTEM SYNC: INTERACTION VIA PC ZYZZYVA QUIZ FORMAT (.ZZQ)
-// ============================================================
-function exportCurrentPoolToZzq() {
-  if(!quizState.filteredPool || quizState.filteredPool.length === 0) {
-    alert("Nothing to export! Compile a filter pool first.");
-    return;
+function toggleAnalyzePanel() {
+  const p = document.getElementById('liveAnalyzePanel'); if(!p) return;
+  if(p.style.display === "block") { p.style.display = "none"; } else {
+    document.getElementById('analyzeInfoContainer').innerHTML = quizState.historyWrongAndSkipped.map(w => `<span class="word-badge-info">${w}</span>`).join('') || '<span style="color:var(--text2); font-size:11px;">None</span>';
+    document.getElementById('analyzeDangerContainer').innerHTML = quizState.historyPureWrong.map(w => `<span class="word-badge-danger">${w}</span>`).join('') || '<span style="color:var(--text2); font-size:11px;">None</span>';
+    p.style.display = "block";
   }
-  
-  // Custom Zyzzyva configurations layout format text creation (Line-break separations)
-  let outputText = quizState.filteredPool.join("\r\n");
-  
-  let blob = new Blob([outputText], { type: "text/plain;charset=utf-8" });
-  let downloadAnchor = document.createElement("a");
-  downloadAnchor.download = `custom_quiz_${new Date().toISOString().slice(0,10)}.zzq`;
-  downloadAnchor.href = window.URL.createObjectURL(blob);
-  downloadAnchor.style.display = "none";
-  document.body.appendChild(downloadAnchor);
-  downloadAnchor.click();
-  document.body.removeChild(downloadAnchor);
-  showToast("Saved .zzq file successfully!");
+}
+
+function exportCurrentPoolToZzq() {
+  if(!quizState.filteredPool || quizState.filteredPool.length === 0) return;
+  let textOut = quizState.filteredPool.join("\r\n");
+  let blob = new Blob([textOut], { type: "text/plain;charset=utf-8" });
+  let a = document.createElement("a");
+  a.download = `zyzzyva_pool_${new Date().toISOString().slice(0,10)}.zzq`;
+  a.href = window.URL.createObjectURL(blob);
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast("Quiz data saved to local storage .zzq");
 }
 
 function handleZzqLoad(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  
+  const file = event.target.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = function(e) {
-    const contents = e.target.result;
-    // Parse words split by line breaks, sanitizing spacing parameters
-    let parsedWords = contents.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
-    
-    // Filter down array to clean words validating database rulesets
-    let validatedZzqPool = parsedWords.filter(word => dictionarySet.has(word));
-    
-    if(validatedZzqPool.length === 0) {
-      alert("❌ Could not import: No words inside the file matched the CSW24 database system.");
-      return;
-    }
-    
-    // Inject loaded asset directly into target operating structure
-    quizState.filteredPool = validatedZzqPool;
-    quizState.active = true;
-    quizState.questionCount = 0;
-    quizState.correctCount = 0;
-    quizState.historyWrongAndSkipped = [];
-    quizState.historyPureWrong = [];
-    
-    showToast(`Loaded ${validatedZzqPool.length} words from .zzq file!`);
+    let parsed = e.target.result.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => dictionarySet.has(w));
+    if(parsed.length === 0) { alert("Invalid or non-matching database file."); return; }
+    quizState.filteredPool = parsed; quizState.active = true; quizState.setsCompleted = 0; quizState.questionCount = 0;
+    showToast(`Injected ${parsed.length} items from external configuration.`);
     nextQuizQuestion();
   };
   reader.readAsText(file);
 }
 
 // ============================================================
-// BLITZ CHALLENGE
+// NEW CHALLENGE SYSTEM (WRITE & EVALUATE INFINITE LIST)
 // ============================================================
 function initChallengeIntro() {
   const content = document.getElementById('challengeContent');
-  content.innerHTML = `<div class="challenge-intro"><h2>⚡ Blitz Challenge</h2><p>Decide whether the displayed word is valid or invalid in CSW24. You have 60 seconds!</p><div class="challenge-stats"><div class="stat-box"><div class="stat-val">60s</div><div class="stat-lbl">Time Limit</div></div><div class="stat-box"><div class="stat-val">+10</div><div class="stat-lbl">Correct</div></div><div class="stat-box"><div class="stat-val">-5</div><div class="stat-lbl">Wrong</div></div></div><button class="start-btn" onclick="startChallenge()">START CHALLENGE</button></div>`;
+  content.innerHTML = `
+    <div class="challenge-intro">
+      <h2>⚡ Word Blitz Input Arena</h2>
+      <p>Type as many valid CSW24 vocabulary words as you can recall before the stopwatch ticks down to zero!</p>
+      <div class="challenge-stats">
+        <div class="stat-box"><div class="stat-val">60s</div><div class="stat-lbl">Time Engine</div></div>
+        <div class="stat-box"><div class="stat-val" id="arenaGlobalScore">+10 / -5</div><div class="stat-lbl">Score Modifier</div></div>
+      </div>
+      <button class="start-btn" onclick="startChallengeArena()">START ARENA SESSION</button>
+    </div>
+  `;
 }
 
-function startChallenge() {
-  challengeState.active = true; challengeState.score = 0; challengeState.timeLeft = 60;
+function startChallengeArena() {
+  challengeState.active = true; challengeState.score = 0; challengeState.timeLeft = 60; challengeState.loggedWords = [];
   const content = document.getElementById('challengeContent');
-  content.innerHTML = `<div class="challenge-game"><div class="c-header"><div><div class="c-label">SCORE</div><div class="c-score" id="cScore">0 pts</div></div><div class="timer" id="cTimer">60</div></div><div class="c-word-display"><div class="c-word" id="cWord">---</div><div class="c-word-len" id="cWordLen">0 LETTERS</div></div><div class="c-buttons"><button class="btn-valid" onclick="submitChallengeAnswer(true)"><span>VALID</span></button><button class="btn-invalid" onclick="submitChallengeAnswer(false)"><span>INVALID</span></button></div></div>`;
+  content.innerHTML = `
+    <div class="quiz-card">
+      <div class="c-header">
+        <div><div class="hooks-label">ACCUMULATED SCORE</div><div class="stat-val" id="arenaScoreDisplay" style="font-size:28px;">0 PTS</div></div>
+        <div class="timer" id="arenaTimer">60</div>
+      </div>
+      
+      <div style="margin:20px 0;">
+        <input type="text" id="arenaInputField" class="search-input" placeholder="WRITE WORDS TO CHECK..." autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key==='Enter')evaluateArenaInput()" oninput="this.value=this.value.toUpperCase()">
+      </div>
+
+      <div class="hooks-label">EVALUATION JOURNAL LOG:</div>
+      <div class="challenge-log-container" id="arenaJournalLog"></div>
+    </div>
+  `;
+  setTimeout(() => document.getElementById('arenaInputField').focus(), 100);
+  
   challengeState.timerInterval = setInterval(() => {
-    challengeState.timeLeft--; const timerDiv = document.getElementById('cTimer'); if (!timerDiv) return; timerDiv.innerText = challengeState.timeLeft;
-    if (challengeState.timeLeft <= 5) timerDiv.style.color = "var(--danger)"; if (challengeState.timeLeft <= 0) endChallenge();
-  }, 1000);
-  nextChallengeWord();
-}
-
-function nextChallengeWord() {
-  if (!challengeState.active) return; const showValid = Math.random() < 0.5; let word = "";
-  if (showValid) { word = dictionary[Math.floor(Math.random() * dictionary.length)]; challengeState.isValid = true; } 
-  else { const base = dictionary[Math.floor(Math.random() * dictionary.length)]; const alphas = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; const pos = Math.floor(Math.random() * base.length); word = base.substring(0, pos) + alphas[Math.floor(Math.random() * 26)] + base.substring(pos + 1); challengeState.isValid = dictionarySet.has(word); }
-  challengeState.currentWord = word; document.getElementById('cWord').innerText = word; document.getElementById('cWordLen').innerText = `${word.length} LETTERS`;
-}
-
-function submitChallengeAnswer(userGuess) {
-  if (!challengeState.active) return; const isCorrect = (userGuess === challengeState.isValid);
-  if (isCorrect) challengeState.score += 10; else challengeState.score = Math.max(0, challengeState.score - 5);
-  document.getElementById('cScore').innerText = `${challengeState.score} pts`; nextChallengeWord();
-}
-
-function endChallenge() {
-  clearInterval(challengeState.timerInterval); challengeState.active = false; score += challengeState.score; document.getElementById('globalScore').innerText = `⭐ ${score} pts`;
-  const content = document.getElementById('challengeContent');
-  content.innerHTML = `<div style="text-align:center; padding:30px 10px;"><div style="font-size:48px;">🏁</div><div style="font-size:32px; font-weight:800; color:var(--accent); margin:10px 0;">${challengeState.score} PTS</div><button class="start-btn" onclick="initChallengeIntro()">CONTINUE</button></div>`;
-}
-
-// SAVED ENGINE
-function loadSavedWords() {
-  const content = document.getElementById('wordListContent'); if (savedWords.length === 0) { content.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div>No bookmarked words yet.</div>`; return; }
-  content.innerHTML = savedWords.map(w => `<div class="wl-item"><div><div class="wli-word" onclick="quickSearch('${w}'); showTab('search', document.querySelectorAll('.tab')[0]);">${w}</div></div><button class="btn-clear" style="color:var(--danger);" onclick="toggleSaveWord('${w}')">🗑️</button></div>`).join('');
-}
-function toggleSaveWord(word) {
-  if (savedWords.includes(word)) { savedWords = savedWords.filter(w => w !== word); showToast(`Removed ${word}`); } 
-  else { savedWords.push(word); showToast(`Saved ${word}`); }
-  localStorage.setItem('zyzzyva_saved', JSON.stringify(savedWords)); loadSavedWords();
-}
-function clearWordList() { if (confirm("Clear all?")) { savedWords = []; localStorage.setItem('zyzzyva_saved', '[]'); loadSavedWords(); } }
-</script>
-</body>
-</html>
+    challengeState.timeLeft--; const div = document.getElementById('arenaTimer'); if(!div) return; div.innerText = challengeState.timeLeft;
+    if (challengeState.timeLeft <= 5) div.style.color = "var(--danger)";
+    if (challengeState

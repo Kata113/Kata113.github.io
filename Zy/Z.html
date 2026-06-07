@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ZYZZYVA — CSW24</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<title>ZYZZYVA — CSW24 Suite</title>
+<link href="https://fonts.googleapis.com/css2 family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #0a0a0f;
@@ -18,6 +18,7 @@
   --text2: #8888aa;
   --danger: #f76a6a;
   --success: #6af7a0;
+  --info: #6ae7f7;
 }
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; min-height:100vh; overflow-x:hidden; }
@@ -25,18 +26,6 @@ body::before {
   content:''; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0.3;
   background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
 }
-
-/* AUTOMATIC LOADING SCREEN */
-#loadingScreen {
-  position:fixed; inset:0; background:var(--bg); z-index:9999;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; gap:24px;
-}
-.load-logo { font-family:'Space Mono',monospace; font-size:32px; letter-spacing:8px; font-weight:700;
-  background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.connect-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:35px 24px; max-width:400px; width:100%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
-.connect-title { font-size:18px; font-weight:700; margin-bottom:10px; color:var(--text); }
-.connect-desc { font-size:13px; color:var(--text2); line-height:1.6; margin-bottom:20px; }
-.status-text { font-family:'Space Mono',monospace; font-size:12px; color:var(--accent3); margin-top:14px; }
 
 header {
   position:sticky; top:0; z-index:100;
@@ -63,180 +52,95 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 .section.active { display:block; }
 @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
 
-/* SEARCH */
+/* SEARCH & WIDGETS */
 .search-wrap { position:relative; margin-bottom:20px; }
 .search-input {
   width:100%; padding:16px 50px 16px 18px;
   background:var(--surface); border:1px solid var(--border); border-radius:14px;
   color:var(--text); font-family:'Space Mono',monospace; font-size:18px;
-  outline:none; text-transform:uppercase; letter-spacing:3px;
-  transition:border-color 0.2s, box-shadow 0.2s;
+  outline:none; text-transform:uppercase; letter-spacing:3px; transition:all 0.2s;
 }
 .search-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(124,106,247,0.15); }
 .search-btn {
   position:absolute; right:10px; top:50%; transform:translateY(-50%);
-  background:var(--accent); border:none; border-radius:8px;
-  width:34px; height:34px; cursor:pointer; font-size:16px;
-  display:flex; align-items:center; justify-content:center; transition:opacity 0.2s;
+  background:var(--accent); border:none; border-radius:8px; width:34px; height:34px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
 }
-.search-btn:hover { opacity:0.85; }
 
-.word-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:12px; animation:fadeUp 0.3s ease; }
+.word-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:12px; }
 .word-title { font-family:'Space Mono',monospace; font-size:32px; font-weight:700; color:var(--accent); letter-spacing:4px; margin-bottom:4px; word-break:break-all; }
 .word-valid { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:4px 12px; border-radius:20px; margin-bottom:12px; }
 .word-valid.yes { background:rgba(106,247,160,0.1); color:var(--success); border:1px solid var(--success); }
 .word-valid.no { background:rgba(247,106,106,0.1); color:var(--danger); border:1px solid var(--danger); }
-.word-hooks { margin-top:12px; }
-.hooks-label { font-size:11px; color:var(--text2); margin-bottom:6px; font-family:'Space Mono',monospace; }
-.hooks-row { display:flex; flex-wrap:wrap; gap:6px; }
-.hook-pill { font-family:'Space Mono',monospace; font-size:13px; padding:4px 10px; border-radius:8px;
-  background:rgba(124,106,247,0.1); color:var(--accent); border:1px solid rgba(124,106,247,0.3);
-  cursor:pointer; transition:background 0.2s; }
-.hook-pill:hover { background:rgba(124,106,247,0.2); }
-.anagram-section { margin-top:12px; }
-.anagram-row { display:flex; flex-wrap:wrap; gap:6px; }
-.anagram-pill { font-family:'Space Mono',monospace; font-size:13px; padding:4px 10px; border-radius:8px;
-  background:rgba(247,160,106,0.1); color:var(--accent2); border:1px solid rgba(247,160,106,0.3);
-  cursor:pointer; }
+.hooks-label { font-size:11px; color:var(--text2); margin-bottom:6px; font-family:'Space Mono',monospace; letter-spacing:1px; }
+.hooks-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.hook-pill { font-family:'Space Mono',monospace; font-size:13px; padding:4px 10px; border-radius:8px; background:rgba(124,106,247,0.1); color:var(--accent); border:1px solid rgba(124,106,247,0.3); cursor:pointer; }
 
-.empty-state { text-align:center; padding:50px 20px; color:var(--text2); font-size:14px; }
-.empty-icon { font-size:48px; margin-bottom:12px; }
-
-/* QUIZ */
+/* QUIZ & FILTERS */
 .quiz-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:24px 20px; width:100%; }
 .quiz-progress { display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:11px; color:var(--text2); margin-bottom:12px; }
 .progress-bar { width:100%; height:4px; background:var(--surface2); border-radius:2px; margin-bottom:20px; overflow:hidden; }
 .progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:2px; transition:width 0.4s ease; }
+.anagram-display { font-family:'Space Mono',monospace; font-size:34px; font-weight:700; color:var(--accent2); letter-spacing:6px; text-align:center; margin:16px 0; word-break:break-all; }
 
-.quiz-mode-label { font-size:11px; color:var(--text2); letter-spacing:2px; margin-bottom:8px; }
-.anagram-display {
-  font-family:'Space Mono',monospace; font-size:34px; font-weight:700; color:var(--accent2);
-  letter-spacing:6px; text-align:center; margin:16px 0; word-break:break-all;
-  text-shadow:0 0 20px rgba(247,160,106,0.3);
-}
+.quiz-actions { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
+.btn-clear { padding:12px 4px; border-radius:10px; background:var(--surface2); border:1px solid var(--border); color:var(--text2); font-size:12px; font-weight:600; cursor:pointer; text-align:center; }
+.btn-submit { padding:12px 4px; border-radius:10px; background:var(--accent); border:none; color:#fff; font-size:12px; font-weight:700; cursor:pointer; text-align:center; }
+.btn-analyze-trigger { padding:12px 4px; border-radius:10px; background:rgba(106,231,247,0.1); border:1px solid rgba(106,231,247,0.3); color:var(--info); font-size:12px; font-weight:700; cursor:pointer; text-align:center; }
 
-.quiz-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0; }
-.btn-clear { padding:12px; border-radius:10px; background:var(--surface2); border:1px solid var(--border);
-  color:var(--text2); font-family:'Syne',sans-serif; font-size:13px; font-weight:600; cursor:pointer; }
-.btn-submit { padding:12px; border-radius:10px; background:var(--accent); border:none;
-  color:#fff; font-family:'Syne',sans-serif; font-size:13px; font-weight:700; cursor:pointer; }
+/* FILE SYNC BAR */
+.file-sync-bar { display:flex; gap:8px; margin-bottom:14px; background:rgba(0,0,0,0.2); padding:10px; border-radius:10px; border:1px dashed var(--border); }
+.btn-sync { flex:1; padding:8px; border-radius:6px; background:var(--surface2); border:1px solid var(--border); color:var(--text); font-size:11px; font-weight:700; cursor:pointer; font-family:'Space Mono',monospace; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
 
-/* FIX DYNAMIC FILTER RESPONSIBLE UI */
+/* FILTER UI BUILDER */
 .filter-builder { border:1px dashed var(--border); padding:14px; border-radius:12px; margin-bottom:18px; background:rgba(0,0,0,0.1); }
-.quiz-setting-label { font-size:11px; color:var(--text2); letter-spacing:1px; margin-bottom:8px; font-family:'Space Mono',monospace; }
 .filter-selector-row { display:flex; gap:8px; }
-.quiz-select { flex:1; min-width:0; padding:10px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:13px; outline:none; }
+.quiz-select { flex:1; min-width:0; padding:10px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; outline:none; font-family:inherit; }
 .btn-add-filter { padding:0 16px; background:var(--accent); border:none; border-radius:8px; color:#fff; font-weight:700; cursor:pointer; font-size:13px; white-space:nowrap; }
-
 .filter-stack { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
-
-/* Filter Item Layout fixes for ultra thin screens */
-.filter-item { 
-  display: flex; 
-  align-items: center; 
-  gap: 8px; 
-  background: var(--surface2); 
-  border: 1px solid var(--border); 
-  padding: 10px; 
-  border-radius: 8px; 
-  animation: fadeUp 0.2s ease;
-  flex-wrap: wrap; /* ให้หักแถวลงมาได้ถ้าน้อยกว่า 320px */
-}
-.not-toggle { 
-  display: flex; 
-  align-items: center; 
-  justify-content: center;
-  font-size: 10px; 
-  font-weight: 700; 
-  color: var(--text2); 
-  cursor: pointer; 
-  padding: 6px 10px; 
-  border-radius: 6px; 
-  border: 1px solid var(--border);
-  background: transparent;
-  min-width: 46px;
-}
+.filter-item { display:flex; align-items:center; gap:8px; background:var(--surface2); border:1px solid var(--border); padding:10px; border-radius:8px; flex-wrap:wrap; }
+.not-toggle { display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:var(--text2); cursor:pointer; padding:6px 10px; border-radius:6px; border:1px solid var(--border); background:transparent; min-width:46px; }
 .not-toggle.active { color:var(--danger); border-color:var(--danger); background:rgba(247,106,106,0.05); }
+.filter-label { font-family:'Space Mono',monospace; font-size:11px; color:var(--accent2); font-weight:700; min-width:80px; flex:1; text-transform:uppercase; }
+.filter-input-container { display:flex; align-items:center; gap:6px; flex:2; min-width:140px; }
+.filter-value-input { width:100%; min-width:0; padding:8px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'Space Mono',monospace; font-size:13px; outline:none; }
+.btn-remove-filter { background:none; border:none; color:var(--text2); cursor:pointer; font-size:18px; padding:4px; margin-left:auto; }
 
-.filter-label { 
-  font-family: 'Space Mono', monospace; 
-  font-size: 11px; 
-  color: var(--accent2); 
-  text-transform: uppercase;
-  font-weight: 700;
-  min-width: 80px;
-  flex: 1; /* กินพื้นที่เท่าที่จำเป็น */
-}
-.filter-input-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 2;
-  min-width: 140px; /* บังคับขั้นต่ำให้กรอกง่าย */
-}
-.filter-value-input { 
-  width: 100%;
-  min-width: 0; /* สำคัญ: ป้องกัน flexbox ดันทะลุ */
-  padding: 8px; 
-  background: var(--surface); 
-  border: 1px solid var(--border); 
-  border-radius: 6px; 
-  color: var(--text); 
-  font-family: 'Space Mono', monospace; 
-  font-size: 13px; 
-  outline: none; 
-}
-.btn-remove-filter { background:none; border:none; color:var(--text2); cursor:pointer; font-size:18px; padding:4px 8px; margin-left: auto; }
-.btn-remove-filter:hover { color:var(--danger); }
+/* ANALYZE MODAL / PANEL COMPONENTS */
+.analyze-panel { background:var(--surface2); border:1px solid var(--border); border-radius:14px; padding:16px; margin-top:14px; display:none; animation:fadeUp 0.2s ease; }
+.analyze-section-title { font-family:'Space Mono',monospace; font-size:11px; font-weight:700; margin-bottom:8px; letter-spacing:1px; display:flex; align-items:center; gap:6px; }
+.word-flex-grid { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:18px; }
+.word-badge-info { padding:6px 12px; background:var(--info); color:#000; font-family:'Space Mono',monospace; font-size:14px; font-weight:700; border-radius:6px; }
+.word-badge-danger { padding:6px 12px; background:var(--danger); color:#000; font-family:'Space Mono',monospace; font-size:14px; font-weight:700; border-radius:6px; }
 
-.quiz-analysis { border-radius:12px; padding:16px; margin:12px 0; animation:fadeUp 0.3s ease; }
-.quiz-analysis.correct { background:rgba(106,247,160,0.08); border:1px solid rgba(106,247,160,0.3); }
-.quiz-analysis.wrong { background:rgba(247,106,106,0.08); border:1px solid rgba(247,106,106,0.3); }
+.quiz-analysis { border-radius:12px; padding:16px; margin:12px 0; background:rgba(255,255,255,0.02); border:1px solid var(--border); }
 .analysis-result { font-size:18px; font-weight:800; margin-bottom:8px; }
 .analysis-result.correct { color:var(--success); }
 .analysis-result.wrong { color:var(--danger); }
-.analysis-word-block { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.analysis-word-block:last-child { border-bottom: none; }
-.analysis-word { font-family:'Space Mono',monospace; font-size:22px; color:var(--accent); letter-spacing:3px; margin-bottom:4px; word-break:break-all; }
-.analysis-detail { font-size:13px; color:var(--text2); line-height:1.6; word-break:break-all; }
-.next-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:12px; color:#fff; font-family:'Syne',sans-serif; font-size:15px; font-weight:700; cursor:pointer; margin-top:8px; }
+.analysis-word-block { margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.05); }
+.analysis-word { font-family:'Space Mono',monospace; font-size:22px; color:var(--accent); letter-spacing:2px; }
+.analysis-detail { font-size:13px; color:var(--text2); margin-top:2px; }
+.next-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:12px; color:#fff; font-size:15px; font-weight:700; cursor:pointer; }
 
-/* CHALLENGE */
+/* BLITZ CHALLENGE */
 .challenge-intro { text-align:center; padding:10px 0 20px; }
-.challenge-intro h2 { font-size:28px; font-weight:800; margin-bottom:8px; }
-.challenge-intro p { color:var(--text2); font-size:14px; line-height:1.6; margin-bottom:24px; }
 .challenge-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:24px; }
 .stat-box { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 10px; text-align:center; }
 .stat-val { font-family:'Space Mono',monospace; font-size:24px; font-weight:700; color:var(--accent); }
-.stat-lbl { font-size:11px; color:var(--text2); margin-top:2px; }
-.start-btn { width:100%; padding:18px; border:none; border-radius:14px; background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; font-family:'Syne',sans-serif; font-size:18px; font-weight:800; cursor:pointer; letter-spacing:2px; }
-
+.stat-lbl { font-size:11px; color:var(--text2); }
+.start-btn { width:100%; padding:18px; border:none; border-radius:14px; background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; font-size:18px; font-weight:800; cursor:pointer; letter-spacing:1px; }
 .c-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-.c-label { font-size:11px; color:var(--text2); font-family:'Space Mono',monospace; }
-.c-score { font-size:22px; font-weight:800; }
-.timer { font-family:'Space Mono',monospace; font-size:28px; color:var(--accent3); background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:8px 18px; min-width:70px; text-align:center; }
-.timer.warn { color:var(--accent2); }
-.timer.danger { color:var(--danger); animation:pulse 0.5s infinite alternate; }
-
+.timer { font-family:'Space Mono',monospace; font-size:28px; color:var(--accent3); background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:8px 18px; }
 .c-word-display { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:28px 20px; text-align:center; margin-bottom:16px; }
-.c-word { font-family:'Space Mono',monospace; font-size:38px; font-weight:700; color:var(--text); letter-spacing:6px; margin-bottom:8px; word-break:break-all; text-shadow:0 0 30px rgba(124,106,247,0.2); }
-.c-word-len { font-size:12px; color:var(--text2); font-family:'Space Mono',monospace; }
+.c-word { font-family:'Space Mono',monospace; font-size:38px; font-weight:700; color:var(--text); letter-spacing:6px; word-break:break-all; }
+.c-buttons { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.btn-valid { padding:20px 10px; border-radius:16px; border:2px solid var(--success); background:rgba(106,247,160,0.08); color:var(--success); font-size:18px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.btn-invalid { padding:20px 10px; border-radius:16px; border:2px solid var(--danger); background:rgba(247,106,106,0.08); color:var(--danger); font-size:18px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; }
 
-.c-buttons { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
-.btn-valid { padding:20px 10px; border-radius:16px; border:2px solid var(--success); background:rgba(106,247,160,0.08); color:var(--success); font-family:'Syne',sans-serif; font-size:18px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; }
-.btn-invalid { padding:20px 10px; border-radius:16px; border:2px solid var(--danger); background:rgba(247,106,106,0.08); color:var(--danger); font-family:'Syne',sans-serif; font-size:18px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; }
-.btn-sub { font-size:11px; font-weight:400; opacity:0.7; word-break:break-all; text-align:center; }
-
-/* SAVED LIST */
-.wordlist-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
-.wordlist-title { font-size:20px; font-weight:800; }
-.clear-btn { font-size:12px; color:var(--danger); background:none; border:1px solid rgba(247,106,106,0.4); border-radius:8px; padding:5px 12px; cursor:pointer; }
-.wl-item { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; animation:fadeUp 0.2s ease; }
-.wli-word { font-family:'Space Mono',monospace; font-size:20px; font-weight:700; color:var(--accent); letter-spacing:3px; word-break:break-all; cursor:pointer; }
-.wli-meta { font-size:12px; color:var(--text2); margin-top:3px; }
-.delete-btn { background:none; border:none; cursor:pointer; font-size:18px; color:var(--text2); padding:4px; flex-shrink:0; }
-
-.toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:12px 20px; border-radius:12px; font-size:14px; z-index:999; transition:transform 0.3s ease,opacity 0.3s ease; opacity:0; white-space:nowrap; }
+/* BOOKMARKS */
+.wl-item { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.wli-word { font-family:'Space Mono',monospace; font-size:20px; font-weight:700; color:var(--accent); letter-spacing:2px; cursor:pointer; }
+.toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:12px 20px; border-radius:12px; font-size:14px; z-index:999; transition:all 0.3s ease; opacity:0; white-space:nowrap; }
 .toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
 </style>
 </head>
@@ -246,10 +150,8 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
   <div class="load-logo">ZYZZYVA</div>
   <div class="connect-card">
     <div class="connect-title">🔌 Connecting Lexicon...</div>
-    <div class="connect-desc">Downloading and parsing <b>CSW24.txt</b> database from repository. Please wait a moment.</div>
-    <div class="progress-bar" style="width:100%; height:4px; background:var(--surface2); border-radius:2px; overflow:hidden;">
-      <div class="progress-fill" id="initProgress" style="width: 15%; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width 0.3s ease;"></div>
-    </div>
+    <div class="connect-desc">Downloading and parsing <b>CSW24.txt</b> database. Please wait a moment.</div>
+    <div class="progress-bar"><div class="progress-fill" id="initProgress" style="width: 15%;"></div></div>
     <div class="status-text" id="statusText">Fetching dictionary file...</div>
   </div>
 </div>
@@ -273,13 +175,10 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
   <div class="section active" id="search">
     <div class="search-wrap">
       <input class="search-input" id="searchInput" type="text" placeholder="WORD..." autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key==='Enter')searchWord()" oninput="this.value=this.value.toUpperCase()">
-      <button class="search-btn" onclick="searchWord()">→</button>
+      <button class="search-btn" style="border:none;" onclick="searchWord()">→</button>
     </div>
     <div id="searchResult">
-      <div class="empty-state">
-        <div class="empty-icon">🔤</div>
-        Type any word to check if it's valid in CSW24
-      </div>
+      <div class="empty-state"><div class="empty-icon">🔤</div>Type any word to check validity in CSW24</div>
     </div>
   </div>
 
@@ -292,15 +191,16 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
   </div>
 
   <div class="section" id="wordlist">
-    <div class="wordlist-header">
-      <div class="wordlist-title">📚 Saved Words</div>
-      <button class="clear-btn" onclick="clearWordList()">Clear All</button>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div style="font-size:20px; font-weight:800;">📚 Saved Words</div>
+      <button class="btn-clear" style="padding:5px 12px;" onclick="clearWordList()">Clear All</button>
     </div>
     <div id="wordListContent"></div>
   </div>
 </main>
 
 <div class="toast" id="toast"></div>
+<input type="file" id="zzqFileInput" style="display:none" accept=".zzq" onchange="handleZzqLoad(event)">
 
 <script>
 let dictionary = [];
@@ -314,7 +214,15 @@ const tileScores = {
   N:1, O:1, P:3, Q:10, R:1, S:1, T:1, U:1, V:4, W:4, X:8, Y:4, Z:10
 };
 
-let quizState = { active: false, filteredPool: [], currentRack: '', solutions: [], questionCount: 0, correctCount: 0, activeFilters: [] };
+// State Variables
+let quizState = { 
+  active: false, filteredPool: [], currentRack: '', solutions: [], 
+  questionCount: 0, correctCount: 0, activeFilters: [],
+  currentWordMistakes: 0, isCurrentQuestionFaulty: false,
+  // Analytics History Tracking Arrays
+  historyWrongAndSkipped: [], 
+  historyPureWrong: []
+};
 let filterIdCounter = 0;
 let challengeState = { active: false, currentWord: '', isValid: false, score: 0, timeLeft: 60, timerInterval: null };
 
@@ -346,7 +254,7 @@ async function autoLoadDictionary() {
       initChallengeIntro();
     }, 400);
   } catch (err) {
-    statusText.innerText = "⚠️ Error: Make sure 'CSW24.txt' is uploaded alongside this file.";
+    statusText.innerText = "⚠️ Error: Make sure 'CSW24.txt' is placed beside index.html";
     statusText.style.color = "var(--danger)";
     bar.style.background = "var(--danger)";
     console.error(err);
@@ -380,11 +288,11 @@ function showTab(tabId, btn) {
 
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.innerText = msg;
-  t.classList.add('show');
+  t.innerText = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2000);
 }
 
+// SEARCH
 function searchWord() {
   const input = document.getElementById('searchInput');
   const word = input.value.trim().toUpperCase();
@@ -404,7 +312,6 @@ function searchWord() {
   html += `</div>`;
   resultDiv.innerHTML = html;
 }
-
 function quickSearch(word) { document.getElementById('searchInput').value = word; searchWord(); }
 function getHooks(word) {
   const alphas = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; const front = []; const back = [];
@@ -416,14 +323,23 @@ function findAnagramsOfWord(word) {
   return candidates.filter(w => w.split('').sort().join('') === sorted);
 }
 
+// ============================================================
+// QUIZ ENGINE WITH LIVE ANALYZE AND ZZQ SYNC
+// ============================================================
 function initQuizSettings() {
   quizState.active = false;
   const content = document.getElementById('quizContent');
   content.innerHTML = `
     <div class="quiz-card">
-      <h2 style="font-size:20px; font-weight:800; margin-bottom:16px; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">🧠 Anagram Custom Builder</h2>
+      <h2 style="font-size:20px; font-weight:800; margin-bottom:12px; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">🧠 Anagram Quiz Settings</h2>
+      
+      <div class="file-sync-bar">
+        <button class="btn-sync" onclick="document.getElementById('zzqFileInput').click()">📂 LOAD .ZZQ</button>
+        <button class="btn-sync" id="exportZzqBtn" style="opacity:0.5; cursor:not-allowed;" disabled onclick="exportCurrentPoolToZzq()">💾 SAVE TO .ZZQ</button>
+      </div>
+
       <div class="filter-builder">
-        <div class="quiz-setting-label">ADD NEW CRITERIA / FILTER</div>
+        <div class="quiz-setting-label">ADD NEW FILTER CRITERIA</div>
         <div class="filter-selector-row">
           <select class="quiz-select" id="filterTypeSelect">
             <option value="length">Length Range</option>
@@ -443,6 +359,17 @@ function initQuizSettings() {
     </div>
   `;
   renderFilterStack();
+  updateExportBtnStatus();
+}
+
+function updateExportBtnStatus() {
+  const btn = document.getElementById('exportZzqBtn');
+  if(!btn) return;
+  if(quizState.filteredPool && quizState.filteredPool.length > 0) {
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    btn.style.cursor = "pointer";
+  }
 }
 
 function addNewFilterItem() {
@@ -462,7 +389,7 @@ function updateFilterVal(id, field, value) { const item = quizState.activeFilter
 function renderFilterStack() {
   const container = document.getElementById('filterStack'); if (!container) return;
   if (quizState.activeFilters.length === 0) {
-    container.innerHTML = `<div style="text-align:center; color:var(--text2); font-size:12px; padding:10px 0;">No filters active. Quiz will pick randomly from all words.</div>`;
+    container.innerHTML = `<div style="text-align:center; color:var(--text2); font-size:12px; padding:10px 0;">No filters active. Quiz will pick randomly from all loaded words.</div>`;
     return;
   }
   container.innerHTML = quizState.activeFilters.map(f => {
@@ -492,6 +419,7 @@ function renderFilterStack() {
   }).join('');
 }
 
+// Wildcard processor rules
 function matchBlankInclusion(word, filterStr) {
   let wordChars = word.split('');
   for (let fChar of filterStr) {
@@ -528,18 +456,34 @@ function compileFiltersAndStart() {
     }
     return true;
   });
-  if (pool.length === 0) { alert("❌ No words found! The filters left 0 options."); return; }
-  quizState.filteredPool = pool; quizState.active = true; quizState.questionCount = 0; quizState.correctCount = 0;
-  showToast(`Loaded ${pool.length} Custom Matches!`); nextQuizQuestion();
+  if (pool.length === 0) { alert("❌ No words matched! 0 configurations left."); return; }
+  
+  quizState.filteredPool = pool;
+  quizState.active = true;
+  quizState.questionCount = 0;
+  quizState.correctCount = 0;
+  quizState.historyWrongAndSkipped = [];
+  quizState.historyPureWrong = [];
+  
+  showToast(`Loaded ${pool.length} Matches!`);
+  nextQuizQuestion();
 }
 
 function nextQuizQuestion() {
   quizState.questionCount++;
+  quizState.currentWordMistakes = 0;
+  quizState.isCurrentQuestionFaulty = false; // Reset mistake flag for this word set
+  
   const baseWord = quizState.filteredPool[Math.floor(Math.random() * quizState.filteredPool.length)];
   let rackChars = baseWord.split('');
-  quizState.currentRack = rackChars.sort().join(''); quizState.solutions = [];
-  const targetLen = baseWord.length; const candidates = wordsByLength[targetLen] || [];
-  candidates.forEach(w => { if (w.split('').sort().join('') === quizState.currentRack) quizState.solutions.push(w); });
+  quizState.currentRack = rackChars.sort().join('');
+  quizState.solutions = [];
+  
+  const targetLen = baseWord.length; 
+  const candidates = wordsByLength[targetLen] || [];
+  candidates.forEach(w => { 
+    if (w.split('').sort().join('') === quizState.currentRack) quizState.solutions.push(w); 
+  });
   renderQuizScreen();
 }
 
@@ -547,36 +491,177 @@ function renderQuizScreen() {
   const content = document.getElementById('quizContent');
   content.innerHTML = `
     <div class="quiz-card">
-      <div class="quiz-progress"><span>QUESTION ${quizState.questionCount}</span><span>SCORE: ${quizState.correctCount} / ${quizState.questionCount - 1}</span></div>
+      <div class="quiz-progress">
+        <span>QUESTION ${quizState.questionCount}</span>
+        <span>SCORE: ${quizState.correctCount} / ${quizState.questionCount - 1}</span>
+      </div>
       <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(100, (quizState.questionCount / 20) * 100)}%"></div></div>
       <div class="quiz-mode-label" style="text-align:center;">ANAGRAM THIS RACK</div>
       <div class="anagram-display">${quizState.currentRack}</div>
-      <div style="margin: 20px 0;"><input type="text" id="quizInput" class="search-input" placeholder="TYPE ANSWER HERE..." autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" style="text-align:center; font-size:22px; letter-spacing:4px;" onkeydown="if(event.key==='Enter')submitQuizAnswer()" oninput="this.value=this.value.toUpperCase()"></div>
-      <div class="quiz-actions" id="quizControlArea"><button class="btn-clear" onclick="revealQuizResult(false)">SURRENDER</button><button class="btn-submit" onclick="submitQuizAnswer()">SUBMIT</button></div>
+      
+      <div style="margin: 20px 0;">
+        <input type="text" id="quizInput" class="search-input" placeholder="ANSWERS..." autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" style="text-align:center; font-size:22px; letter-spacing:4px;" onkeydown="if(event.key==='Enter')submitQuizAnswer()" oninput="this.value=this.value.toUpperCase()">
+        <div id="quizTryCountFeedback" style="text-align:center; font-size:11px; color:var(--text2); margin-top:6px; font-family:'Space Mono',monospace;"></div>
+      </div>
+      
+      <div class="quiz-actions" id="quizControlArea">
+        <button class="btn-clear" onclick="revealQuizResult(false)">SURRENDER</button>
+        <button class="btn-analyze-trigger" onclick="toggleAnalyzePanel()">📊 ANALYZE</button>
+        <button class="btn-submit" onclick="submitQuizAnswer()">SUBMIT</button>
+      </div>
+
+      <div class="analyze-panel" id="liveAnalyzePanel">
+        <div class="analyze-section-title" style="color:var(--info);">📘 WRONG & SKIPPED WORDS (${quizState.historyWrongAndSkipped.length})</div>
+        <div class="word-flex-grid" id="analyzeInfoContainer"></div>
+        
+        <div class="analyze-section-title" style="color:var(--danger);">📕 WRONG ANSWER ATTEMPTS (${quizState.historyPureWrong.length})</div>
+        <div class="word-flex-grid" id="analyzeDangerContainer"></div>
+      </div>
+
       <div id="quizFeedbackSlot"></div>
     </div>
   `;
-  setTimeout(() => document.getElementById('quizInput').focus(), 100);
+  setTimeout(() => { const inp = document.getElementById('quizInput'); if(inp) inp.focus(); }, 100);
+}
+
+function toggleAnalyzePanel() {
+  const pnl = document.getElementById('liveAnalyzePanel');
+  if(!pnl) return;
+  if(pnl.style.display === "block") {
+    pnl.style.display = "none";
+  } else {
+    // Re-render dataset cleanly before displaying
+    document.getElementById('analyzeInfoContainer').innerHTML = quizState.historyWrongAndSkipped.map(w => `<span class="word-badge-info">${w}</span>`).join('') || '<span style="font-size:12px; color:var(--text2); font-family:monospace;">None</span>';
+    document.getElementById('analyzeDangerContainer').innerHTML = quizState.historyPureWrong.map(w => `<span class="word-badge-danger">${w}</span>`).join('') || '<span style="font-size:12px; color:var(--text2); font-family:monospace;">None</span>';
+    pnl.style.display = "block";
+  }
 }
 
 function submitQuizAnswer() {
-  const input = document.getElementById('quizInput'); if (!input) return; const ans = input.value.trim().toUpperCase(); if (!ans) return;
-  const isCorrect = quizState.solutions.includes(ans); if (isCorrect) quizState.correctCount++; revealQuizResult(isCorrect, ans);
+  const input = document.getElementById('quizInput');
+  if (!input) return;
+  const ans = input.value.trim().toUpperCase();
+  if (!ans) return;
+
+  const isCorrect = quizState.solutions.includes(ans);
+  
+  if (isCorrect) {
+    // If correct, let them know or complete the rack set
+    showToast(`✨ Valid: ${ans}!`);
+    // Check if they found all anagram configurations or choice is a lock match
+    // To allow flexible multi-attempt training, completion triggers on correct guess submission
+    if(!quizState.isCurrentQuestionFaulty) {
+       quizState.correctCount++;
+    }
+    revealQuizResult(true, ans);
+  } else {
+    // WRONG ANSWER ATTEMPT: Count increments, track logs, but let them retry!
+    quizState.currentWordMistakes++;
+    quizState.isCurrentQuestionFaulty = true; // Flaw registered for this problem set 
+    
+    // Push into analytical data structures if not tracked already
+    if(!quizState.historyPureWrong.includes(ans)) {
+       quizState.historyPureWrong.push(ans);
+    }
+    
+    document.getElementById('quizTryCountFeedback').innerText = `❌ "${ans}" is invalid. Mistakes: ${quizState.currentWordMistakes} (Keep guessing!)`;
+    input.value = "";
+    input.focus();
+  }
 }
 
 function revealQuizResult(isCorrect, submittedAns = "") {
-  document.getElementById('quizControlArea').style.pointerEvents = 'none'; document.getElementById('quizControlArea').style.opacity = '0.4';
-  const input = document.getElementById('quizInput'); if (input) input.disabled = true;
-  const slot = document.getElementById('quizFeedbackSlot'); let statusClass = isCorrect ? 'correct' : 'wrong'; let titleText = isCorrect ? '✓ CORRECT!' : (submittedAns === "" ? 'SKIPPED' : '✗ INCORRECT!');
-  let html = `<div class="quiz-analysis ${statusClass}"><div class="analysis-result ${statusClass}">${titleText}</div><div class="hooks-label" style="margin-bottom:12px; color:var(--text)">VALID SOLUTIONS & HOOKS:</div>`;
+  document.getElementById('quizControlArea').style.pointerEvents = 'none';
+  document.getElementById('quizControlArea').style.opacity = '0.4';
+  const input = document.getElementById('quizInput'); 
+  if (input) input.disabled = true;
+
+  // Handle analytical registration if they hit surrender or skipped, or finished faulty
+  if(!isCorrect || quizState.isCurrentQuestionFaulty) {
+     quizState.solutions.forEach(word => {
+        if(!quizState.historyWrongAndSkipped.includes(word)) {
+          quizState.historyWrongAndSkipped.push(word);
+        }
+     });
+  }
+
+  const slot = document.getElementById('quizFeedbackSlot'); 
+  let finalStatus = (!quizState.isCurrentQuestionFaulty && isCorrect);
+  let statusClass = finalStatus ? 'correct' : 'wrong'; 
+  let titleText = finalStatus ? '✓ CORRECT!' : (quizState.isCurrentQuestionFaulty ? '✗ FINISHED WITH MISTAKES' : 'SKIPPED / SURRENDERED');
+  
+  let html = `<div class="quiz-analysis"><div class="analysis-result ${statusClass}">${titleText}</div><div class="hooks-label" style="margin-bottom:12px; color:var(--text)">SOLUTION SET:</div>`;
+  
   quizState.solutions.forEach(word => {
     const hooks = getHooks(word);
     html += `<div class="analysis-word-block"><div class="analysis-word">${word} <span style="font-size:12px;color:var(--text2)">(${calculateWordScore(word)} pts)</span></div><div style="margin-top:4px; display:flex; flex-direction:column; gap:4px;"><div class="analysis-detail"><span style="color:var(--accent3); font-weight:700;">[F]</span> ${hooks.front.length ? hooks.front.join(', ') : '-'}</div><div class="analysis-detail"><span style="color:var(--accent2); font-weight:700;">[B]</span> ${hooks.back.length ? hooks.back.join(', ') : '-'}</div></div></div>`;
   });
-  html += `<div style="display:flex; gap:8px; margin-top:12px;"><button class="btn-clear" style="flex:1;" onclick="initQuizSettings()">⚙️ FILTERS</button><button class="next-btn" style="flex:2; margin-top:0;" onclick="nextQuizQuestion()">NEXT →</button></div></div>`;
-  slot.innerHTML = html; score = quizState.correctCount * 10; document.getElementById('globalScore').innerText = `⭐ ${score} pts`;
+  
+  html += `<div style="display:flex; gap:8px; margin-top:12px;"><button class="btn-clear" style="flex:1;" onclick="initQuizSettings()">⚙️ CONFIGS</button><button class="next-btn" style="flex:2; margin-top:0;" onclick="nextQuizQuestion()">NEXT QUESTION →</button></div></div>`;
+  slot.innerHTML = html; 
+  
+  score = quizState.correctCount * 10; 
+  document.getElementById('globalScore').innerText = `⭐ ${score} pts`;
 }
 
+// ============================================================
+// SYSTEM SYNC: INTERACTION VIA PC ZYZZYVA QUIZ FORMAT (.ZZQ)
+// ============================================================
+function exportCurrentPoolToZzq() {
+  if(!quizState.filteredPool || quizState.filteredPool.length === 0) {
+    alert("Nothing to export! Compile a filter pool first.");
+    return;
+  }
+  
+  // Custom Zyzzyva configurations layout format text creation (Line-break separations)
+  let outputText = quizState.filteredPool.join("\r\n");
+  
+  let blob = new Blob([outputText], { type: "text/plain;charset=utf-8" });
+  let downloadAnchor = document.createElement("a");
+  downloadAnchor.download = `custom_quiz_${new Date().toISOString().slice(0,10)}.zzq`;
+  downloadAnchor.href = window.URL.createObjectURL(blob);
+  downloadAnchor.style.display = "none";
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  document.body.removeChild(downloadAnchor);
+  showToast("Saved .zzq file successfully!");
+}
+
+function handleZzqLoad(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const contents = e.target.result;
+    // Parse words split by line breaks, sanitizing spacing parameters
+    let parsedWords = contents.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
+    
+    // Filter down array to clean words validating database rulesets
+    let validatedZzqPool = parsedWords.filter(word => dictionarySet.has(word));
+    
+    if(validatedZzqPool.length === 0) {
+      alert("❌ Could not import: No words inside the file matched the CSW24 database system.");
+      return;
+    }
+    
+    // Inject loaded asset directly into target operating structure
+    quizState.filteredPool = validatedZzqPool;
+    quizState.active = true;
+    quizState.questionCount = 0;
+    quizState.correctCount = 0;
+    quizState.historyWrongAndSkipped = [];
+    quizState.historyPureWrong = [];
+    
+    showToast(`Loaded ${validatedZzqPool.length} words from .zzq file!`);
+    nextQuizQuestion();
+  };
+  reader.readAsText(file);
+}
+
+// ============================================================
+// BLITZ CHALLENGE
+// ============================================================
 function initChallengeIntro() {
   const content = document.getElementById('challengeContent');
   content.innerHTML = `<div class="challenge-intro"><h2>⚡ Blitz Challenge</h2><p>Decide whether the displayed word is valid or invalid in CSW24. You have 60 seconds!</p><div class="challenge-stats"><div class="stat-box"><div class="stat-val">60s</div><div class="stat-lbl">Time Limit</div></div><div class="stat-box"><div class="stat-val">+10</div><div class="stat-lbl">Correct</div></div><div class="stat-box"><div class="stat-val">-5</div><div class="stat-lbl">Wrong</div></div></div><button class="start-btn" onclick="startChallenge()">START CHALLENGE</button></div>`;
@@ -585,7 +670,7 @@ function initChallengeIntro() {
 function startChallenge() {
   challengeState.active = true; challengeState.score = 0; challengeState.timeLeft = 60;
   const content = document.getElementById('challengeContent');
-  content.innerHTML = `<div class="challenge-game"><div class="c-header"><div><div class="c-label">SCORE</div><div class="c-score" id="cScore">0 pts</div></div><div class="timer" id="cTimer">60</div></div><div class="c-word-display"><div class="c-word" id="cWord">---</div><div class="c-word-len" id="cWordLen">0 LETTERS</div></div><div class="c-buttons"><button class="btn-valid" onclick="submitChallengeAnswer(true)"><span>VALID</span><span class="btn-sub">✓ True Word</span></button><button class="btn-invalid" onclick="submitChallengeAnswer(false)"><span>INVALID</span><span class="btn-sub">✗ Phony Word</span></button></div></div>`;
+  content.innerHTML = `<div class="challenge-game"><div class="c-header"><div><div class="c-label">SCORE</div><div class="c-score" id="cScore">0 pts</div></div><div class="timer" id="cTimer">60</div></div><div class="c-word-display"><div class="c-word" id="cWord">---</div><div class="c-word-len" id="cWordLen">0 LETTERS</div></div><div class="c-buttons"><button class="btn-valid" onclick="submitChallengeAnswer(true)"><span>VALID</span></button><button class="btn-invalid" onclick="submitChallengeAnswer(false)"><span>INVALID</span></button></div></div>`;
   challengeState.timerInterval = setInterval(() => {
     challengeState.timeLeft--; const timerDiv = document.getElementById('cTimer'); if (!timerDiv) return; timerDiv.innerText = challengeState.timeLeft;
     if (challengeState.timeLeft <= 5) timerDiv.style.color = "var(--danger)"; if (challengeState.timeLeft <= 0) endChallenge();
@@ -609,20 +694,19 @@ function submitChallengeAnswer(userGuess) {
 function endChallenge() {
   clearInterval(challengeState.timerInterval); challengeState.active = false; score += challengeState.score; document.getElementById('globalScore').innerText = `⭐ ${score} pts`;
   const content = document.getElementById('challengeContent');
-  content.innerHTML = `<div class="results-screen" style="text-align:center; padding:30px 10px;"><div style="font-size:48px;">🏁</div><div style="font-size:32px; font-weight:800; color:var(--accent); margin:10px 0;">${challengeState.score} PTS</div><div style="color:var(--text2); margin-bottom:20px;">Blitz Challenge Completed!</div><button class="start-btn" onclick="initChallengeIntro()">CONTINUE</button></div>`;
+  content.innerHTML = `<div style="text-align:center; padding:30px 10px;"><div style="font-size:48px;">🏁</div><div style="font-size:32px; font-weight:800; color:var(--accent); margin:10px 0;">${challengeState.score} PTS</div><button class="start-btn" onclick="initChallengeIntro()">CONTINUE</button></div>`;
 }
 
+// SAVED ENGINE
 function loadSavedWords() {
   const content = document.getElementById('wordListContent'); if (savedWords.length === 0) { content.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div>No bookmarked words yet.</div>`; return; }
-  content.innerHTML = savedWords.map(w => `<div class="wl-item"><div><div class="wli-word" onclick="quickSearch('${w}'); showTab('search', document.querySelectorAll('.tab')[0]);">${w}</div><div class="wli-meta">${w.length} letters</div></div><button class="delete-btn" onclick="toggleSaveWord('${w}')">🗑️</button></div>`).join('');
+  content.innerHTML = savedWords.map(w => `<div class="wl-item"><div><div class="wli-word" onclick="quickSearch('${w}'); showTab('search', document.querySelectorAll('.tab')[0]);">${w}</div></div><button class="btn-clear" style="color:var(--danger);" onclick="toggleSaveWord('${w}')">🗑️</button></div>`).join('');
 }
-
 function toggleSaveWord(word) {
   if (savedWords.includes(word)) { savedWords = savedWords.filter(w => w !== word); showToast(`Removed ${word}`); } 
   else { savedWords.push(word); showToast(`Saved ${word}`); }
   localStorage.setItem('zyzzyva_saved', JSON.stringify(savedWords)); loadSavedWords();
 }
-
 function clearWordList() { if (confirm("Clear all?")) { savedWords = []; localStorage.setItem('zyzzyva_saved', '[]'); loadSavedWords(); } }
 </script>
 </body>

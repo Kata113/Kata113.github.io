@@ -210,13 +210,30 @@ function saveCurrentZzq() {
   toast(`Saved ${fName} (pool ${correctQuestions + 1}/${totalQuestions})`);
 }
 
-function createSeedableRandom(s1, s2) {
-  let seed1 = Number(s1) || 0, seed2 = Number(s2) || 0;
-  return () => { seed1 = (Math.imul(seed1, 1664525) + 1013904223) >>> 0; seed2 = (Math.imul(seed2, 1103515245) + 12345) >>> 0; return ((seed1 ^ seed2) >>> 0) / 4294967296; };
+// Marsaglia MWC (Multiply-With-Carry) — ตรงกับ Rand.cpp ของ Zyzzyva
+function zyzzyvaRng(z, w) {
+  z = ((36969 * (z & 0xFFFF) + (z >>> 16)) >>> 0);
+  w = ((18000 * (w & 0xFFFF) + (w >>> 16)) >>> 0);
+  return { z, w, val: (((z << 16) >>> 0) + w) >>> 0 };
 }
+function zyzzyvaRand(z, w, maxVal) {
+  let r = zyzzyvaRng(z, w);
+  if (maxVal === 0) return { z: r.z, w: r.w, result: 0 };
+  // Zyzzyva: randnum / ((0xFFFFFFFF / (max+1)) + 1)
+  let result = Math.floor(r.val / (Math.floor(0xFFFFFFFF / (maxVal + 1)) + 1));
+  return { z: r.z, w: r.w, result };
+}
+// Shuffle แบบ Zyzzyva: forward (i=0→n-2), swap arr[i] กับ arr[i+randnum]
 function shuffleWithSeed(array, s1, s2) {
-  let rnd = createSeedableRandom(s1, s2), shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) { let j = Math.floor(rnd() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
+  let shuffled = [...array];
+  let z = (Number(s1) >>> 0), w = (Number(s2) >>> 0);
+  let n = shuffled.length;
+  for (let i = 0; i < n - 1; i++) {
+    let r = zyzzyvaRand(z, w, n - i - 1);
+    z = r.z; w = r.w;
+    let rnum = i + r.result;
+    [shuffled[i], shuffled[rnum]] = [shuffled[rnum], shuffled[i]];
+  }
   return shuffled;
 }
 function standardShuffle(array) {

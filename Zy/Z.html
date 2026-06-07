@@ -3,10 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZYZZYVA — Emerald Pro</title>
+<title>Zyzzyva - Web</title></title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-/* CHANGED: New Emerald Cyber Theme (โทนสีเขียว-ฟ้าแนวเครื่องมือระดับโปร) */
 :root { --bg: #07090c; --surface: #0e131a; --surface2: #151c27; --border: #1e293b; --accent: #10b981; --accent2: #06b6d4; --text: #f1f5f9; --text2: #94a3b8; --danger: #f43f5e; --success: #34d399; }
 * { margin:0; padding:0; box-sizing:border-box; font-family:'Noto Sans', sans-serif; }
 body { background:var(--bg); color:var(--text); min-height:100vh; padding-bottom:30px; }
@@ -19,32 +18,33 @@ header { position:sticky; top:0; z-index:100; background:rgba(7,9,12,0.9); backd
 nav { display:flex; background:var(--surface); border-bottom:1px solid var(--border); }
 .tab { flex:1; padding:12px; text-align:center; font-size:11px; font-weight:600; color:var(--text2); border:none; background:none; cursor:pointer; border-bottom:3px solid transparent; }
 .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-main { padding:20px 16px; max-width:600px; margin:0 auto; }
+main { padding:20px 16px; max-width:650px; margin:0 auto; }
 .section { display:none; } .section.active { display:block; }
-.center-search { display:flex; flex-direction:column; align-items:center; margin-bottom:20px; gap:10px; }
+.center-search { display:flex; flex-direction:column; align-items:center; margin-bottom:20px; gap:10px; width:100%; }
 .search-box { display:flex; width:100%; max-width:450px; background:var(--surface); border:1px solid var(--border); border-radius:30px; padding:4px 6px; }
 .search-box input { flex:1; background:transparent; border:none; outline:none; color:var(--text); font-size:16px; padding:8px 16px; text-transform:uppercase; }
 .search-btn { width:38px; height:38px; border-radius:50%; background:var(--accent); border:none; color:#fff; cursor:pointer; }
 .drawer { height:0; overflow:hidden; transition:0.3s ease; background:var(--surface); width:100%; max-width:450px; border-radius:12px; }
 .drawer.open { height:auto; padding:12px; border:1px solid var(--border); }
-.f-row { display:flex; gap:8px; margin-bottom:10px; }
-.f-stack { max-height:150px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; }
-.f-item { display:flex; align-items:center; gap:8px; background:var(--surface2); border:1px solid var(--border); padding:6px 10px; border-radius:8px; font-size:12px; }
+.f-row { display:flex; gap:8px; margin-bottom:10px; align-items:center; }
+.f-stack { max-height:150px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; margin-bottom:6px; }
+.f-item { display:flex; align-items:center; gap:8px; background:var(--surface2); border:1px solid var(--border); padding:6px 10px; border-radius:8px; font-size:12px; justify-content:space-between; }
 .btn { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:8px; cursor:pointer; font-size:12px; }
 .btn-p { background:var(--accent); border:none; color:#fff; font-weight:700; }
 .btn-not { padding:4px 8px; font-size:10px; border:1px solid var(--border); background:none; color:var(--text2); border-radius:4px; }
-.btn-not.active { color:var(--danger); border-color:var(--danger); }
+.btn-not.active { color:var(--danger); border-color:var(--danger); background:rgba(244,63,94,0.1); }
 .input-field { width:100%; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; outline:none; }
 .card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; }
-.item-row { background:var(--surface); border:1px solid var(--border); padding:10px 16px; border-radius:10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; }
+.item-row { background:var(--surface); border:1px solid var(--border); padding:10px 16px; border-radius:10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
 .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 16px; border-radius:8px; font-size:12px; opacity:0; transition:0.2s; pointer-events:none; z-index:9999; text-align:center; max-width:90%; }
 .toast.show { opacity:1; }
 .toast.vld { border-color:var(--success); color:var(--success); background:rgba(52,211,153,0.1); }
 .toast.phn { border-color:var(--danger); color:var(--danger); background:rgba(244,63,94,0.1); }
 .q-layout { display:flex; flex-direction:column; gap:12px; }
-.q-word-list { max-height:200px; overflow-y:auto; display:grid; grid-template-columns:1fr 1fr; gap:6px; background:var(--surface2); padding:10px; border-radius:8px; border:1px solid var(--border); }
-.q-word { font-size:13px; font-weight:600; color:var(--text2); text-decoration:line-through; opacity:0.4; }
-.q-word.revealed { color:var(--success); text-decoration:none; opacity:1; }
+.q-word-list { max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; background:var(--surface2); padding:10px; border-radius:8px; border:1px solid var(--border); }
+.q-word { font-size:14px; font-weight:600; color:var(--text2); text-decoration:line-through; opacity:0.3; display:flex; justify-content:space-between; }
+.q-word.revealed { color:var(--text); text-decoration:none; opacity:1; }
+.hook-text { color:var(--accent2); font-weight:700; letter-spacing:1px; }
 </style>
 </head>
 <body>
@@ -63,16 +63,24 @@ main { padding:20px 16px; max-width:600px; margin:0 auto; }
 <main>
   <div class="section active" id="t0">
     <div class="center-search">
+      <select class="input-field mono" id="sMainMode" style="max-width:450px; font-weight:600; color:var(--accent);" onchange="updateSearchPlaceholder()">
+        <option value="normal">🔍 NORMAL SEARCH (WILDCARDS ALLOWED)</option>
+        <option value="anagram">🔄 ANAGRAM MATCH</option>
+        <option value="subanagram">🔀 SUBANAGRAM MATCH</option>
+        <option value="pattern">🧩 PATTERN MATCH (?, *)</option>
+      </select>
+      
       <div class="search-box">
-        <input class="mono" id="sInp" type="text" placeholder="Search word / wildcard..." onkeydown="if(event.key==='Enter')search()">
+        <input class="mono" id="sInp" type="text" placeholder="Enter search query..." onkeydown="if(event.key==='Enter')search()">
         <button class="search-btn" onclick="search()">→</button>
       </div>
-      <button class="btn mono" onclick="document.getElementById('sDrw').classList.toggle('open')">⚙️ FILTERS</button>
+      
+      <button class="btn mono" onclick="document.getElementById('sDrw').classList.toggle('open')">⚙️ ADVANCED FILTERS</button>
       <div class="drawer" id="sDrw">
         <div class="f-row">
           <select class="input-field" id="sFType" style="padding:6px; flex:1;">
-            <option value="subanagram">Subanagram Match</option>
             <option value="length">Length Range</option>
+            <option value="point_value">Point Value Range</option>
             <option value="begins">Begins With</option>
             <option value="ends">Ends With</option>
           </select>
@@ -86,21 +94,26 @@ main { padding:20px 16px; max-width:600px; margin:0 auto; }
 
   <div class="section" id="t1">
     <div class="card" id="qBox">
-      <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-        <span style="font-weight:700; font-size:18px;">Quiz Settings</span>
-        <button class="btn mono" style="padding:4px 8px; font-size:11px;" onclick="document.getElementById('fInp').click()">📂 LOAD</button>
+      <div id="qSettingsPane">
+        <div style="display:flex; justify-content:space-between; margin-bottom:12px; align-items:center;">
+          <span style="font-weight:700; font-size:18px;">Quiz Parameters</span>
+          <button class="btn mono" style="padding:4px 8px; font-size:11px;" onclick="document.getElementById('fInp').click()">📂 LOAD</button>
+        </div>
+        <div class="f-row">
+          <select class="input-field" id="qFType" style="padding:6px; flex:1;">
+            <option value="length">Length Range</option>
+            <option value="point_value">Point Value Range</option>
+            <option value="includes">Includes Letters</option>
+            <option value="begins">Begins With</option>
+            <option value="ends">Ends With</option>
+            <option value="pattern">Pattern Match</option>
+          </select>
+          <button class="btn" onclick="addFilter('Q')">+ Add</button>
+        </div>
+        <div class="f-stack" id="qStack" style="margin-bottom:12px;"></div>
+        <button class="btn btn-p" style="width:100%" onclick="startQuiz()">START QUIZ</button>
       </div>
-      <div class="f-row">
-        <select class="input-field" id="qFType" style="padding:6px; flex:1;">
-          <option value="length">Length Range</option>
-          <option value="includes">Includes Letters</option>
-          <option value="begins">Begins With</option>
-          <option value="ends">Ends With</option>
-        </select>
-        <button class="btn" onclick="addFilter('Q')">+ Add</button>
-      </div>
-      <div class="f-stack" id="qStack" style="margin-bottom:12px;"></div>
-      <button class="btn btn-p" style="width:100%" onclick="startQuiz()">START QUIZ</button>
+      <div id="qEnginePane" style="display:none;"></div>
     </div>
   </div>
 
@@ -129,6 +142,31 @@ let dict = [], dictSet = new Set(), wordsByL = {}, saved = JSON.parse(localStora
 let sFilters = [], qFilters = [], fId = 0;
 let qState = { pool:[], rawWords:[], rack:'', sol:[], found:[], setsDone:0 };
 
+const letterScores = {
+  A:1, E:1, I:1, O:1, U:1, L:1, N:1, S:1, T:1, R:1,
+  D:2, G:2,
+  B:3, C:3, M:3, P:3,
+  F:4, H:4, V:4, W:4, Y:4,
+  K:5,
+  J:8, X:8,
+  Q:10, Z:10
+};
+const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function getWordScore(w) {
+  return [...w].reduce((acc, char) => acc + (letterScores[char] || 0), 0);
+}
+
+// CORE ALGORITHM: Generates Front & Back Valid Hook Letters Matrix
+function getHooks(w) {
+  let fHooks = '', bHooks = '';
+  for(let i=0; i<26; i++) {
+    if(dictSet.has(alpha[i] + w)) fHooks += alpha[i];
+    if(dictSet.has(w + alpha[i])) bHooks += alpha[i];
+  }
+  return { f: fHooks || '-', b: bHooks || '-' };
+}
+
 window.onload = async () => {
   try {
     let r = await fetch('CSW24.txt'); if(!r.ok) throw 1;
@@ -138,6 +176,7 @@ window.onload = async () => {
     document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " Words";
   } catch(e) { document.getElementById('wCnt').innerText = "Sandbox Mode"; }
   document.getElementById('loadingScreen').style.display = 'none';
+  updateSearchPlaceholder();
   renderSaved();
 };
 
@@ -149,35 +188,69 @@ function toast(m, cls='') {
   let t=document.getElementById('tst'); t.innerText=m; t.className='toast show '+cls;
   setTimeout(()=>t.classList.remove('show'), 2000);
 }
+function updateSearchPlaceholder() {
+  let m = document.getElementById('sMainMode').value;
+  let p = "Search words...";
+  if(m==='anagram') p = "Enter letters for Anagrams...";
+  if(m==='subanagram') p = "Enter rack for Subanagrams...";
+  if(m==='pattern') p = "Use ? (1 char) or * (multi)...";
+  document.getElementById('sInp').placeholder = p;
+}
 
 function addFilter(mode) {
   fId++; let type = document.getElementById(mode==='S'?'sFType':'qFType').value;
-  let item = { id:fId, type, v1:type==='length'?'2':'', v2:type==='length'?'8':'', not:false };
-  (mode==='S'?sFilters:qFilters).push(item); renderFilters(mode);
+  let isRange = (type==='length' || type==='point_value');
+  let item = { id:fId, type, v1:isRange?'2':'', v2:isRange?'8':'', not:false };
+  if(mode==='S') { sFilters.push(item); renderFilters('S'); } 
+  else { qFilters.push(item); renderFilters('Q'); }
+}
+function toggleNot(mode, id) {
+  let arr = mode==='S'?sFilters:qFilters;
+  let f = arr.find(x => x.id === id); if(f) f.not = !f.not;
+  renderFilters(mode);
+}
+function deleteFilter(mode, id) {
+  if(mode==='S') { sFilters = sFilters.filter(x => x.id !== id); renderFilters('S'); } 
+  else { qFilters = qFilters.filter(x => x.id !== id); renderFilters('Q'); }
+}
+function updateFilterVal(mode, id, field, val) {
+  let arr = mode==='S'?sFilters:qFilters;
+  let f = arr.find(x => x.id === id); if(f) f[field] = val.toUpperCase();
 }
 function renderFilters(mode) {
   let arr = mode==='S'?sFilters:qFilters;
-  document.getElementById(mode==='S'?'sStack':'qStack').innerHTML = arr.map(f => `
-    <div class="f-item">
-      <button class="btn-not ${f.not?'active':''}" onclick="f.not=!f.not; renderFilters('${mode}')">NOT</button>
-      <span class="mono" style="color:var(--accent2)">${f.type}</span>
-      ${f.type==='length'? `<input type="number" style="width:40px;background:var(--bg);color:#fff;border:1px solid var(--border)" value="${f.v1}" onchange="f.v1=this.value"> - <input type="number" style="width:40px;background:var(--bg);color:#fff;border:1px solid var(--border)" value="${f.v2}" onchange="f.v2=this.value">`
-      : `<input type="text" style="flex:1;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px 4px" value="${f.v1}" oninput="f.v1=this.value.toUpperCase()">`}
-    </div>
-  `).join('');
+  let html = arr.map(f => {
+    let isRange = (f.type==='length' || f.type==='point_value');
+    return `
+      <div class="f-item">
+        <div style="display:flex; gap:6px; align-items:center; flex:1;">
+          <button class="btn-not ${f.not?'active':''}" onclick="toggleNot('${mode}', ${f.id})">NOT</button>
+          <span class="mono" style="color:var(--accent2); font-size:11px;">${f.type.toUpperCase()}</span>
+          ${isRange? 
+            `<input type="number" style="width:40px;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px;" value="${f.v1}" onchange="updateFilterVal('${mode}',${f.id},'v1',this.value)"> - <input type="number" style="width:40px;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px;" value="${f.v2}" onchange="updateFilterVal('${mode}',${f.id},'v2',this.value)">`
+            : `<input type="text" style="flex:1;min-width:60px;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px 4px;" value="${f.v1}" oninput="updateFilterVal('${mode}',${f.id},'v1',this.value)">`
+          }
+        </div>
+        <span style="cursor:pointer;color:var(--danger);font-weight:700;padding-left:8px;" onclick="deleteFilter('${mode}', ${f.id})">✕</span>
+      </div>
+    `;
+  }).join('');
+  document.getElementById(mode==='S'?'sStack':'qStack').innerHTML = html;
 }
 
 function matchFilters(w, arr) {
   for(let f of arr) {
     let m = true;
-    if(f.type==='subanagram') {
-      let r=[...f.v1.toUpperCase()], pool=[...w];
-      m = pool.every(c => { let i=r.indexOf(c); if(i>-1) { r.splice(i,1); return true; } return false; });
+    let v1 = f.v1.trim().toUpperCase();
+    if(f.type==='length') m = (w.length >= parseInt(f.v1) && w.length <= parseInt(f.v2));
+    else if(f.type==='point_value') {
+      let score = getWordScore(w);
+      m = (score >= parseInt(f.v1) && score <= parseInt(f.v2));
     }
-    else if(f.type==='length') m = (w.length >= parseInt(f.v1) && w.length <= parseInt(f.v2));
-    else if(f.type==='begins') m = w.startsWith(f.v1.toUpperCase());
-    else if(f.type==='ends') m = w.endsWith(f.v1.toUpperCase());
-    else if(f.type==='includes') m = [...f.v1.toUpperCase()].every(c=>w.includes(c));
+    else if(f.type==='begins') m = w.startsWith(v1);
+    else if(f.type==='ends') m = w.endsWith(v1);
+    else if(f.type==='includes') m = [...v1].every(c=>w.includes(c));
+    else if(f.type==='pattern') m = new RegExp("^" + v1.replace(/[\.\?]/g, '.').replace(/\*/g, '.*') + "$").test(w);
     if(f.not) m = !m; if(!m) return false;
   }
   return true;
@@ -185,23 +258,63 @@ function matchFilters(w, arr) {
 
 function search() {
   let q = document.getElementById('sInp').value.trim().toUpperCase();
-  let rx = q ? new RegExp("^"+q.replace(/[\.\?]/g,'.')+"$") : null;
-  let res = dict.filter(w => (!rx || rx.test(w)) && matchFilters(w, sFilters)).slice(0, 100);
-  document.getElementById('sRes').innerHTML = res.map(w => `
-    <div class="item-row"><span class="mono" style="font-size:16px;cursor:pointer" onclick="toggleSave('${w}')">${w}</span><span style="font-size:12px;color:var(--text2)">${w.length}L</span></div>
-  `).join('') || '<p style="text-align:center;color:var(--text2)">No results</p>';
+  let mode = document.getElementById('sMainMode').value;
+  let res = [];
+
+  if(mode === 'normal') {
+    let rx = q ? new RegExp("^"+q.replace(/[\.\?]/g,'.')+"$") : null;
+    res = dict.filter(w => (!rx || rx.test(w)) && matchFilters(w, sFilters));
+  } 
+  else if(mode === 'anagram') {
+    if(!q) return; let sortedQ = [...q].sort().join('');
+    res = dict.filter(w => w.length === q.length && [...w].sort().join('') === sortedQ && matchFilters(w, sFilters));
+  } 
+  else if(mode === 'subanagram') {
+    if(!q) return;
+    res = dict.filter(w => {
+      let r = [...q], pool = [...w];
+      return pool.every(c => { let i=r.indexOf(c); if(i>-1) { r.splice(i,1); return true; } return false; }) && matchFilters(w, sFilters);
+    });
+  } 
+  else if(mode === 'pattern') {
+    if(!q) return;
+    let rx = new RegExp("^" + q.replace(/[\.\?]/g, '.').replace(/\*/g, '.*') + "$");
+    res = dict.filter(w => rx.test(w) && matchFilters(w, sFilters));
+  }
+
+  // DISPLAY LAYOUT: Renders complete structural Hooks data explicitly
+  document.getElementById('sRes').innerHTML = res.slice(0, 100).map(w => {
+    let hk = getHooks(w);
+    return `
+      <div class="item-row">
+        <div class="mono" style="font-size:15px; word-break:break-all;">
+          <span style="color:var(--text2); font-weight:400; font-size:12px;">(${hk.f})</span>
+          <span style="cursor:pointer; font-weight:700; color:var(--text); margin:0 4px;" onclick="toggleSave('${w}')">${w}</span>
+          <span style="color:var(--text2); font-weight:400; font-size:12px;">(${hk.b})</span>
+        </div>
+        <span class="mono" style="font-size:11px;color:var(--text2);flex-shrink:0;">${w.length}L <b style="color:var(--accent2);">[${getWordScore(w)}P]</b></span>
+      </div>
+    `;
+  }).join('') || '<p style="text-align:center;color:var(--text2)">No results</p>';
 }
 
-// QUIZ SYSTEM (ADDED BACK: .zzq Save Feature Track)
 function startQuiz() {
   let p = dict.filter(w => matchFilters(w, qFilters));
   if(!p.length) { alert("0 unique pools found"); return; }
   qState.rawWords = p;
   qState.pool = Array.from(new Set(p.map(w => [...w].sort().join(''))));
-  qState.setsDone = 0; nextQ();
+  qState.setsDone = 0;
+  document.getElementById('qSettingsPane').style.display = 'none';
+  document.getElementById('qEnginePane').style.display = 'block';
+  nextQ();
+}
+function quitQuiz() {
+  qState.rawWords = []; qState.pool = []; qState.setsDone = 0;
+  document.getElementById('qEnginePane').style.display = 'none';
+  document.getElementById('qSettingsPane').style.display = 'block';
 }
 function nextQ() {
-  if(qState.setsDone >= qState.pool.length) { toast("🎉 All sets completed!"); return; }
+  if(qState.setsDone >= qState.pool.length) { toast("🎉 All sets completed!"); quitQuiz(); return; }
   qState.found = [];
   let currentRack = qState.pool[qState.setsDone]; qState.rack = currentRack;
   qState.sol = dict.filter(w => w.length === currentRack.length && [...w].sort().join('') === currentRack);
@@ -210,10 +323,16 @@ function nextQ() {
 function renderQuiz() {
   let wordListHtml = qState.sol.map(w => {
     let active = qState.found.includes(w);
-    return `<div class="mono q-word ${active?'revealed':''}" style="font-size:14px;">${w}</div>`;
+    let hk = active ? getHooks(w) : { f:'', b:'' };
+    let hookStr = active ? `<span class="hook-text"> (${hk.f}) <b>${w}</b> (${hk.b}) </span>` : `<span>${w}</span>`;
+    return `
+      <div class="mono q-word ${active?'revealed':''}">
+        ${hookStr}
+        <span style="font-size:11px; color:var(--accent2); font-weight:400;">[${getWordScore(w)}P]</span>
+      </div>`;
   }).join('');
 
-  document.getElementById('qBox').innerHTML = `
+  document.getElementById('qEnginePane').innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
       <div class="mono" style="font-size:12px;color:var(--text2)">SET: ${qState.setsDone} / ${qState.pool.length}</div>
       <div class="mono" style="font-size:14px;color:var(--accent);font-weight:700;">${qState.found.length} / ${qState.sol.length}</div>
@@ -227,7 +346,10 @@ function renderQuiz() {
         <button class="btn" style="flex:1" onclick="surrenderQuiz()">ANALYZE</button>
         <button class="btn btn-p" style="flex:1" onclick="chkAns()">SUBMIT</button>
       </div>
-      <button class="btn mono" style="width:100%; color:var(--accent2); background:none; border-color:var(--border)" onclick="saveCurrentZzq()">💾 SAVE CURRENT POOL (.ZZQ)</button>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button class="btn" style="flex:1; color:var(--accent2); border-color:var(--border)" onclick="saveCurrentZzq()">💾 SAVE</button>
+        <button class="btn" style="flex:1; color:var(--danger); border-color:var(--border)" onclick="quitQuiz()">❌ QUIT</button>
+      </div>
     </div>
   `;
   setTimeout(()=>document.getElementById('qInp').focus(), 50);
@@ -243,16 +365,25 @@ function chkAns() {
   document.getElementById('qInp').value=''; renderQuiz();
 }
 function surrenderQuiz() {
-  document.querySelectorAll('.q-word').forEach(el => el.classList.add('revealed'));
-  toast("Revealed all combinations");
-  setTimeout(() => { qState.setsDone++; nextQ(); }, 3000);
+  // SHOWCASE REVEAL ACTION TRACK: Loop and append hooks to all solution entities explicitly
+  let html = qState.sol.map(w => {
+    let hk = getHooks(w);
+    return `
+      <div class="mono q-word revealed">
+        <span class="hook-text">(${hk.f}) <b style="color:var(--danger); text-decoration:none;">${w}</b> (${hk.b})</span>
+        <span style="font-size:11px; color:var(--accent2);">[${getWordScore(w)}P]</span>
+      </div>`;
+  }).join('');
+  document.getElementById('qShowList').innerHTML = html;
+  toast("Revealed all combinations & hooks");
+  setTimeout(() => { qState.setsDone++; nextQ(); }, 4000);
 }
 function saveCurrentZzq() {
   if(!qState.rawWords.length) return;
   let blob = new Blob([qState.rawWords.join("\r\n")], { type: "text/plain;charset=utf-8" });
   let a = document.createElement("a"); a.download = `quiz_pool.zzq`;
   a.href = window.URL.createObjectURL(blob); document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  toast("💾 Saved .zzq layout configuration!");
+  toast("💾 Saved!");
 }
 function loadZzq(e) {
   let f = e.target.files[0]; if(!f) return; let r = new FileReader();
@@ -261,7 +392,10 @@ function loadZzq(e) {
     if(!loaded.length) { alert("No valid words inside file"); return; }
     qState.rawWords = loaded;
     qState.pool = Array.from(new Set(loaded.map(w => [...w].sort().join(''))));
-    qState.setsDone = 0; nextQ();
+    qState.setsDone = 0;
+    document.getElementById('qSettingsPane').style.display = 'none';
+    document.getElementById('qEnginePane').style.display = 'block';
+    nextQ();
   }; r.readAsText(f);
 }
 
@@ -286,5 +420,4 @@ function toggleSave(w) {
 function clearSaved() { if(confirm("Clear all?")){saved=[]; localStorage.setItem('zyz_sv','[]'); renderSaved();} }
 </script>
 </body>
-  </html>
-                                                                                     
+</html>

@@ -1,11 +1,5 @@
-let qState = { 
-  pool: [], rawWords: [], rack: '', sol: [], 
-  correctAnswers: [], incorrectAttempts: [],
-  userSkipped: false, setsDone: 0,
-  analysis: null,
-  lastFeedback: null // 👈 เก็บสถานะการตอบล่าสุด { text: '', color: '' }
-};
-
+```javascript
+// quiz.js - ควิซประมวลผล ซิงก์เงื่อนไขล็อกเมล็ดสุ่ม (Seeded PRNG) และสลับหน้าจอวิเคราะห์
 function startQuiz() {
   let p = dict.filter(w => matchFilters(w, qFilters));
   if (!p.length) { alert("No pools found matching criteria"); return; }
@@ -28,7 +22,7 @@ function quitQuiz() {
 
 function nextQ() {
   qState.correctAnswers = []; qState.incorrectAttempts = []; qState.userSkipped = false;
-  qState.lastFeedback = null; // 👈 รีเซ็ตคำเตือนเมื่อขึ้นคำใหม่
+  qState.lastFeedback = null; 
   let currentRack = qState.pool[qState.setsDone]; 
   qState.rack = currentRack;
   qState.sol = dict.filter(w => w.length === currentRack.length && [...w].sort().join('') === currentRack);
@@ -60,10 +54,9 @@ function renderQuiz() {
     return `<div class="mono" style="font-size:14px; color:var(--orange); padding:2px 0;">• (${hk.f}) <b>${w}</b> (${hk.b}) [Missed]</div>`;
   }).join('') : "";
 
-  // สร้าง HTML สำหรับตัวอักษรเล็กๆ แจ้งเตือนใต้ช่องกรอก
   let feedbackHtml = qState.lastFeedback 
     ? `<div class="mono" style="font-size: 11px; color: ${qState.lastFeedback.color}; text-align: center; margin-top: 4px; font-weight: 500;">${qState.lastFeedback.text}</div>` 
-    : `<div style="height: 16px;"></div>`; // เว้นช่องไฟไว้กรณีไม่มีการตอบ
+    : `<div style="height: 16px;"></div>`;
 
   document.getElementById('qEnginePane').innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -151,17 +144,31 @@ function saveCurrentZzq() {
   if (!qState.rawWords.length) return;
   let fName = prompt("ชื่อไฟล์ควิซ:", "zyzzylu_quiz"); if (fName === null) return;
   fName = fName.trim() || "zyzzylu_quiz"; if (!fName.toLowerCase().endsWith(".zzq")) fName += ".zzq";
+  
   let totalW = qState.rawWords.length;
+  
+  let lengths = qState.rawWords.map(w => w.length);
+  let minL = lengths.length ? Math.min(...lengths) : 2;
+  let maxL = lengths.length ? Math.max(...lengths) : 15;
+
+  // 🛡️ บั๊กฟิกซ์: ปรับปรุงโครงสร้างควิซที่ถูกบันทึกเพื่อป้องกันไม่ให้โปรแกรม PC ค้าง
+  // ย้ายคลังคำศัพท์ที่ยังไม่ได้ตรวจไปเขียนบันทึกฝากไว้ในแท็ก `<missed-responses>` แทน
   let xml = [
     '<?xml version="1.0" encoding="ISO-8859-1"?>',
     '<!DOCTYPE zyzzyva-quiz SYSTEM \'http://boshvark.com/dtd/zyzzyva-quiz.dtd\'>',
     '<zyzzyva-quiz method="Standard" lexicon="CSW24" question-order="Random" type="Anagrams">',
-    ' <question-source type="search"><zyzzyva-search version="1"><conditions><and><condition max="15" min="2" type="Length"/></and></conditions></zyzzyva-search></question-source>',
-    ' <randomizer algorithm="1" seed="1725958103" seed2="244"/>',
-    ` <progress question-complete="true" correct-questions="${totalW}" total-questions="${totalW}" correct="${totalW}" question="${totalW}"><question-correct-responses>`
+    ` <question-source type="search"><zyzzyva-search version="1"><conditions><and><condition max="${maxL}" min="${minL}" type="Length"/></and></conditions></zyzzyva-search></question-source>`,
+    ' <randomizer algorithm="1" seed="' + Math.floor(Date.now() / 1000) + '" seed2="244"/>',
+    ` <progress question-complete="false" correct-questions="0" total-questions="${totalW}" correct="0" question="0">`,
+    '  <question-correct-responses></question-correct-responses>',
+    '  <missed-responses>'
   ];
+  
   qState.rawWords.forEach(w => xml.push(`   <response word="${w}"/>`));
-  xml.push('  </question-correct-responses></progress></zyzzyva-quiz>');
+  
+  xml.push('  </missed-responses>');
+  xml.push(' </progress>');
+  xml.push('</zyzzyva-quiz>');
 
   let blob = new Blob([xml.join("\r\n")], { type: "application/octet-stream" });
   let a = document.createElement("a"); a.download = fName; a.href = window.URL.createObjectURL(blob);
@@ -199,33 +206,87 @@ function loadZzq(e) {
         document.getElementById('qSettingsPane').style.display = 'none'; document.getElementById('qEnginePane').style.display = 'block';
         nextQ(); toast(` Loaded Plain Words`); return;
       }
+      
       let xmlDoc = (new DOMParser()).parseFromString(content, "text/xml");
-      let conditions = xmlDoc.getElementsByTagName("condition");
-      if (conditions.length > 0) {
-        qFilters = [];
-        for (let i = 0; i < conditions.length; i++) {
-          let cond = conditions[i], zType = cond.getAttribute("type"), item = { id: i+1, type: "", v1: "", v2: "", not: cond.getAttribute("negated") === "1" };
-          if (zType === "Length") { item.type = "length"; item.v1 = cond.getAttribute("min"); item.v2 = cond.getAttribute("max"); }
-          else if (zType === "Includes Letters") { item.type = "includes"; item.v1 = cond.getAttribute("string"); }
-          else if (zType === "Begins With") { item.type = "begins"; item.v1 = cond.getAttribute("string"); }
-          else if (zType === "Ends With") { item.type = "ends"; item.v1 = cond.getAttribute("string"); }
-          else continue;
-          qFilters.push(item);
+      
+      // 🛡️ บั๊กฟิกซ์: ป้องกันไม่ให้แอปดึงประวัติ "คำตอบมั่ว/พิมพ์ผิด (Incorrect)" มาปนในคลังคำถามควิซ
+      // ให้สกัดแยกออกจากกันอย่างเด็ดขาด คัดมาเฉพาะส่วนผลงานที่ตอบถูกแล้ว และส่วนที่เราตอบข้าม
+      let correctNodes = xmlDoc.getElementsByTagName("question-correct-responses")[0];
+      let missedNodes = xmlDoc.getElementsByTagName("missed-responses")[0];
+      let explicitWords = [];
+
+      const extractWordsFromNode = (parentNode) => {
+        if (!parentNode) return;
+        let responses = parentNode.getElementsByTagName("response");
+        for (let i = 0; i < responses.length; i++) {
+          let w = responses[i].getAttribute("word");
+          if (w) {
+            w = w.trim().toUpperCase();
+            if (dictSet.has(w)) explicitWords.push(w);
+          }
         }
-        renderFilters('Q');
+      };
+
+      extractWordsFromNode(correctNodes);
+      extractWordsFromNode(missedNodes);
+      
+      // กรณีไม่พบบันทึกเก่าเลย ค่อยใช้ระบบ Filter เงื่อนไข (Fallback)
+      if (explicitWords.length === 0) {
+        let conditions = xmlDoc.getElementsByTagName("condition");
+        if (conditions.length > 0) {
+          qFilters = [];
+          for (let i = 0; i < conditions.length; i++) {
+            let cond = conditions[i], zType = cond.getAttribute("type"), item = { id: i+1, type: "", v1: "", v2: "", not: cond.getAttribute("negated") === "1" };
+            if (zType === "Length") { item.type = "length"; item.v1 = cond.getAttribute("min"); item.v2 = cond.getAttribute("max"); }
+            else if (zType === "Includes Letters") { item.type = "includes"; item.v1 = cond.getAttribute("string"); }
+            else if (zType === "Begins With") { item.type = "begins"; item.v1 = cond.getAttribute("string"); }
+            else if (zType === "Ends With") { item.type = "ends"; item.v1 = cond.getAttribute("string"); }
+            else continue;
+            qFilters.push(item);
+          }
+          renderFilters('Q');
+        }
+        explicitWords = dict.filter(w => matchFilters(w, qFilters));
       }
-      let matched = dict.filter(w => matchFilters(w, qFilters));
+      
+      if (!explicitWords.length) { alert("No valid words found in this quiz file."); return; }
+      
       let progressNode = xmlDoc.getElementsByTagName("progress")[0];
-      qState.analysis = { pastCorrectCount: progressNode ? parseInt(progressNode.getAttribute("correct")) : 0, incorrectHistory: [] };
-      let rNode = xmlDoc.getElementsByTagName("randomizer")[0];
-      let s1 = rNode ? rNode.getAttribute("seed") : null, s2 = rNode ? rNode.getAttribute("seed2") : null;
-      qState.rawWords = matched;
-      let uniquePool = Array.from(new Set(matched.map(w => [...w].sort().join(''))));
-      qState.pool = (s1 && s2) ? shuffleWithSeed(uniquePool, s1, s2) : standardShuffle(uniquePool);
+      qState.analysis = {
+        pastCorrectCount: progressNode ? parseInt(progressNode.getAttribute("correct") || "0") : 0,
+        pastTotalQuestions: progressNode ? parseInt(progressNode.getAttribute("total-questions") || progressNode.getAttribute("question") || "0") : 0,
+        incorrectHistory: [],
+        missedHistory: []
+      };
+
+      let incParent = xmlDoc.getElementsByTagName("incorrect-responses")[0];
+      if (incParent) {
+        let res = incParent.getElementsByTagName("response");
+        for (let i = 0; i < res.length; i++) {
+          qState.analysis.incorrectHistory.push({
+            word: res[i].getAttribute("word").toUpperCase(),
+            count: parseInt(res[i].getAttribute("count") || "1")
+          });
+        }
+      }
+
+      let randomizerNode = xmlDoc.getElementsByTagName("randomizer")[0];
+      let seed1 = randomizerNode ? randomizerNode.getAttribute("seed") : null;
+      let seed2 = randomizerNode ? randomizerNode.getAttribute("seed2") : null;
+      let questionOrder = xmlDoc.getElementsByTagName("zyzzyva-quiz")[0]?.getAttribute("question-order");
+
+      qState.rawWords = explicitWords;
+      let uniquePool = Array.from(new Set(explicitWords.map(w => [...w].sort().join(''))));
+      qState.pool = (seed1 && seed2 && questionOrder === "Random") ? shuffleWithSeed(uniquePool, seed1, seed2) : standardShuffle(uniquePool);
       qState.setsDone = 0;
-      document.getElementById('qSettingsPane').style.display = 'none'; document.getElementById('qEnginePane').style.display = 'block';
-      nextQ(); toast(` Loaded .zzq Quiz`);
+      
+      document.getElementById('qSettingsPane').style.display = 'none'; 
+      document.getElementById('qEnginePane').style.display = 'block';
+      nextQ(); 
+      toast(` Loaded .zzq Quiz (${explicitWords.length} Words)`);
     } catch (err) { alert("XML Error"); }
   };
   r.readAsText(f);
 }
+
+```

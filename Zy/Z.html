@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ZYZZYVA — CSW24</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap\" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface2: #1a1a26;
+  --border: #2a2a3d;
+  --accent: #7c6af7;
+  --accent2: #f7a06a;
+  --accent3: #6af7c4;
+  --text: #e8e8f0;
+  --text2: #8888aa;
+  --danger: #f76a6a;
+  --success: #6af7a0;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; min-height:100vh; overflow-x:hidden; }
+
+/* LOADING SCREEN */
+#loadingScreen {
+  position: fixed; inset: 0; background: var(--bg); z-index: 999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+}
+.loader-title { font-size: 32px; font-weight: 800; letter-spacing: 2px; color: var(--accent); margin-bottom: 5px; }
+.loader-sub { font-size: 14px; color: var(--text2); margin-bottom: 30px; font-family: 'Space Mono', monospace; }
+.progress-container { width: 100%; max-width: 300px; background: var(--surface); border: 1px solid var(--border); height: 6px; border-radius: 3px; overflow: hidden; margin-bottom: 15px; }
+#loadBar { width: 0%; height: 100%; background: var(--accent); transition: width 0.3s ease; }
+#loadText { font-size: 12px; font-family: 'Space Mono', monospace; color: var(--text2); }
+
+/* APP LAYOUT */
+#appHeader { display:none; justify-content:space-between; align-items:center; padding:20px; border-bottom:1px solid var(--border); background:var(--surface); }
+.logo { font-weight:800; font-size:20px; letter-spacing:1px; color:var(--text); }
+.logo span { color:var(--accent); }
+#wordCount { font-family:'Space Mono',monospace; font-size:12px; color:var(--text2); background:var(--surface2); padding:4px 10px; border-radius:20px; border:1px solid var(--border); }
+
+#appNav { display:none; gap:10px; padding:15px 20px; overflow-x:auto; background:var(--bg); border-bottom:1px solid var(--border); }
+.nav-btn { background:none; border:none; color:var(--text2); font-family:'Syne',sans-serif; font-size:14px; font-weight:600; padding:8px 16px; border-radius:20px; cursor:pointer; whitespace:nowrap; transition:0.2s; }
+.nav-btn.active { background:var(--accent); color:var(--bg); }
+
+#appMain { display:none; padding:20px; max-width:800px; margin:0 auto; }
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:20px; display:none; }
+.panel.active { display:block; }
+
+/* COMPONENTS */
+.search-box { display:flex; gap:10px; margin-bottom:20px; }
+input[type="text"] { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:14px; color:var(--text); font-family:'Space Mono',monospace; font-size:16px; text-transform:uppercase; outline:none; }
+input[type="text"]:focus { border-color:var(--accent); }
+.btn { background:var(--accent); border:none; color:var(--bg); font-family:'Syne',sans-serif; font-weight:700; padding:0 24px; border-radius:12px; cursor:pointer; }
+
+.results-header { font-size:12px; font-family:'Space Mono',monospace; color:var(--text2); margin-bottom:10px; text-transform:uppercase; }
+.word-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
+.word-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px; font-family:'Space Mono',monospace; font-size:15px; font-weight:700; text-align:center; position:relative; cursor:pointer; transition:0.15s; }
+.word-card:hover { border-color:var(--accent); }
+.word-card .hooks { display:block; font-size:10px; color:var(--text2); font-weight:400; margin-top:4px; }
+
+/* WORD LIST VIEW */
+.wl-item { display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; margin-bottom:8px; }
+.wli-word { font-family:'Space Mono',monospace; font-weight:700; font-size:16px; }
+.wli-meta { font-size:11px; color:var(--text2); margin-top:2px; }
+.delete-btn { background:none; border:none; color:var(--danger); cursor:pointer; font-size:16px; padding:5px; }
+.empty-state { text-align:center; padding:4px; color:var(--text2); font-size:14px; }
+.empty-icon { font-size:40px; margin-bottom:10px; opacity:0.5; }
+</style>
+</head>
+<body>
+
+<div id="loadingScreen">
+  <div class="loader-title">ZYZZYVA</div>
+  <div class="loader-sub">LEXICON PROCESSOR</div>
+  <div class="progress-container">
+    <div id="loadBar"></div>
+  </div>
+  <div id="loadText">Initializing application...</div>
+</div>
+
+<header id="appHeader">
+  <div class="logo">ZYZZYVA<span>.web</span></div>
+  <div id="wordCount">0 Words</div>
+</header>
+
+<nav id="appNav">
+  <button class="nav-btn active" onclick="switchTab('search')">ANAGRAMS</button>
+  <button class="nav-btn" onclick="switchTab('validator')">VALIDATOR</button>
+  <button class="nav-btn" onclick="switchTab('saved')">SAVED WORDS</button>
+</nav>
+
+<main id="appMain">
+  <section id="tab-search" class="panel active">
+    <div class="search-box">
+      <input type="text" id="anagramInput" placeholder="Enter rack (e.g. AEILNRT)" onkeypress="if(event.key==='Enter') searchAnagrams()">
+      <button class="btn" onclick="searchAnagrams()">SEARCH</button>
+    </div>
+    <div class="results-header" id="searchCount">Results will appear here</div>
+    <div class="word-grid" id="searchResults"></div>
+  </section>
+
+  <section id="tab-validator" class="panel">
+    <div class="search-box">
+      <input type="text" id="validateInput" placeholder="Check a word..." onkeypress="if(event.key==='Enter') validateWord()">
+      <button class="btn" onclick="validateWord()">CHECK</button>
+    </div>
+    <div id="validationResult" style="padding: 20px; border-radius: 12px; font-family: 'Space Mono', monospace; font-size: 16px; text-align: center; display: none;"></div>
+  </section>
+
+  <section id="tab-saved" class="panel">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <div class="results-header" style="margin:0;">Your Study List</div>
+      <button onclick="clearWordList()" style="background:none; border:none; color:var(--danger); font-size:12px; cursor:pointer; font-weight:600;">CLEAR ALL</button>
+    </div>
+    <div id="wordListContent"></div>
+  </section>
+</main>
+
+<script>
+// GLOBAL STATE
+let dictionary = [];
+let dictSet = new Set();
+let savedWords = JSON.parse(localStorage.getItem('z_saved') || '[]');
+
+// INITIALIZATION: FETCH CSW24.TXT DYNAMICALLY
+async function initDictionary() {
+  const loadBar = document.getElementById('loadBar');
+  const loadText = document.getElementById('loadText');
+  
+  try {
+    loadBar.style.width = '20%';
+    loadText.textContent = 'Fetching CSW24.txt file...';
+
+    // ดึงไฟล์คำศัพท์จากโฟลเดอร์เดียวกันบน GitHub Pages
+    const response = await fetch('CSW24.txt');
+    if (!response.ok) {
+      throw new Error('Could not find CSW24.txt. Please ensure the filename matches exactly (case-sensitive).');
+    }
+    
+    loadBar.style.width = '50%';
+    loadText.textContent = 'Reading word database...';
+    const txt = await response.text();
+    
+    loadBar.style.width = '80%';
+    loadText.textContent = 'Indexing lexicon in memory...';
+
+    // แยกคำศัพท์ทีละบรรทัด ลบช่องว่าง และแปลงเป็นตัวพิมพ์ใหญ่
+    dictionary = txt.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
+    
+    // โหลดเข้า Set เพื่อความเร็วในการค้นหาระดับมิลลิวินาที O(1) เหมือนโปรแกรมบนคอมพิวเตอร์
+    dictSet = new Set(dictionary);
+    
+    loadBar.style.width = '100%';
+    loadText.textContent = 'Lexicon Loaded Successfully!';
+    
+    setTimeout(() => {
+      document.getElementById('loadingScreen').style.display = 'none';
+      document.getElementById('appHeader').style.display = 'flex';
+      document.getElementById('appNav').style.display = 'flex';
+      document.getElementById('appMain').style.display = 'block';
+      document.getElementById('wordCount').textContent = `${dictionary.length.toLocaleString()} Words (CSW24)`;
+      renderWordList();
+    }, 600);
+  } catch(err) {
+    loadText.textContent = 'Error compiling context dictionary.';
+    alert(err.message);
+    console.error(err);
+  }
+}
+
+// NAVIGATION
+function switchTab(tabId) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  
+  event.target.classList.add('active');
+  document.getElementById(`tab-${tabId}`).classList.add('active');
+}
+
+// HELPER: SORT STRING ALPHABETICALLY (For Anagrams)
+function sortString(str) {
+  return str.split('').sort().join('');
+}
+
+// FUNCTION: ANAGRAM SEARCH (Instant filter)
+function searchAnagrams() {
+  const input = document.getElementById('anagramInput').value.trim().toUpperCase();
+  const resultsEl = document.getElementById('searchResults');
+  const countEl = document.getElementById('searchCount');
+  
+  if (!input) return;
+  
+  const sortedInput = sortString(input);
+  // ค้นหาคำที่มีตัวอักษรผสมกันแล้วตรงกับ Input และมีความยาวเท่ากัน
+  const matches = dictionary.filter(w => w.length === input.length && sortString(w) === sortedInput);
+  
+  countEl.textContent = `${matches.length} Anagram(s) found for "${input}"`;
+  
+  if (matches.length === 0) {
+    resultsEl.innerHTML = '';
+    return;
+  }
+  
+  resultsEl.innerHTML = matches.map(w => {
+    // หา Hooks (ตัวอักษรหน้า/หลังที่แปะแล้วยังเป็นคำที่ถูกต้อง)
+    const fHooks = getFrontHooks(w);
+    const bHooks = getBackHooks(w);
+    return `
+      <div class="word-card" onclick="toggleSaveWord('${w}')">
+        ${w}
+        <span class="hooks">[${fHooks}] + [${bHooks}]</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// FUNCTIONS: HOOKS CHECKER
+function getFrontHooks(word) {
+  let hooks = '';
+  for(let c=65; c<=90; c++) {
+    const char = String.fromCharCode(c);
+    if(dictSet.has(char + word)) hooks += char;
+  }
+  return hooks || '-';
+}
+
+function getBackHooks(word) {
+  let hooks = '';
+  for(let c=65; c<=90; c++) {
+    const char = String.fromCharCode(c);
+    if(dictSet.has(word + char)) hooks += char;
+  }
+  return hooks || '-';
+}
+
+// FUNCTION: WORD VALIDATOR
+function validateWord() {
+  const input = document.getElementById('validateInput').value.trim().toUpperCase();
+  const resultEl = document.getElementById('validationResult');
+  
+  if (!input) return;
+  
+  resultEl.style.display = 'block';
+  if (dictSet.has(input)) {
+    resultEl.style.background = 'rgba(106, 247, 160, 0.1)';
+    resultEl.style.border = '1px solid var(--success)';
+    resultEl.style.color = 'var(--success)';
+    resultEl.innerHTML = `✔️ <strong>${input}</strong> is VALID in CSW24<br><span style="font-size:12px; color:var(--text2)">${getFrontHooks(input)} [${input}] ${getBackHooks(input)}</span>`;
+  } else {
+    resultEl.style.background = 'rgba(247, 106, 106, 0.1)';
+    resultEl.style.border = '1px solid var(--danger)';
+    resultEl.style.color = 'var(--danger)';
+    resultEl.innerHTML = `❌ <strong>${input}</strong> is INVALID`;
+  }
+}
+
+// FUNCTION: SAVE / REMOVE WORD
+function toggleSaveWord(word) {
+  if (savedWords.includes(word)) {
+    savedWords = savedWords.filter(w => w !== word);
+    alert(`Removed ${word} from saved list`);
+  } else {
+    savedWords.push(word);
+    alert(`Saved ${word} to study list!`);
+  }
+  localStorage.setItem('z_saved', JSON.stringify(savedWords));
+  renderWordList();
+}
+
+function renderWordList() {
+  const el = document.getElementById('wordListContent');
+  if (savedWords.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div>No saved words yet<br><span style="font-size:13px;">Search words and click on them to save here</span></div>`;
+    return;
+  }
+  el.innerHTML = savedWords.map((w, i) => `
+    <div class="wl-item">
+      <div>
+        <div class="wli-word">${w}</div>
+        <div class="wli-meta">${w.length} letters · Hooks: ${getFrontHooks(w)} _ ${getBackHooks(w)}</div>
+      </div>
+      <button class="delete-btn" onclick="removeWord(${i})">🗑</button>
+    </div>`).join('');
+}
+
+function removeWord(i) {
+  savedWords.splice(i, 1);
+  localStorage.setItem('z_saved', JSON.stringify(savedWords));
+  renderWordList();
+}
+
+function clearWordList() {
+  if(confirm("Clear all saved words?")) {
+    savedWords = [];
+    localStorage.setItem('z_saved', '[]');
+    renderWordList();
+  }
+}
+
+// RUN ON LOAD
+window.onload = initDictionary;
+</script>
+</body>
+</html>

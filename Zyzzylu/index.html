@@ -6,7 +6,6 @@
   <title>Zyzzylu - Web</title>
   
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="manifest" href="manifest.json">
   
   <style>
     /* --- DESIGN SYSTEM TOKENS --- */
@@ -190,6 +189,9 @@
               <option value="includes">Includes Letters</option>
               <option value="begins">Begins With</option>
               <option value="ends">Ends With</option>
+              <option value="anagram_match">Anagram</option>
+              <option value="subanagram_match">Subanagram</option>
+              <option value="pattern_match">Pattern</option>
               <option value="probability_order">Probability Order</option>
               <option value="limit_probability_order">Limit by Probability Order</option>
             </select>
@@ -312,8 +314,8 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('Service Worker registered!', reg))
-          .catch(err => console.log('Service Worker registration failed: ', err));
+          .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
       });
     }
   </script>

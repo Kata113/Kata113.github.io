@@ -58,8 +58,8 @@ nav { display:flex; background:var(--surface); border-bottom:1px solid var(--bor
 .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
 .tab-icon { font-size:16px; display:block; margin-bottom:2px; }
 
-main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 auto; }
-.section { display:none; animation:fadeUp 0.3s ease; }
+main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 auto; width:100%; }
+.section { display:none; animation:fadeUp 0.3s ease; width:100%; }
 .section.active { display:block; }
 @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
 
@@ -82,7 +82,7 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 .search-btn:hover { opacity:0.85; }
 
 .word-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:12px; animation:fadeUp 0.3s ease; }
-.word-title { font-family:'Space Mono',monospace; font-size:32px; font-weight:700; color:var(--accent); letter-spacing:4px; margin-bottom:4px; }
+.word-title { font-family:'Space Mono',monospace; font-size:32px; font-weight:700; color:var(--accent); letter-spacing:4px; margin-bottom:4px; word-break:break-all; }
 .word-valid { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:4px 12px; border-radius:20px; margin-bottom:12px; }
 .word-valid.yes { background:rgba(106,247,160,0.1); color:var(--success); border:1px solid var(--success); }
 .word-valid.no { background:rgba(247,106,106,0.1); color:var(--danger); border:1px solid var(--danger); }
@@ -103,7 +103,7 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 .empty-icon { font-size:48px; margin-bottom:12px; }
 
 /* QUIZ */
-.quiz-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:24px 20px; }
+.quiz-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:24px 20px; width:100%; }
 .quiz-progress { display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:11px; color:var(--text2); margin-bottom:12px; }
 .progress-bar { width:100%; height:4px; background:var(--surface2); border-radius:2px; margin-bottom:20px; overflow:hidden; }
 .progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:2px; transition:width 0.4s ease; }
@@ -111,7 +111,7 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 .quiz-mode-label { font-size:11px; color:var(--text2); letter-spacing:2px; margin-bottom:8px; }
 .anagram-display {
   font-family:'Space Mono',monospace; font-size:34px; font-weight:700; color:var(--accent2);
-  letter-spacing:6px; text-align:center; margin:16px 0;
+  letter-spacing:6px; text-align:center; margin:16px 0; word-break:break-all;
   text-shadow:0 0 20px rgba(247,160,106,0.3);
 }
 
@@ -121,19 +121,72 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 .btn-submit { padding:12px; border-radius:10px; background:var(--accent); border:none;
   color:#fff; font-family:'Syne',sans-serif; font-size:13px; font-weight:700; cursor:pointer; }
 
-/* DYNAMIC FILTER UI */
+/* FIX DYNAMIC FILTER RESPONSIBLE UI */
 .filter-builder { border:1px dashed var(--border); padding:14px; border-radius:12px; margin-bottom:18px; background:rgba(0,0,0,0.1); }
-.filter-selector-row { display:flex; gap:8px; margin-bottom:12px; }
-.quiz-select { flex:1; padding:10px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:13px; outline:none; }
-.btn-add-filter { padding:0 16px; background:var(--accent); border:none; border-radius:8px; color:#fff; font-weight:700; cursor:pointer; font-size:13px; }
+.quiz-setting-label { font-size:11px; color:var(--text2); letter-spacing:1px; margin-bottom:8px; font-family:'Space Mono',monospace; }
+.filter-selector-row { display:flex; gap:8px; }
+.quiz-select { flex:1; min-width:0; padding:10px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:13px; outline:none; }
+.btn-add-filter { padding:0 16px; background:var(--accent); border:none; border-radius:8px; color:#fff; font-weight:700; cursor:pointer; font-size:13px; white-space:nowrap; }
+
 .filter-stack { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
-.filter-item { display:flex; align-items:center; gap:8px; background:var(--surface2); border:1px solid var(--border); padding:8px 12px; border-radius:8px; animation:fadeUp 0.2s ease; }
-.filter-label { font-family:'Space Mono',monospace; font-size:11px; color:var(--accent2); width:110px; min-width:110px; text-transform:uppercase; }
-.filter-value { flex:1; font-family:'Space Mono',monospace; font-size:13px; color:var(--text); background:transparent; border:none; outline:none; }
-.filter-value-input { flex:1; padding:6px 10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'Space Mono',monospace; font-size:13px; outline:none; }
-.not-toggle { display:flex; align-items:center; gap:4px; font-size:11px; font-weight:700; color:var(--text2); cursor:pointer; padding:4px 8px; border-radius:6px; border:1px solid var(--border); }
+
+/* Filter Item Layout fixes for ultra thin screens */
+.filter-item { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  background: var(--surface2); 
+  border: 1px solid var(--border); 
+  padding: 10px; 
+  border-radius: 8px; 
+  animation: fadeUp 0.2s ease;
+  flex-wrap: wrap; /* ให้หักแถวลงมาได้ถ้าน้อยกว่า 320px */
+}
+.not-toggle { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  font-size: 10px; 
+  font-weight: 700; 
+  color: var(--text2); 
+  cursor: pointer; 
+  padding: 6px 10px; 
+  border-radius: 6px; 
+  border: 1px solid var(--border);
+  background: transparent;
+  min-width: 46px;
+}
 .not-toggle.active { color:var(--danger); border-color:var(--danger); background:rgba(247,106,106,0.05); }
-.btn-remove-filter { background:none; border:none; color:var(--text2); cursor:pointer; font-size:16px; padding:2px 6px; }
+
+.filter-label { 
+  font-family: 'Space Mono', monospace; 
+  font-size: 11px; 
+  color: var(--accent2); 
+  text-transform: uppercase;
+  font-weight: 700;
+  min-width: 80px;
+  flex: 1; /* กินพื้นที่เท่าที่จำเป็น */
+}
+.filter-input-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 2;
+  min-width: 140px; /* บังคับขั้นต่ำให้กรอกง่าย */
+}
+.filter-value-input { 
+  width: 100%;
+  min-width: 0; /* สำคัญ: ป้องกัน flexbox ดันทะลุ */
+  padding: 8px; 
+  background: var(--surface); 
+  border: 1px solid var(--border); 
+  border-radius: 6px; 
+  color: var(--text); 
+  font-family: 'Space Mono', monospace; 
+  font-size: 13px; 
+  outline: none; 
+}
+.btn-remove-filter { background:none; border:none; color:var(--text2); cursor:pointer; font-size:18px; padding:4px 8px; margin-left: auto; }
 .btn-remove-filter:hover { color:var(--danger); }
 
 .quiz-analysis { border-radius:12px; padding:16px; margin:12px 0; animation:fadeUp 0.3s ease; }
@@ -144,8 +197,8 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 .analysis-result.wrong { color:var(--danger); }
 .analysis-word-block { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
 .analysis-word-block:last-child { border-bottom: none; }
-.analysis-word { font-family:'Space Mono',monospace; font-size:22px; color:var(--accent); letter-spacing:3px; margin-bottom:4px; }
-.analysis-detail { font-size:13px; color:var(--text2); line-height:1.6; }
+.analysis-word { font-family:'Space Mono',monospace; font-size:22px; color:var(--accent); letter-spacing:3px; margin-bottom:4px; word-break:break-all; }
+.analysis-detail { font-size:13px; color:var(--text2); line-height:1.6; word-break:break-all; }
 .next-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:12px; color:#fff; font-family:'Syne',sans-serif; font-size:15px; font-weight:700; cursor:pointer; margin-top:8px; }
 
 /* CHALLENGE */
@@ -168,22 +221,20 @@ main { padding:20px; position:relative; z-index:1; max-width:600px; margin:0 aut
 .c-word-display { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:28px 20px; text-align:center; margin-bottom:16px; }
 .c-word { font-family:'Space Mono',monospace; font-size:38px; font-weight:700; color:var(--text); letter-spacing:6px; margin-bottom:8px; word-break:break-all; text-shadow:0 0 30px rgba(124,106,247,0.2); }
 .c-word-len { font-size:12px; color:var(--text2); font-family:'Space Mono',monospace; }
-.c-progress-bar { width:100%; height:3px; background:var(--surface2); border-radius:2px; margin-top:16px; overflow:hidden; }
-.c-progress-fill { height:100%; background:var(--accent3); border-radius:2px; transition:width 0.3s; }
 
 .c-buttons { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
-.btn-valid { padding:20px 10px; border-radius:16px; border:2px solid var(--success); background:rgba(106,247,160,0.08); color:var(--success); font-family:'Syne',sans-serif; font-size:18px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; }
-.btn-invalid { padding:20px 10px; border-radius:16px; border:2px solid var(--danger); background:rgba(247,106,106,0.08); color:var(--danger); font-family:'Syne',sans-serif; font-size:18px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; }
-.btn-sub { font-size:11px; font-weight:400; opacity:0.7; }
+.btn-valid { padding:20px 10px; border-radius:16px; border:2px solid var(--success); background:rgba(106,247,160,0.08); color:var(--success); font-family:'Syne',sans-serif; font-size:18px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; }
+.btn-invalid { padding:20px 10px; border-radius:16px; border:2px solid var(--danger); background:rgba(247,106,106,0.08); color:var(--danger); font-family:'Syne',sans-serif; font-size:18px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; }
+.btn-sub { font-size:11px; font-weight:400; opacity:0.7; word-break:break-all; text-align:center; }
 
 /* SAVED LIST */
 .wordlist-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
 .wordlist-title { font-size:20px; font-weight:800; }
 .clear-btn { font-size:12px; color:var(--danger); background:none; border:1px solid rgba(247,106,106,0.4); border-radius:8px; padding:5px 12px; cursor:pointer; }
-.wl-item { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; animation:fadeUp 0.2s ease; }
-.wli-word { font-family:'Space Mono',monospace; font-size:20px; font-weight:700; color:var(--accent); letter-spacing:3px; }
+.wl-item { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; animation:fadeUp 0.2s ease; }
+.wli-word { font-family:'Space Mono',monospace; font-size:20px; font-weight:700; color:var(--accent); letter-spacing:3px; word-break:break-all; cursor:pointer; }
 .wli-meta { font-size:12px; color:var(--text2); margin-top:3px; }
-.delete-btn { background:none; border:none; cursor:pointer; font-size:18px; color:var(--text2); padding:4px; }
+.delete-btn { background:none; border:none; cursor:pointer; font-size:18px; color:var(--text2); padding:4px; flex-shrink:0; }
 
 .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:12px 20px; border-radius:12px; font-size:14px; z-index:999; transition:transform 0.3s ease,opacity 0.3s ease; opacity:0; white-space:nowrap; }
 .toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
@@ -263,60 +314,37 @@ const tileScores = {
   N:1, O:1, P:3, Q:10, R:1, S:1, T:1, U:1, V:4, W:4, X:8, Y:4, Z:10
 };
 
-// Quiz Dynamic State
-let quizState = { 
-  active: false, 
-  filteredPool: [],
-  currentRack: '', 
-  solutions: [], 
-  questionCount: 0, 
-  correctCount: 0,
-  activeFilters: [] // Array of {id, type, val1, val2, isNot}
-};
-
+let quizState = { active: false, filteredPool: [], currentRack: '', solutions: [], questionCount: 0, correctCount: 0, activeFilters: [] };
 let filterIdCounter = 0;
-
-// Challenge State
 let challengeState = { active: false, currentWord: '', isValid: false, score: 0, timeLeft: 60, timerInterval: null };
 
-window.addEventListener('DOMContentLoaded', () => {
-  autoLoadDictionary();
-});
+window.addEventListener('DOMContentLoaded', () => { autoLoadDictionary(); });
 
 async function autoLoadDictionary() {
   const statusText = document.getElementById('statusText');
   const bar = document.getElementById('initProgress');
-  
   try {
     statusText.innerText = "Downloading CSW24.txt...";
     bar.style.width = "50%";
-    
     const response = await fetch('CSW24.txt');
     if (!response.ok) throw new Error("Could not find CSW24.txt");
-    
     statusText.innerText = "Indexing lexicon database...";
     bar.style.width = "85%";
-    
     const text = await response.text();
     dictionary = text.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
-    
     if (dictionary.length === 0) throw new Error("Dictionary file is empty.");
-
     processDictionary();
     bar.style.width = "100%";
     statusText.innerText = "Launch Successful!";
-    
     setTimeout(() => {
       document.getElementById('loadingScreen').style.display = 'none';
       document.getElementById('appHeader').style.display = 'flex';
       document.getElementById('appNav').style.display = 'flex';
       document.getElementById('appMain').style.display = 'block';
-      
       loadSavedWords();
       initQuizSettings();
       initChallengeIntro();
     }, 400);
-
   } catch (err) {
     statusText.innerText = "⚠️ Error: Make sure 'CSW24.txt' is uploaded alongside this file.";
     statusText.style.color = "var(--danger)";
@@ -328,10 +356,7 @@ async function autoLoadDictionary() {
 function processDictionary() {
   dictionarySet = new Set(dictionary);
   wordsByLength = {};
-  
-  // Base structural sorting for probability
   dictionary.sort((a, b) => a.length - b.length || a.localeCompare(b));
-
   dictionary.forEach(word => {
     const len = word.length;
     if (!wordsByLength[len]) wordsByLength[len] = [];
@@ -360,188 +385,105 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2000);
 }
 
-// ============================================================
-// SEARCH ENGINE
-// ============================================================
 function searchWord() {
   const input = document.getElementById('searchInput');
   const word = input.value.trim().toUpperCase();
   if (!word) return;
-
   const resultDiv = document.getElementById('searchResult');
   const isValid = dictionarySet.has(word);
   const hooks = getHooks(word);
   const anagrams = findAnagramsOfWord(word);
   const isSaved = savedWords.includes(word);
-
-  let html = `
-    <div class="word-card">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-        <div>
-          <div class="word-title">${word}</div>
-          <div class="word-valid ${isValid ? 'yes' : 'no'}">
-            ${isValid ? '✓ VALID IN CSW24' : '✗ INVALID IN CSW24'}
-          </div>
-        </div>
-        ${isValid ? `<button class="hook-pill" style="font-size:18px;" onclick="toggleSaveWord('${word}')">${isSaved?'⭐':'☆'}</button>`:''}
-      </div>
-  `;
-
+  let html = `<div class="word-card"><div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;"><div><div class="word-title">${word}</div><div class="word-valid ${isValid ? 'yes' : 'no'}">${isValid ? '✓ VALID IN CSW24' : '✗ INVALID IN CSW24'}</div></div>${isValid ? `<button class="hook-pill" style="font-size:18px;" onclick="toggleSaveWord('${word}')">${isSaved?'⭐':'☆'}</button>`:''}</div>`;
   if (isValid) {
-    html += `
-      <div class="word-hooks">
-        <div class="hooks-label">FRONT HOOKS</div>
-        <div class="hooks-row">
-          ${hooks.front.length ? hooks.front.map(h => `<span class="hook-pill" onclick="quickSearch('${h+word}')">${h}</span>`).join('') : '<span style="color:var(--text2);font-size:12px;">None</span>'}
-        </div>
-      </div>
-      <div class="word-hooks">
-        <div class="hooks-label">BACK HOOKS</div>
-        <div class="hooks-row">
-          ${hooks.back.length ? hooks.back.map(h => `<span class="hook-pill" onclick="quickSearch('${word+h}')">${h}</span>`).join('') : '<span style="color:var(--text2);font-size:12px;">None</span>'}
-        </div>
-      </div>
-    `;
+    html += `<div class="word-hooks"><div class="hooks-label">FRONT HOOKS</div><div class="hooks-row">${hooks.front.length ? hooks.front.map(h => `<span class="hook-pill" onclick="quickSearch('${h+word}')">${h}</span>`).join('') : '<span style="color:var(--text2);font-size:12px;">None</span>'}</div></div><div class="word-hooks"><div class="hooks-label">BACK HOOKS</div><div class="hooks-row">${hooks.back.length ? hooks.back.map(h => `<span class="hook-pill" onclick="quickSearch('${word+h}')">${h}</span>`).join('') : '<span style="color:var(--text2);font-size:12px;">None</span>'}</div></div>`;
   }
-
   if (anagrams.length > 1) {
-    html += `
-      <div class="anagram-section">
-        <div class="hooks-label">ANAGRAMS (${anagrams.length - 1})</div>
-        <div class="anagram-row">
-          ${anagrams.filter(a => a !== word).map(a => `<span class="anagram-pill" onclick="quickSearch('${a}')">${a}</span>`).join('')}
-        </div>
-      </div>
-    `;
+    html += `<div class="anagram-section"><div class="hooks-label">ANAGRAMS (${anagrams.length - 1})</div><div class="anagram-row">${anagrams.filter(a => a !== word).map(a => `<span class="anagram-pill" onclick="quickSearch('${a}')">${a}</span>`).join('')}</div></div>`;
   }
-
   html += `</div>`;
   resultDiv.innerHTML = html;
 }
 
-function quickSearch(word) {
-  document.getElementById('searchInput').value = word;
-  searchWord();
-}
-
+function quickSearch(word) { document.getElementById('searchInput').value = word; searchWord(); }
 function getHooks(word) {
-  const alphas = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const front = [];
-  const back = [];
-  for (let a of alphas) {
-    if (dictionarySet.has(a + word)) front.push(a);
-    if (dictionarySet.has(word + a)) back.push(a);
-  }
+  const alphas = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; const front = []; const back = [];
+  for (let a of alphas) { if (dictionarySet.has(a + word)) front.push(a); if (dictionarySet.has(word + a)) back.push(a); }
   return { front, back };
 }
-
 function findAnagramsOfWord(word) {
-  const sorted = word.split('').sort().join('');
-  const candidates = wordsByLength[word.length] || [];
+  const sorted = word.split('').sort().join(''); const candidates = wordsByLength[word.length] || [];
   return candidates.filter(w => w.split('').sort().join('') === sorted);
 }
 
-// ============================================================
-// DYNAMIC QUIZ FILTER SYSTEM (ADD ON DEMAND)
-// ============================================================
 function initQuizSettings() {
   quizState.active = false;
   const content = document.getElementById('quizContent');
   content.innerHTML = `
     <div class="quiz-card">
       <h2 style="font-size:20px; font-weight:800; margin-bottom:16px; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">🧠 Anagram Custom Builder</h2>
-      
       <div class="filter-builder">
         <div class="quiz-setting-label">ADD NEW CRITERIA / FILTER</div>
         <div class="filter-selector-row">
           <select class="quiz-select" id="filterTypeSelect">
-            <option value="length">Length Range (Min - Max)</option>
-            <option value="probability">Probability Index Range</option>
-            <option value="score">Score Face Value Range</option>
-            <option value="includes">Includes Letters (Contains)</option>
+            <option value="length">Length Range</option>
+            <option value="probability">Probability Range</option>
+            <option value="score">Score Range</option>
+            <option value="includes">Includes Letters</option>
             <option value="begins">Begins With</option>
             <option value="ends">Ends With</option>
             <option value="anagram">Anagram Match</option>
-            <option value="pattern">Pattern Match (Wildcards ? / *)</option>
+            <option value="pattern">Pattern Match</option>
           </select>
           <button class="btn-add-filter" onclick="addNewFilterItem()">+ ADD</button>
         </div>
       </div>
-
       <div class="filter-stack" id="filterStack"></div>
-
       <button class="start-btn" style="margin-top:10px;" onclick="compileFiltersAndStart()">START CUSTOM QUIZ</button>
     </div>
   `;
-  
-  // Render existing filters if any
   renderFilterStack();
 }
 
 function addNewFilterItem() {
-  const type = document.getElementById('filterTypeSelect').value;
-  filterIdCounter++;
-  
+  const type = document.getElementById('filterTypeSelect').value; filterIdCounter++;
   let newItem = { id: filterIdCounter, type: type, val1: '', val2: '', isNot: false };
-  
-  // Set defaults for ease of use
   if (type === 'length') { newItem.val1 = '2'; newItem.val2 = '8'; }
   if (type === 'probability') { newItem.val1 = '1'; newItem.val2 = '2000'; }
   if (type === 'score') { newItem.val1 = '10'; newItem.val2 = '40'; }
-  
   quizState.activeFilters.push(newItem);
   renderFilterStack();
 }
 
-function removeFilterItem(id) {
-  quizState.activeFilters = quizState.activeFilters.filter(f => f.id !== id);
-  renderFilterStack();
-}
-
-function toggleFilterNot(id) {
-  const item = quizState.activeFilters.find(f => f.id === id);
-  if (item) item.isNot = !item.isNot;
-  renderFilterStack();
-}
-
-function updateFilterVal(id, field, value) {
-  const item = quizState.activeFilters.find(f => f.id === id);
-  if (item) item[field] = value.toUpperCase();
-}
+function removeFilterItem(id) { quizState.activeFilters = quizState.activeFilters.filter(f => f.id !== id); renderFilterStack(); }
+function toggleFilterNot(id) { const item = quizState.activeFilters.find(f => f.id === id); if (item) item.isNot = !item.isNot; renderFilterStack(); }
+function updateFilterVal(id, field, value) { const item = quizState.activeFilters.find(f => f.id === id); if (item) item[field] = value.toUpperCase(); }
 
 function renderFilterStack() {
-  const container = document.getElementById('filterStack');
-  if (!container) return;
-  
+  const container = document.getElementById('filterStack'); if (!container) return;
   if (quizState.activeFilters.length === 0) {
     container.innerHTML = `<div style="text-align:center; color:var(--text2); font-size:12px; padding:10px 0;">No filters active. Quiz will pick randomly from all words.</div>`;
     return;
   }
-  
   container.innerHTML = quizState.activeFilters.map(f => {
     let inputsHtml = '';
-    
     if (f.type === 'length' || f.type === 'probability' || f.type === 'score') {
       inputsHtml = `
-        <input type="number" class="filter-value-input" style="max-width:80px;" value="${f.val1}" placeholder="Min" onchange="updateFilterVal(${f.id}, 'val1', this.value)">
-        <span style="color:var(--text2); font-size:12px;">to</span>
-        <input type="number" class="filter-value-input" style="max-width:80px;" value="${f.val2}" placeholder="Max" onchange="updateFilterVal(${f.id}, 'val2', this.value)">
+        <input type="number" class="filter-value-input" style="flex:1;" value="${f.val1}" placeholder="Min" onchange="updateFilterVal(${f.id}, 'val1', this.value)">
+        <span style="color:var(--text2); font-size:11px;">-</span>
+        <input type="number" class="filter-value-input" style="flex:1;" value="${f.val2}" placeholder="Max" onchange="updateFilterVal(${f.id}, 'val2', this.value)">
       `;
     } else {
-      let placeholderText = "Type value...";
+      let placeholderText = "Value...";
       if (f.type === 'pattern') placeholderText = "?A?E or *ING";
-      if (f.type === 'includes') placeholderText = "e.g. QX or ... (Blanks)";
-      
-      inputsHtml = `
-        <input type="text" class="filter-value-input" value="${f.val1}" placeholder="${placeholderText}" oninput="updateFilterVal(${f.id}, 'val1', this.value)">
-      `;
+      if (f.type === 'includes') placeholderText = "e.g. QX or ...";
+      inputsHtml = `<input type="text" class="filter-value-input" value="${f.val1}" placeholder="${placeholderText}" oninput="updateFilterVal(${f.id}, 'val1', this.value)">`;
     }
-    
     return `
       <div class="filter-item">
         <button class="not-toggle ${f.isNot ? 'active' : ''}" onclick="toggleFilterNot(${f.id})">NOT</button>
         <div class="filter-label">${f.type}</div>
-        <div style="display:flex; align-items:center; gap:6px; flex:1;">
+        <div class="filter-input-container">
           ${inputsHtml}
         </div>
         <button class="btn-remove-filter" onclick="removeFilterItem(${f.id})">✕</button>
@@ -550,142 +492,54 @@ function renderFilterStack() {
   }).join('');
 }
 
-// Helper checker function for Blank wildcards support inside Include arrays
 function matchBlankInclusion(word, filterStr) {
   let wordChars = word.split('');
   for (let fChar of filterStr) {
-    if (fChar === '.') {
-      if (wordChars.length > 0) wordChars.pop(); // safe to consume any char
-      else return false;
-    } else {
-      let index = wordChars.indexOf(fChar);
-      if (index !== -1) wordChars.splice(index, 1);
-      else return false;
-    }
+    if (fChar === '.') { if (wordChars.length > 0) wordChars.pop(); else return false; } 
+    else { let index = wordChars.indexOf(fChar); if (index !== -1) wordChars.splice(index, 1); else return false; }
   }
   return true;
 }
 
-// Convert flexible string bounds featuring '.' into RegExp format
 function convertToRegex(pattern, strictAnchor = false) {
   let rStr = pattern.replace(/\?/g, '.').replace(/\*/g, '.*').replace(/\./g, '.');
-  if (strictAnchor) return new RegExp("^" + rStr + "$");
-  return new RegExp(rStr);
+  if (strictAnchor) return new RegExp("^" + rStr + "$"); return new RegExp(rStr);
 }
 
 function checkAnagramWithBlanks(word, targetPattern) {
-  if (word.length !== targetPattern.length) return false;
-  let wChars = word.split('');
-  for (let pChar of targetPattern) {
-    if (pChar === '.') continue;
-    let idx = wChars.indexOf(pChar);
-    if (idx !== -1) wChars.splice(idx, 1);
-    else return false;
-  }
+  if (word.length !== targetPattern.length) return false; let wChars = word.split('');
+  for (let pChar of targetPattern) { if (pChar === '.') continue; let idx = wChars.indexOf(pChar); if (idx !== -1) wChars.splice(idx, 1); else return false; }
   return true;
 }
 
-// ============================================================
-// COMPILING AND EVALUATING THE DYNAMIC FILTERS POOL
-// ============================================================
 function compileFiltersAndStart() {
   let pool = dictionary.filter((word, index) => {
-    
     for (let f of quizState.activeFilters) {
       let isConditionMet = true;
-      
-      if (f.type === 'length') {
-        let min = parseInt(f.val1) || 0;
-        let max = parseInt(f.val2) || Infinity;
-        isConditionMet = (word.length >= min && word.length <= max);
-      }
-      
-      else if (f.type === 'probability') {
-        let min = parseInt(f.val1) || 1;
-        let max = parseInt(f.val2) || Infinity;
-        let currentProbIdx = index + 1;
-        isConditionMet = (currentProbIdx >= min && currentProbIdx <= max);
-      }
-      
-      else if (f.type === 'score') {
-        let min = parseInt(f.val1) || 0;
-        let max = parseInt(f.val2) || Infinity;
-        let score = calculateWordScore(word);
-        isConditionMet = (score >= min && score <= max);
-      }
-      
-      else if (f.type === 'includes') {
-        if (!f.val1) continue;
-        isConditionMet = matchBlankInclusion(word, f.val1);
-      }
-      
-      else if (f.type === 'begins') {
-        if (!f.val1) continue;
-        let reg = convertToRegex(f.val1);
-        isConditionMet = new RegExp("^" + reg.source).test(word);
-      }
-      
-      else if (f.type === 'ends') {
-        if (!f.val1) continue;
-        let reg = convertToRegex(f.val1);
-        isConditionMet = new RegExp(reg.source + "$").test(word);
-      }
-      
-      else if (f.type === 'anagram') {
-        if (!f.val1) continue;
-        isConditionMet = checkAnagramWithBlanks(word, f.val1);
-      }
-      
-      else if (f.type === 'pattern') {
-        if (!f.val1) continue;
-        let reg = convertToRegex(f.val1, true);
-        isConditionMet = reg.test(word);
-      }
-
-      // Invert Logic gracefully if NOT token is enabled
-      if (f.isNot) {
-        isConditionMet = !isConditionMet;
-      }
-      
-      // If any of the filters fail, drop word from sub-lexicon pool
-      if (!isConditionMet) return false;
+      if (f.type === 'length') { let min = parseInt(f.val1) || 0; let max = parseInt(f.val2) || Infinity; isConditionMet = (word.length >= min && word.length <= max); }
+      else if (f.type === 'probability') { let min = parseInt(f.val1) || 1; let max = parseInt(f.val2) || Infinity; let currentProbIdx = index + 1; isConditionMet = (currentProbIdx >= min && currentProbIdx <= max); }
+      else if (f.type === 'score') { let min = parseInt(f.val1) || 0; let max = parseInt(f.val2) || Infinity; let score = calculateWordScore(word); isConditionMet = (score >= min && score <= max); }
+      else if (f.type === 'includes') { if (!f.val1) continue; isConditionMet = matchBlankInclusion(word, f.val1); }
+      else if (f.type === 'begins') { if (!f.val1) continue; let reg = convertToRegex(f.val1); isConditionMet = new RegExp("^" + reg.source).test(word); }
+      else if (f.type === 'ends') { if (!f.val1) continue; let reg = convertToRegex(f.val1); isConditionMet = new RegExp(reg.source + "$").test(word); }
+      else if (f.type === 'anagram') { if (!f.val1) continue; isConditionMet = checkAnagramWithBlanks(word, f.val1); }
+      else if (f.type === 'pattern') { if (!f.val1) continue; let reg = convertToRegex(f.val1, true); isConditionMet = reg.test(word); }
+      if (f.isNot) isConditionMet = !isConditionMet; if (!isConditionMet) return false;
     }
-    
     return true;
   });
-
-  if (pool.length === 0) {
-    alert("❌ No words found! The combined filters (with NOT settings) left 0 options.");
-    return;
-  }
-
-  quizState.filteredPool = pool;
-  quizState.active = true;
-  quizState.questionCount = 0;
-  quizState.correctCount = 0;
-  
-  showToast(`Loaded ${pool.length} Custom Matches!`);
-  nextQuizQuestion();
+  if (pool.length === 0) { alert("❌ No words found! The filters left 0 options."); return; }
+  quizState.filteredPool = pool; quizState.active = true; quizState.questionCount = 0; quizState.correctCount = 0;
+  showToast(`Loaded ${pool.length} Custom Matches!`); nextQuizQuestion();
 }
 
 function nextQuizQuestion() {
   quizState.questionCount++;
-  
   const baseWord = quizState.filteredPool[Math.floor(Math.random() * quizState.filteredPool.length)];
   let rackChars = baseWord.split('');
-  
-  quizState.currentRack = rackChars.sort().join('');
-  quizState.solutions = [];
-  
-  const targetLen = baseWord.length;
-  const candidates = wordsByLength[targetLen] || [];
-  
-  candidates.forEach(w => {
-    if (w.split('').sort().join('') === quizState.currentRack) {
-      quizState.solutions.push(w);
-    }
-  });
-
+  quizState.currentRack = rackChars.sort().join(''); quizState.solutions = [];
+  const targetLen = baseWord.length; const candidates = wordsByLength[targetLen] || [];
+  candidates.forEach(w => { if (w.split('').sort().join('') === quizState.currentRack) quizState.solutions.push(w); });
   renderQuizScreen();
 }
 
@@ -693,29 +547,12 @@ function renderQuizScreen() {
   const content = document.getElementById('quizContent');
   content.innerHTML = `
     <div class="quiz-card">
-      <div class="quiz-progress">
-        <span>QUESTION ${quizState.questionCount}</span>
-        <span>SCORE: ${quizState.correctCount} / ${quizState.questionCount - 1}</span>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill" style="width: ${Math.min(100, (quizState.questionCount / 20) * 100)}%"></div>
-      </div>
-      
+      <div class="quiz-progress"><span>QUESTION ${quizState.questionCount}</span><span>SCORE: ${quizState.correctCount} / ${quizState.questionCount - 1}</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(100, (quizState.questionCount / 20) * 100)}%"></div></div>
       <div class="quiz-mode-label" style="text-align:center;">ANAGRAM THIS RACK</div>
       <div class="anagram-display">${quizState.currentRack}</div>
-      
-      <div style="margin: 20px 0;">
-        <input type="text" id="quizInput" class="search-input" placeholder="TYPE ANSWER HERE..." 
-          autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
-          style="text-align:center; font-size:22px; letter-spacing:4px;"
-          onkeydown="if(event.key==='Enter')submitQuizAnswer()" oninput="this.value=this.value.toUpperCase()">
-      </div>
-
-      <div class="quiz-actions" id="quizControlArea">
-        <button class="btn-clear" onclick="revealQuizResult(false)">SURRENDER</button>
-        <button class="btn-submit" onclick="submitQuizAnswer()">SUBMIT</button>
-      </div>
-
+      <div style="margin: 20px 0;"><input type="text" id="quizInput" class="search-input" placeholder="TYPE ANSWER HERE..." autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" style="text-align:center; font-size:22px; letter-spacing:4px;" onkeydown="if(event.key==='Enter')submitQuizAnswer()" oninput="this.value=this.value.toUpperCase()"></div>
+      <div class="quiz-actions" id="quizControlArea"><button class="btn-clear" onclick="revealQuizResult(false)">SURRENDER</button><button class="btn-submit" onclick="submitQuizAnswer()">SUBMIT</button></div>
       <div id="quizFeedbackSlot"></div>
     </div>
   `;
@@ -723,208 +560,70 @@ function renderQuizScreen() {
 }
 
 function submitQuizAnswer() {
-  const input = document.getElementById('quizInput');
-  if (!input) return;
-  const ans = input.value.trim().toUpperCase();
-  if (!ans) return;
-
-  const isCorrect = quizState.solutions.includes(ans);
-  if (isCorrect) quizState.correctCount++;
-  
-  revealQuizResult(isCorrect, ans);
+  const input = document.getElementById('quizInput'); if (!input) return; const ans = input.value.trim().toUpperCase(); if (!ans) return;
+  const isCorrect = quizState.solutions.includes(ans); if (isCorrect) quizState.correctCount++; revealQuizResult(isCorrect, ans);
 }
 
 function revealQuizResult(isCorrect, submittedAns = "") {
-  document.getElementById('quizControlArea').style.pointerEvents = 'none';
-  document.getElementById('quizControlArea').style.opacity = '0.4';
-  const input = document.getElementById('quizInput');
-  if (input) input.disabled = true;
-
-  const slot = document.getElementById('quizFeedbackSlot');
-  let statusClass = isCorrect ? 'correct' : 'wrong';
-  let titleText = isCorrect ? '✓ CORRECT!' : (submittedAns === "" ? 'SKIPPED' : '✗ INCORRECT!');
-  
-  let html = `
-    <div class="quiz-analysis ${statusClass}">
-      <div class="analysis-result ${statusClass}">${titleText}</div>
-      <div class="hooks-label" style="margin-bottom:12px; color:var(--text)">VALID SOLUTIONS & HOOKS:</div>
-  `;
-
+  document.getElementById('quizControlArea').style.pointerEvents = 'none'; document.getElementById('quizControlArea').style.opacity = '0.4';
+  const input = document.getElementById('quizInput'); if (input) input.disabled = true;
+  const slot = document.getElementById('quizFeedbackSlot'); let statusClass = isCorrect ? 'correct' : 'wrong'; let titleText = isCorrect ? '✓ CORRECT!' : (submittedAns === "" ? 'SKIPPED' : '✗ INCORRECT!');
+  let html = `<div class="quiz-analysis ${statusClass}"><div class="analysis-result ${statusClass}">${titleText}</div><div class="hooks-label" style="margin-bottom:12px; color:var(--text)">VALID SOLUTIONS & HOOKS:</div>`;
   quizState.solutions.forEach(word => {
     const hooks = getHooks(word);
-    html += `
-      <div class="analysis-word-block">
-        <div class="analysis-word">${word} <span style="font-size:12px;color:var(--text2)">(${calculateWordScore(word)} pts)</span></div>
-        <div style="margin-top:4px; display:flex; flex-direction:column; gap:4px;">
-          <div class="analysis-detail"><span style="color:var(--accent3); font-weight:700;">[F] Hooks:</span> ${hooks.front.length ? hooks.front.join(', ') : '-'}</div>
-          <div class="analysis-detail"><span style="color:var(--accent2); font-weight:700;">[B] Hooks:</span> ${hooks.back.length ? hooks.back.join(', ') : '-'}</div>
-        </div>
-      </div>
-    `;
+    html += `<div class="analysis-word-block"><div class="analysis-word">${word} <span style="font-size:12px;color:var(--text2)">(${calculateWordScore(word)} pts)</span></div><div style="margin-top:4px; display:flex; flex-direction:column; gap:4px;"><div class="analysis-detail"><span style="color:var(--accent3); font-weight:700;">[F]</span> ${hooks.front.length ? hooks.front.join(', ') : '-'}</div><div class="analysis-detail"><span style="color:var(--accent2); font-weight:700;">[B]</span> ${hooks.back.length ? hooks.back.join(', ') : '-'}</div></div></div>`;
   });
-
-  html += `
-      <div style="display:flex; gap:8px; margin-top:12px;">
-        <button class="btn-clear" style="flex:1;" onclick="initQuizSettings()">⚙️ EDIT FILTERS</button>
-        <button class="next-btn" style="flex:2; margin-top:0;" onclick="nextQuizQuestion()">NEXT QUESTION →</button>
-      </div>
-    </div>
-  `;
-  slot.innerHTML = html;
-  
-  score = quizState.correctCount * 10;
-  document.getElementById('globalScore').innerText = `⭐ ${score} pts`;
+  html += `<div style="display:flex; gap:8px; margin-top:12px;"><button class="btn-clear" style="flex:1;" onclick="initQuizSettings()">⚙️ FILTERS</button><button class="next-btn" style="flex:2; margin-top:0;" onclick="nextQuizQuestion()">NEXT →</button></div></div>`;
+  slot.innerHTML = html; score = quizState.correctCount * 10; document.getElementById('globalScore').innerText = `⭐ ${score} pts`;
 }
 
-// ============================================================
-// BLITZ CHALLENGE
-// ============================================================
 function initChallengeIntro() {
   const content = document.getElementById('challengeContent');
-  content.innerHTML = `
-    <div class="challenge-intro">
-      <h2>⚡ Blitz Challenge</h2>
-      <p>Decide whether the displayed word is valid or invalid in CSW24. You have 60 seconds!</p>
-      <div class="challenge-stats">
-        <div class="stat-box"><div class="stat-val">60s</div><div class="stat-lbl">Time Limit</div></div>
-        <div class="stat-box"><div class="stat-val">+10</div><div class="stat-lbl">Correct</div></div>
-        <div class="stat-box"><div class="stat-val">-5</div><div class="stat-lbl">Wrong</div></div>
-      </div>
-      <button class="start-btn" onclick="startChallenge()">START CHALLENGE</button>
-    </div>
-  `;
+  content.innerHTML = `<div class="challenge-intro"><h2>⚡ Blitz Challenge</h2><p>Decide whether the displayed word is valid or invalid in CSW24. You have 60 seconds!</p><div class="challenge-stats"><div class="stat-box"><div class="stat-val">60s</div><div class="stat-lbl">Time Limit</div></div><div class="stat-box"><div class="stat-val">+10</div><div class="stat-lbl">Correct</div></div><div class="stat-box"><div class="stat-val">-5</div><div class="stat-lbl">Wrong</div></div></div><button class="start-btn" onclick="startChallenge()">START CHALLENGE</button></div>`;
 }
 
 function startChallenge() {
-  challengeState.active = true;
-  challengeState.score = 0;
-  challengeState.timeLeft = 60;
-  
+  challengeState.active = true; challengeState.score = 0; challengeState.timeLeft = 60;
   const content = document.getElementById('challengeContent');
-  content.innerHTML = `
-    <div class="challenge-game">
-      <div class="c-header">
-        <div>
-          <div class="c-label">SCORE</div>
-          <div class="c-score" id="cScore">0 pts</div>
-        </div>
-        <div class="timer" id="cTimer">60</div>
-      </div>
-      <div class="c-word-display">
-        <div class="c-word" id="cWord">---</div>
-        <div class="c-word-len" id="cWordLen">0 LETTERS</div>
-      </div>
-      <div class="c-buttons">
-        <button class="btn-valid" onclick="submitChallengeAnswer(true)">
-          <span>VALID</span><span class="btn-sub">✓ True Word</span>
-        </button>
-        <button class="btn-invalid" onclick="submitChallengeAnswer(false)">
-          <span>INVALID</span><span class="btn-sub">✗ Phony Word</span>
-        </button>
-      </div>
-    </div>
-  `;
-
+  content.innerHTML = `<div class="challenge-game"><div class="c-header"><div><div class="c-label">SCORE</div><div class="c-score" id="cScore">0 pts</div></div><div class="timer" id="cTimer">60</div></div><div class="c-word-display"><div class="c-word" id="cWord">---</div><div class="c-word-len" id="cWordLen">0 LETTERS</div></div><div class="c-buttons"><button class="btn-valid" onclick="submitChallengeAnswer(true)"><span>VALID</span><span class="btn-sub">✓ True Word</span></button><button class="btn-invalid" onclick="submitChallengeAnswer(false)"><span>INVALID</span><span class="btn-sub">✗ Phony Word</span></button></div></div>`;
   challengeState.timerInterval = setInterval(() => {
-    challengeState.timeLeft--;
-    const timerDiv = document.getElementById('cTimer');
-    if (!timerDiv) return;
-    timerDiv.innerText = challengeState.timeLeft;
-    if (challengeState.timeLeft <= 5) timerDiv.style.color = "var(--danger)";
-    if (challengeState.timeLeft <= 0) endChallenge();
+    challengeState.timeLeft--; const timerDiv = document.getElementById('cTimer'); if (!timerDiv) return; timerDiv.innerText = challengeState.timeLeft;
+    if (challengeState.timeLeft <= 5) timerDiv.style.color = "var(--danger)"; if (challengeState.timeLeft <= 0) endChallenge();
   }, 1000);
-
   nextChallengeWord();
 }
 
 function nextChallengeWord() {
-  if (!challengeState.active) return;
-  const showValid = Math.random() < 0.5;
-  let word = "";
-  
-  if (showValid) {
-    word = dictionary[Math.floor(Math.random() * dictionary.length)];
-    challengeState.isValid = true;
-  } else {
-    const base = dictionary[Math.floor(Math.random() * dictionary.length)];
-    const alphas = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const pos = Math.floor(Math.random() * base.length);
-    word = base.substring(0, pos) + alphas[Math.floor(Math.random() * 26)] + base.substring(pos + 1);
-    challengeState.isValid = dictionarySet.has(word);
-  }
-  
-  challengeState.currentWord = word;
-  document.getElementById('cWord').innerText = word;
-  document.getElementById('cWordLen').innerText = `${word.length} LETTERS`;
+  if (!challengeState.active) return; const showValid = Math.random() < 0.5; let word = "";
+  if (showValid) { word = dictionary[Math.floor(Math.random() * dictionary.length)]; challengeState.isValid = true; } 
+  else { const base = dictionary[Math.floor(Math.random() * dictionary.length)]; const alphas = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; const pos = Math.floor(Math.random() * base.length); word = base.substring(0, pos) + alphas[Math.floor(Math.random() * 26)] + base.substring(pos + 1); challengeState.isValid = dictionarySet.has(word); }
+  challengeState.currentWord = word; document.getElementById('cWord').innerText = word; document.getElementById('cWordLen').innerText = `${word.length} LETTERS`;
 }
 
 function submitChallengeAnswer(userGuess) {
-  if (!challengeState.active) return;
-  const isCorrect = (userGuess === challengeState.isValid);
-  
-  if (isCorrect) challengeState.score += 10;
-  else challengeState.score = Math.max(0, challengeState.score - 5);
-  
-  document.getElementById('cScore').innerText = `${challengeState.score} pts`;
-  nextChallengeWord();
+  if (!challengeState.active) return; const isCorrect = (userGuess === challengeState.isValid);
+  if (isCorrect) challengeState.score += 10; else challengeState.score = Math.max(0, challengeState.score - 5);
+  document.getElementById('cScore').innerText = `${challengeState.score} pts`; nextChallengeWord();
 }
 
 function endChallenge() {
-  clearInterval(challengeState.timerInterval);
-  challengeState.active = false;
-  score += challengeState.score;
-  document.getElementById('globalScore').innerText = `⭐ ${score} pts`;
-
+  clearInterval(challengeState.timerInterval); challengeState.active = false; score += challengeState.score; document.getElementById('globalScore').innerText = `⭐ ${score} pts`;
   const content = document.getElementById('challengeContent');
-  content.innerHTML = `
-    <div class="results-screen">
-      <div class="results-emoji">🏁</div>
-      <div class="results-score">${challengeState.score} PTS</div>
-      <div class="results-label">Time is up!</div>
-      <button class="play-again-btn" onclick="initChallengeIntro()">CONTINUE</button>
-    </div>
-  `;
+  content.innerHTML = `<div class="results-screen" style="text-align:center; padding:30px 10px;"><div style="font-size:48px;">🏁</div><div style="font-size:32px; font-weight:800; color:var(--accent); margin:10px 0;">${challengeState.score} PTS</div><div style="color:var(--text2); margin-bottom:20px;">Blitz Challenge Completed!</div><button class="start-btn" onclick="initChallengeIntro()">CONTINUE</button></div>`;
 }
 
-// ============================================================
-// SAVED WORDS LIST
-// ============================================================
 function loadSavedWords() {
-  const content = document.getElementById('wordListContent');
-  if (savedWords.length === 0) {
-    content.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div>No bookmarked words yet.</div>`;
-    return;
-  }
-  content.innerHTML = savedWords.map(w => `
-    <div class="wl-item">
-      <div>
-        <div class="wli-word" onclick="quickSearch('${w}'); showTab('search', document.querySelectorAll('.tab')[0]);">${w}</div>
-        <div class="wli-meta">${w.length} letters</div>
-      </div>
-      <button class="delete-btn" onclick="toggleSaveWord('${w}')">🗑️</button>
-    </div>
-  `).join('');
+  const content = document.getElementById('wordListContent'); if (savedWords.length === 0) { content.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div>No bookmarked words yet.</div>`; return; }
+  content.innerHTML = savedWords.map(w => `<div class="wl-item"><div><div class="wli-word" onclick="quickSearch('${w}'); showTab('search', document.querySelectorAll('.tab')[0]);">${w}</div><div class="wli-meta">${w.length} letters</div></div><button class="delete-btn" onclick="toggleSaveWord('${w}')">🗑️</button></div>`).join('');
 }
 
 function toggleSaveWord(word) {
-  if (savedWords.includes(word)) {
-    savedWords = savedWords.filter(w => w !== word);
-    showToast(`Removed ${word}`);
-  } else {
-    savedWords.push(word);
-    showToast(`Saved ${word}`);
-  }
-  localStorage.setItem('zyzzyva_saved', JSON.stringify(savedWords));
-  loadSavedWords();
+  if (savedWords.includes(word)) { savedWords = savedWords.filter(w => w !== word); showToast(`Removed ${word}`); } 
+  else { savedWords.push(word); showToast(`Saved ${word}`); }
+  localStorage.setItem('zyzzyva_saved', JSON.stringify(savedWords)); loadSavedWords();
 }
 
-function clearWordList() {
-  if (confirm("Clear all?")) {
-    savedWords = [];
-    localStorage.setItem('zyzzyva_saved', '[]');
-    loadSavedWords();
-  }
-}
+function clearWordList() { if (confirm("Clear all?")) { savedWords = []; localStorage.setItem('zyzzyva_saved', '[]'); loadSavedWords(); } }
 </script>
 </body>
 </html>

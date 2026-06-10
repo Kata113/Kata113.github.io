@@ -1,84 +1,56 @@
-// --- GLOBAL STATES (แชร์ให้ทุกไฟล์เข้าถึงได้) ---
-let dict = [], dictSet = new Set(), wordsByL = {};
-let saved = JSON.parse(localStorage.getItem('zyz_sv') || '[]');
-let sFilters = [], qFilters = [], fId = 0;
-let currentResultsList = [], currentWordIndex = -1;
-let activeSearchMode = 'subanagram';
+// --- GLOBAL STATES (แชร์ให้ทุกไฟล์เข้าถึงได้ตามโครงสร้างเดิม) ---
+let dict = [], dictSet = new Set(), wordsByL = {}; //[cite: 8]
+let saved = JSON.parse(localStorage.getItem('zyz_sv') || '[]'); //[cite: 8]
+let sFilters = [], qFilters = [], fId = 0; //[cite: 8]
+let currentResultsList = [], currentWordIndex = -1; //[cite: 8]
+let activeSearchMode = 'subanagram'; //[cite: 8]
 
-const letterScores = { A:1,E:1,I:1,O:1,U:1,L:1,N:1,S:1,T:1,R:1, D:2,G:2, B:3,C:3,M:3,P:3, F:4,H:4,V:4,W:4,Y:4, K:5, J:8,X:8, Q:10,Z:10 };
-const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const letterScores = { A:1,E:1,I:1,O:1,U:1,L:1,N:1,S:1,T:1,R:1, D:2,G:2, B:3,C:3,M:3,P:3, F:4,H:4,V:4,W:4,Y:4, K:5, J:8,X:8, Q:10,Z:10 }; //[cite: 8]
+const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; //[cite: 8]
 
-// Letter frequency map matching Scrabble standard bag
 const letterFrequencies = {
   A: 9, B: 2, C: 2, D: 4, E: 12, F: 2, G: 3, H: 2, I: 9, J: 1, K: 1, L: 4,
   M: 2, N: 6, O: 8, P: 2, Q: 1, R: 6, S: 4, T: 6, U: 4, V: 2, W: 2, X: 1,
   Y: 2, Z: 1
-};
+}; //[cite: 8]
 
-// nCr combinations helper
 function choose(n, k) {
   if (k < 0 || k > n) return 0;
   if (k === 0 || k === n) return 1;
   if (k > n / 2) k = n - k;
   let res = 1;
-  for (let i = 1; i <= k; i++) {
-    res = res * (n - i + 1) / i;
-  }
+  for (let i = 1; i <= k; i++) { res = res * (n - i + 1) / i; }
   return res;
-}
+} //[cite: 8]
 
 function getProbabilityScore(w) {
   let counts = {};
-  for (let i = 0; i < w.length; i++) {
-    let c = w[i];
-    counts[c] = (counts[c] || 0) + 1;
-  }
+  for (let i = 0; i < w.length; i++) { let c = w[i]; counts[c] = (counts[c] || 0) + 1; }
   let score = 1;
-  for (let c in counts) {
-    let freq = letterFrequencies[c] || 0;
-    score *= choose(freq, counts[c]);
-  }
+  for (let c in counts) { let freq = letterFrequencies[c] || 0; score *= choose(freq, counts[c]); }
   return score;
-}
+} //[cite: 8]
 
-let probCache = {}; // maps length -> sorted array of words of that length
-let probRankMap = {}; // maps word -> 1-based global probability rank among same-length words
+let probCache = {}; //[cite: 8]
+let probRankMap = {}; //[cite: 8]
 
 function initProbabilityCache() {
-  probCache = {};
-  probRankMap = {};
-  
-  // Precompute scores for all words to avoid O(N log N) calculations during sort
+  probCache = {}; probRankMap = {};
   const wordScores = {};
-  for (let i = 0; i < dict.length; i++) {
-    let w = dict[i];
-    wordScores[w] = getProbabilityScore(w);
-  }
-  
-  for (let w of dict) {
-    let len = w.length;
-    if (!probCache[len]) probCache[len] = [];
-    probCache[len].push(w);
-  }
-  
+  for (let i = 0; i < dict.length; i++) { let w = dict[i]; wordScores[w] = getProbabilityScore(w); }
+  for (let w of dict) { let len = w.length; if (!probCache[len]) probCache[len] = []; probCache[len].push(w); }
   for (let len in probCache) {
     let wordsOfLen = probCache[len];
     wordsOfLen.sort((a, b) => {
-      let scoreA = wordScores[a];
-      let scoreB = wordScores[b];
-      if (scoreA !== scoreB) {
-        return scoreB - scoreA; // Descending
-      }
-      return a < b ? -1 : 1; // Alphabetical fallback
+      let scoreA = wordScores[a], scoreB = wordScores[b];
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return a < b ? -1 : 1;
     });
-    for (let i = 0; i < wordsOfLen.length; i++) {
-      probRankMap[wordsOfLen[i]] = i + 1; // 1-based rank
-    }
+    for (let i = 0; i < wordsOfLen.length; i++) { probRankMap[wordsOfLen[i]] = i + 1; }
   }
-}
+} //[cite: 8]
 
-// --- CORE UTILITIES ---
-const getWordScore = w => [...w].reduce((a, c) => a + (letterScores[c] || 0), 0);
+const getWordScore = w => [...w].reduce((a, c) => a + (letterScores[c] || 0), 0); //[cite: 8]
 
 function getHooksAndDots(w) {
   let f = '', b = '';
@@ -91,38 +63,39 @@ function getHooksAndDots(w) {
     dotF: (w.length > 2 && dictSet.has(w.substring(1))) ? '•' : '&nbsp;', 
     dotB: (w.length > 2 && dictSet.has(w.substring(0, w.length - 1))) ? '•' : '&nbsp;' 
   };
-}
+} //[cite: 8]
 
 function getWordMetadata(w) {
-  let ana = dict.filter(x => x.length === w.length && x !== w && [...x].sort().join('') === [...w].sort().join(''));
-  let inf = ['S','ES','ED','ING'].filter(s => dictSet.has(w + s)).map(s => w + s);
+  let ana = dict.filter(x => x.length === w.length && x !== w && [...x].sort().join('') === [...w].sort().join('')); //[cite: 8]
+  let inf = ['S','ES','ED','ING'].filter(s => dictSet.has(w + s)).map(s => w + s); //[cite: 8]
   let p = "n.";
   if (w.endsWith('ED') || w.endsWith('ING')) p = "v.";
   else if (w.endsWith('LY')) p = "adv.";
   else if (w.endsWith('ABLE') || w.endsWith('FUL')) p = "adj.";
   return { pos: p, def: "", anagrams: ana.join(', ') || 'None', inflections: inf.join(', ') || 'None' };
-}
+} //[cite: 8]
 
-// --- INITIALIZATION ---
+// --- INITIALIZATION (ปรับปรุงระบบดักจับ ID ป้องกันการค้าง) ---
 window.onload = async () => {
   try {
-    const response = await fetch('CSW24.txt');
-    if (!response.ok) throw new Error("Network response was not ok");
+    const response = await fetch('CSW24.txt'); //[cite: 8]
+    if (!response.ok) throw new Error("Network response was not ok"); //[cite: 8]
     
-    const contentLength = response.headers.get('content-length');
-    const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+    const contentLength = response.headers.get('content-length'); //[cite: 8]
+    const totalBytes = contentLength ? parseInt(contentLength, 10) : 0; //[cite: 8]
     
-    let loadedBytes = 0;
-    const reader = response.body.getReader();
-    const chunks = [];
+    let loadedBytes = 0; //[cite: 8]
+    const reader = response.body.getReader(); //[cite: 8]
+    const chunks = []; //[cite: 8]
     
     while(true) {
-      const {done, value} = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      loadedBytes += value.length;
+      const {done, value} = await reader.read(); //[cite: 8]
+      if (done) break; //[cite: 8]
+      chunks.push(value); //[cite: 8]
+      loadedBytes += value.length; //[cite: 8]
       
-      const statusEl = document.getElementById('loadingStatus');
+      // ตัวเลือกสำรอง: ถ้าหาไอดี loadingStatus ไม่เจอ จะไปใช้คลาสข้อความของหน้าโหลดแทน เพื่อไม่ให้โค้ดหยุดทำงาน
+      const statusEl = document.getElementById('loadingStatus') || document.querySelector('#loadingScreen .mono');
       if (statusEl) {
         if (totalBytes > 0) {
           const percent = Math.min(100, Math.round((loadedBytes / totalBytes) * 100));
@@ -134,22 +107,32 @@ window.onload = async () => {
       }
     }
     
-    const statusEl = document.getElementById('loadingStatus');
-    if (statusEl) statusEl.innerText = "Processing Dictionary...";
+    const statusEl = document.getElementById('loadingStatus') || document.querySelector('#loadingScreen .mono');
+    if (statusEl) statusEl.innerText = "Processing Dictionary..."; //[cite: 8]
     
-    const blob = new Blob(chunks);
-    const text = await blob.text();
-    dict = text.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
-    dictSet = new Set(dict);
-    dict.forEach(w => { (wordsByL[w.length] = wordsByL[w.length] || []).push(w); });
-    initProbabilityCache();
-    document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " Words";
+    const blob = new Blob(chunks); //[cite: 8]
+    const text = await blob.text(); //[cite: 8]
+    dict = text.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0); //[cite: 8]
+    dictSet = new Set(dict); //[cite: 8]
+    dict.forEach(w => { (wordsByL[w.length] = wordsByL[w.length] || []).push(w); }); //[cite: 8]
+    
+    if (statusEl) statusEl.innerText = "Building Cache Ranks...";
+    initProbabilityCache(); //[cite: 8]
+    
+    if (document.getElementById('wCnt')) {
+      document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " Words"; //[cite: 8]
+    }
   } catch(e) {
-    console.error("Failed to load dictionary:", e);
-    document.getElementById('wCnt').innerText = "Sandbox Mode";
+    console.error("Failed to load dictionary:", e); //[cite: 8]
+    if (document.getElementById('wCnt')) {
+      document.getElementById('wCnt').innerText = "Sandbox Mode"; //[cite: 8]
+    }
   }
-  document.getElementById('loadingScreen').style.display = 'none';
-  renderSaved();
+  
+  if (document.getElementById('loadingScreen')) {
+    document.getElementById('loadingScreen').style.display = 'none'; //[cite: 8]
+  }
+  renderSaved(); //[cite: 8]
 };
 
 // --- COMMON UI MANAGEMENT ---
@@ -157,12 +140,12 @@ function tab(idx, b) {
   document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active')); 
   b.classList.add('active');
   document.querySelectorAll('.section').forEach((s, i) => s.classList.toggle('active', i === idx));
-}
+} //[cite: 8]
 
 function toast(m, cls = '') {
   let t = document.getElementById('tst'); t.innerText = m; t.className = 'toast show ' + cls;
   setTimeout(() => t.classList.remove('show'), 2000);
-}
+} //[cite: 8]
 
 // --- FILTER INFRASTRUCTURE ---
 function addFilter(mode) {
@@ -179,28 +162,30 @@ function addFilter(mode) {
   else if (type === 'pattern_match') { defaultV1 = 'A...E'; }
   const item = { id: fId, type, v1: defaultV1, v2: defaultV2, not: false };
   if (mode === 'S') { sFilters.push(item); renderFilters('S'); } else { qFilters.push(item); renderFilters('Q'); }
-}
+} //[cite: 8]
+
 function toggleNot(mode, id) {
   let arr = mode === 'S' ? sFilters : qFilters;
   let f = arr.find(x => x.id === id); if (f) f.not = !f.not; renderFilters(mode);
-}
+} //[cite: 8]
+
 function deleteFilter(mode, id) {
   if (mode === 'S') { sFilters = sFilters.filter(x => x.id !== id); renderFilters('S'); } 
   else { qFilters = qFilters.filter(x => x.id !== id); renderFilters('Q'); }
-}
+} //[cite: 8]
+
 function updateFilterVal(mode, id, field, val) {
   let arr = mode === 'S' ? sFilters : qFilters;
   let f = arr.find(x => x.id === id); if (f) f[field] = val.toUpperCase();
-}
+} //[cite: 8]
+
 function renderFilters(mode) {
   const arr = mode === 'S' ? sFilters : qFilters;
   const placeholders = {
     anagram_match: 'e.g. AEINRST or AE..RST',
     subanagram_match: 'e.g. AEINRST. (. = blank)',
     pattern_match: 'e.g. A...E or S*',
-    begins: 'e.g. RE',
-    ends: 'e.g. ING',
-    includes: 'e.g. QU',
+    begins: 'e.g. RE', ends: 'e.g. ING', includes: 'e.g. QU',
   };
   document.getElementById(mode === 'S' ? 'sStack' : 'qStack').innerHTML = arr.map(f => {
     const isR = (f.type === 'length' || f.type === 'point_value' || f.type === 'probability_order' || f.type === 'limit_probability_order');
@@ -219,7 +204,7 @@ function renderFilters(mode) {
       </div>
     `;
   }).join('');
-}
+} //[cite: 8]
 
 function matchFilters(w, arr) {
   for (let f of arr) {
@@ -235,79 +220,51 @@ function matchFilters(w, arr) {
       let maxVal = parseInt(f.v2) || 9999999;
       m = (r >= minVal && r <= maxVal);
     }
-    else if (f.type === 'limit_probability_order') {
-      m = true; // limit is evaluated post-filter
-    }
+    else if (f.type === 'limit_probability_order') { m = true; }
     else if (f.type === 'anagram_match') {
-      // Exact length match using rack letters + blanks (. = blank tile)
-      if (w.length !== v1.length) {
-        m = false;
-      } else {
+      if (w.length !== v1.length) { m = false; } else {
         const blanksCount = (v1.match(/\./g) || []).length;
         const tempRack = [...v1.replace(/\./g, '')];
         let neededBlanks = 0;
-        for (const char of w) {
-          const idx = tempRack.indexOf(char);
-          if (idx > -1) { tempRack.splice(idx, 1); } else { neededBlanks++; }
-        }
+        for (const char of w) { const idx = tempRack.indexOf(char); if (idx > -1) { tempRack.splice(idx, 1); } else { neededBlanks++; } }
         m = (neededBlanks <= blanksCount);
       }
     }
     else if (f.type === 'subanagram_match') {
-      // Word's letters must all fit within the rack (word can be any length <= rack)
       const blanksCount = (v1.match(/\./g) || []).length;
       const tempRack = [...v1.replace(/\./g, '')];
       let neededBlanks = 0;
-      for (const char of w) {
-        const idx = tempRack.indexOf(char);
-        if (idx > -1) { tempRack.splice(idx, 1); } else { neededBlanks++; }
-      }
+      for (const char of w) { const idx = tempRack.indexOf(char); if (idx > -1) { tempRack.splice(idx, 1); } else { neededBlanks++; } }
       m = (neededBlanks <= blanksCount);
     }
     else if (f.type === 'pattern_match') {
-      // Pattern: . = any one letter, * = any sequence, e.g. "A...E" or "S*ING"
-      try {
-        const rx = new RegExp('^' + v1.replace(/\./g, '.').replace(/\*/g, '.*') + '$');
-        m = rx.test(w);
-      } catch(e) { m = false; }
+      try { const rx = new RegExp('^' + v1.replace(/\./g, '.').replace(/\*/g, '.*') + '$'); m = rx.test(w); } catch(e) { m = false; }
     }
     if (f.not) m = !m; if (!m) return false;
   }
   return true;
-}
+} //[cite: 8]
 
 function applyLimitFilters(res, filters) {
   let limitFilter = filters.find(f => f.type === 'limit_probability_order');
   if (!limitFilter) return res;
-
-  // Sort matching results by probability rank ascending
   res.sort((a, b) => {
-    let rankA = probRankMap[a] || 9999999;
-    let rankB = probRankMap[b] || 9999999;
+    let rankA = probRankMap[a] || 9999999, rankB = probRankMap[b] || 9999999;
     if (rankA !== rankB) return rankA - rankB;
-    return a < b ? -1 : 1; // alphabetic fallback
+    return a < b ? -1 : 1;
   });
-
-  let minVal = parseInt(limitFilter.v1) || 1;
-  let maxVal = parseInt(limitFilter.v2) || res.length;
-
-  let start = Math.max(0, minVal - 1);
-  let end = Math.max(0, maxVal);
-
+  let minVal = parseInt(limitFilter.v1) || 1, maxVal = parseInt(limitFilter.v2) || res.length;
+  let start = Math.max(0, minVal - 1), end = Math.max(0, maxVal);
   let sliced = res.slice(start, end);
-  if (limitFilter.not) {
-    let slicedSet = new Set(sliced);
-    return res.filter(w => !slicedSet.has(w));
-  }
+  if (limitFilter.not) { let slicedSet = new Set(sliced); return res.filter(w => !slicedSet.has(w)); }
   return sliced;
-}
+} //[cite: 8]
 
 // --- WORD WINDOW OVERLAY (MODAL) ---
 function openUlu(idx) {
   if (idx < 0 || idx >= currentResultsList.length) return;
   currentWordIndex = idx;
   let w = currentResultsList[idx], hk = getHooksAndDots(w), meta = getWordMetadata(w);
-
   document.getElementById('mWord').innerText = w;
   document.getElementById('mPos').innerText = meta.pos;
   document.getElementById('mScore').innerText = getWordScore(w);
@@ -316,18 +273,18 @@ function openUlu(idx) {
   document.getElementById('mBHooks').innerText = hk.b;
   document.getElementById('mAnagrams').innerText = meta.anagrams;
   document.getElementById('mInflections').innerText = meta.inflections;
-
   let btn = document.getElementById('mFavBtn');
   btn.innerText = saved.includes(w) ? "⭐" : "☆";
   document.getElementById('uluModal').classList.add('open');
-}
-const closeUlu = () => document.getElementById('uluModal').classList.remove('open');
-function navWord(dir) { let n = currentWordIndex + dir; if (n >= 0 && n < currentResultsList.length) openUlu(n); }
+} //[cite: 8]
+
+const closeUlu = () => document.getElementById('uluModal').classList.remove('open'); //[cite: 8]
+function navWord(dir) { let n = currentWordIndex + dir; if (n >= 0 && n < currentResultsList.length) openUlu(n); } //[cite: 8]
 function favWord() {
   let w = currentResultsList[currentWordIndex];
   if (saved.includes(w)) saved = saved.filter(x => x !== w); else saved.push(w);
   localStorage.setItem('zyz_sv', JSON.stringify(saved)); renderSaved(); openUlu(currentWordIndex);
-}
+} //[cite: 8]
 
 // --- BOOKMARKS (SAVED) MANAGEMENT ---
 function renderSaved() {
@@ -337,9 +294,11 @@ function renderSaved() {
       <button class="btn" style="padding:4px 8px; color:var(--danger); border-color:transparent;" onclick="toggleSave('${w}')">🗑️</button>
     </div>
   `).join('') || '<p style="text-align:center; color:var(--text2); padding-top:16px;">No saved items</p>';
-}
+} //[cite: 8]
+
 function toggleSave(w) {
   saved = saved.includes(w) ? saved.filter(x => x !== w) : [...saved, w];
   localStorage.setItem('zyz_sv', JSON.stringify(saved)); renderSaved();
-}
-function clearSaved() { if (confirm("Purge all stored words?")) { saved = []; localStorage.setItem('zyz_sv', '[]'); renderSaved(); } }
+} //[cite: 8]
+
+function clearSaved() { if (confirm("Purge all stored words?")) { saved = []; localStorage.setItem('zyz_sv', '[]'); renderSaved(); } } //[cite: 8]

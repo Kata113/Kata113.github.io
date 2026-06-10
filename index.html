@@ -29,9 +29,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .ltile{animation-delay:calc(var(--i,0)*.06s)}
 .ltile span{position:absolute;bottom:1px;right:2px;font-family:var(--font-mono);font-size:5px;color:rgba(255,255,255,.65)}
 @keyframes tileIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
-.logo-text{font-family:var(--font-display);font-size:18px;letter-spacing:2px;color:var(--gold)}
+.logo-text{font-family:var(--font-display);font-size:18px;letter-spacing:2px;color:#fff}
 .logo-sub{font-size:9px;color:var(--muted);font-family:var(--font-mono)}
-.topbar-nav{display:flex;gap:2px;margin-left:auto}
+.topbar-nav{display:none}
 .tnav{background:none;border:none;color:var(--text2);font-family:var(--font-body);font-size:13px;padding:6px 12px;border-radius:6px;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap}
 .tnav:hover{background:var(--card);color:var(--text)}
 .tnav.act{background:var(--card);color:var(--gold);border:1px solid var(--border2)}
@@ -259,7 +259,7 @@ body.is-admin .admin-only{display:inline-flex}
 }
 
 /* ── HAMBURGER BUTTON ── */
-.hamburger-btn{display:none;align-items:center;justify-content:center;width:36px;height:36px;background:none;border:1px solid var(--border2);border-radius:8px;cursor:pointer;color:var(--text2);flex-shrink:0;transition:background .15s,color .15s}
+.hamburger-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:none;border:1px solid var(--border2);border-radius:8px;cursor:pointer;color:var(--text2);flex-shrink:0;transition:background .15s,color .15s}
 .hamburger-btn:hover{background:var(--card);color:var(--text)}
 .hamburger-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
 
@@ -270,7 +270,7 @@ body.is-admin .admin-only{display:inline-flex}
 .drawer.open{transform:translateX(0)}
 .drawer-header{display:flex;align-items:center;gap:10px;padding:16px;border-bottom:1px solid var(--border)}
 .drawer-logo-tiles{display:flex;gap:3px}
-.drawer-logo-text{font-family:var(--font-display);font-size:16px;letter-spacing:2px;color:var(--gold)}
+.drawer-logo-text{font-family:var(--font-display);font-size:16px;letter-spacing:2px;color:#fff}
 .drawer-close{margin-left:auto;width:32px;height:32px;background:none;border:1px solid var(--border2);border-radius:7px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:16px;transition:background .15s}
 .drawer-close:hover{background:var(--card);color:var(--text)}
 .drawer-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:4px;overflow-y:auto}
@@ -288,12 +288,10 @@ body.is-admin .admin-only{display:inline-flex}
 /* ── MOBILE ── */
 .tab-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(9,9,15,.96);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:8px 0 env(safe-area-inset-bottom)}
 @media(max-width:600px){
-  .hamburger-btn{display:flex}
   .topbar{padding:8px 12px;gap:8px}
   .logo-sub{display:none}
   .logo-text{display:none}
   .page{padding:14px 12px;padding-bottom:84px}
-  .topbar-nav{display:none}
   .admin-badge span.label{display:none}
   .tab-bar{display:flex}
   /* leaderboard: hide RD & W-L columns */
@@ -411,46 +409,6 @@ body.is-admin .admin-only{display:inline-flex}
       <svg viewBox="0 0 24 24" style="width:9px;height:9px;opacity:.6"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </a>
   </nav>
-
-  <!-- admin badge (shown when logged in) -->
-  <div class="admin-badge" id="adminBadge">
-    <span class="admin-dot"></span>
-    <span class="label">ADMIN</span>
-    <button onclick="logout()" style="background:none;border:none;color:var(--admin-accent);cursor:pointer;font-size:12px;padding:0;margin-left:4px;opacity:.7" title="ออกจากระบบ">✕</button>
-  </div>
-
-  <!-- realtime sync indicator -->
-  <div class="sync-pill offline" id="syncPill" title="สถานะการซิงค์ข้อมูล" onclick="manualRefresh()" style="cursor:pointer">
-    <span class="sync-dot"></span>
-    <span class="sync-label" id="syncLabel">—</span>
-  </div>
-
-  <!-- login button + dropdown (shown when NOT logged in) -->
-  <div class="login-dropdown-wrap" id="loginWrap">
-    <button class="login-trigger-btn" id="loginTriggerBtn" onclick="toggleDropdown()">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><path d="M18 11v6M21 14h-6" stroke-linecap="round"/></svg>
-      <span>Admin Login</span>
-    </button>
-    <div class="login-dropdown hidden" id="loginDropdown">
-      <div class="dropdown-tiles">
-        <div class="dtile">A</div><div class="dtile">D</div><div class="dtile">M</div><div class="dtile">I</div><div class="dtile">N</div>
-      </div>
-      <div class="dropdown-title">Admin Login</div>
-      <div class="dropdown-sub">CROSSWORD CLUB · LEADERBOARD</div>
-      <div class="dd-error" id="ddError">รหัสผ่านไม่ถูกต้อง</div>
-      <div class="dd-form-row">
-        <label>รหัสผ่าน Admin</label>
-        <input type="password" id="ddPwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-        <input type="checkbox" id="ddRemember" style="width:14px;height:14px;accent-color:var(--admin-accent);cursor:pointer">
-        <label for="ddRemember" style="font-size:11px;color:var(--text2);cursor:pointer;user-select:none">จดจำการเข้าสู่ระบบ</label>
-      </div>
-      <button class="dd-login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
-      <div class="dd-divider">หรือ</div>
-      <button class="dd-skip-btn" onclick="closeDropdown()">ดูแบบ Guest (ไม่ต้อง login)</button>
-    </div>
-  </div>
 </header>
 
 <!-- ══ MOBILE DRAWER ══ -->
@@ -462,7 +420,7 @@ body.is-admin .admin-only{display:inline-flex}
       <div class="ltile" style="--i:1;width:22px;height:22px;font-size:12px">T<span>1</span></div>
       <div class="ltile" style="--i:2;width:22px;height:22px;font-size:12px">H<span>4</span></div>
     </div>
-    <div class="drawer-logo-text">CROSSWORD</div>
+    <div class="drawer-logo-text">CROSSWORD TEAM</div>
     <button class="drawer-close" onclick="closeDrawer()">✕</button>
   </div>
   <div class="drawer-nav">
@@ -496,6 +454,17 @@ body.is-admin .admin-only{display:inline-flex}
   </div>
   <div class="drawer-footer" id="drawerFooter">
     <!-- login button in drawer (shown when NOT logged in) -->
+    <!-- sync indicator in drawer -->
+    <div class="sync-pill offline" id="syncPill" title="สถานะการซิงค์ข้อมูล" onclick="manualRefresh()" style="cursor:pointer;width:100%;justify-content:flex-start;padding:9px 14px;border-radius:9px;margin-bottom:8px">
+      <span class="sync-dot"></span>
+      <span class="sync-label" id="syncLabel">—</span>
+    </div>
+    <!-- admin badge in drawer (shown when logged in) -->
+    <div class="admin-badge" id="adminBadge" style="display:none;width:100%;border-radius:9px;padding:9px 14px;margin-bottom:8px;justify-content:flex-start">
+      <span class="admin-dot"></span>
+      <span class="label">ADMIN MODE</span>
+      <button onclick="logout();closeDrawer()" style="background:none;border:none;color:var(--admin-accent);cursor:pointer;font-size:12px;padding:0;margin-left:auto;opacity:.7" title="ออกจากระบบ">✕</button>
+    </div>
     <button class="drawer-nav-item" id="drawerLoginBtn" onclick="openDrawerLogin()" style="border:1px solid rgba(176,108,255,.25);color:var(--admin-accent);background:rgba(176,108,255,.07)">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><path d="M18 11v6M21 14h-6" stroke-linecap="round"/></svg>
       Admin Login
@@ -1237,8 +1206,8 @@ function setAdminLoggedIn(remember) {
   isAdmin = true;
   if (remember) localStorage.setItem(STORE.rememberAdmin, '1');
   document.body.classList.add('is-admin');
-  document.getElementById('adminBadge').classList.add('show');
-  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('adminBadge').style.display='flex';
+  
   updateDrawerAdminState(true);
   renderAll();
 }
@@ -1261,10 +1230,10 @@ function logout() {
   isAdmin = false;
   localStorage.removeItem(STORE.rememberAdmin);
   document.body.classList.remove('is-admin');
-  document.getElementById('adminBadge').classList.remove('show');
-  document.getElementById('loginWrap').style.display = '';
+  document.getElementById('adminBadge').style.display='none';
+  
   updateDrawerAdminState(false);
-  nav('leaderboard', document.querySelector('.tnav'));
+  nav('leaderboard', null);
   renderAll();
 }
 

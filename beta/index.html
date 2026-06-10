@@ -259,7 +259,15 @@
 
   <script src="core.js"></script>
   <script src="search.js"></script>
-  <script src="zyzzylu_cpp_engine.js"></script>
+  <!-- zyzzylu_cpp_engine.js is optional (WebAssembly quiz engine) -->
+  <script>
+    (function() {
+      var s = document.createElement("script");
+      s.src = "zyzzylu_cpp_engine.js";
+      s.onerror = function() { console.warn("[zyzzylu] WASM engine not found — quiz runs in JS fallback mode"); };
+      document.currentScript.parentNode.insertBefore(s, document.currentScript.nextSibling);
+    })();
+  </script>
   <script src="quiz_bridge.js"></script>
   <script src="judge.js"></script>
   <script>

@@ -19,7 +19,8 @@ if (typeof Module !== 'undefined') {
 }
 
 async function tryInitCppEngine() {
-  if (typeof Module !== 'undefined' && Module.loadDictionary && dict && dict.length > 0 && !cppInitialized) {
+  // แก้ไขจุดนี้: ใช้ typeof dict !== 'undefined' เพื่อป้องกัน Error หลุดระหว่างโหลดเว็บ
+  if (typeof Module !== 'undefined' && Module.loadDictionary && typeof dict !== 'undefined' && dict && dict.length > 0 && !cppInitialized) {
     document.getElementById('wCnt').innerText = "Loading WASM...";
     Module.loadDictionary(dict.join('\n'));
     cppInitialized = true;
@@ -331,7 +332,6 @@ function saveCurrentZzq() {
   if (qType === "1") typeStr = "Hooks";
   if (qType === "2") typeStr = "Build";
 
-  // เริ่มสร้างไฟล์ XML โครงสร้าง .zzq
   let xml = `<?xml version="1.0" encoding="ISO-8859-1"?>\n`;
   xml += `<!DOCTYPE zyzzyva-quiz SYSTEM 'http://boshvark.com/dtd/zyzzyva-quiz.dtd'>\n`;
   xml += `<zyzzyva-quiz type="${typeStr}" question-order="Random" method="Standard" lexicon="CSW24">\n`;
@@ -340,7 +340,6 @@ function saveCurrentZzq() {
   xml += `   <conditions>\n`;
   xml += `    <and>\n`;
 
-  // แปลงค่าอาร์เรย์ตัวกรองกลับคืนสู่มาตรฐาน XML Tags ของ Zyzzyva
   qFilters.forEach(f => {
     let neg = f.not ? ' negated="1"' : ' negated="0"';
     if (f.type === 'length') {
@@ -362,7 +361,6 @@ function saveCurrentZzq() {
   xml += ` </question-source>\n`;
   xml += ` <randomizer seed="${activeSeed1}" algorithm="1" seed2="${activeSeed2}"/>\n`;
   
-  // บันทึกความคืบหน้า (Progress) และคำตอบย่อยในข้อปัจจุบันลง XML
   const qComp = q.checked ? "true" : "false";
   xml += ` <progress question="${prog.currentQuestion}" total-questions="${prog.totalQuestions}" correct="${prog.totalCorrect}" question-complete="${qComp}" correct-questions="${prog.totalCorrect}">\n`;
   
@@ -381,7 +379,6 @@ function saveCurrentZzq() {
   xml += ` </progress>\n`;
   xml += `</zyzzyva-quiz>\n`;
 
-  // ทำการดาวน์โหลดออกมาเป็นไฟล์ภายนอกเครื่องคอมพิวเตอร์
   const blob = new Blob([xml], { type: "text/xml" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -438,8 +435,10 @@ function loadZzq(event) {
           if (ft) { fId++; qFilters.push({ id: fId, type: ft, v1, v2, not: negated }); }
         });
         renderFilters('Q');
-        pool = dict.filter(w => matchFilters(w, qFilters));
-        pool = applyLimitFilters(pool, qFilters);
+        if (typeof dict !== 'undefined' && dict.length > 0) {
+          pool = dict.filter(w => matchFilters(w, qFilters));
+          pool = applyLimitFilters(pool, qFilters);
+        }
       }
 
       if (!pool.length) return;

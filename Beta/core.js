@@ -56,6 +56,34 @@ function getHooksAndDots(w) {
     dotF:(w.length>2&&dictSet.has(w.slice(1)))?'•':'&nbsp;',
     dotB:(w.length>2&&dictSet.has(w.slice(0,-1)))?'•':'&nbsp;' };
 }
+
+// Full words formed by single-letter front/back hooks
+function getFullHookWords(w) {
+  const front = [], back = [];
+  for (let i = 0; i < 26; i++) {
+    if (dictSet.has(alpha[i] + w)) front.push(alpha[i] + w);
+    if (dictSet.has(w + alpha[i])) back.push(w + alpha[i]);
+  }
+  return { front, back };
+}
+
+// Multi-letter extensions: words = (2-5 letters) + W  or  W + (2-5 letters)
+function getWordExtensions(w) {
+  const prefix = [], suffix = [];
+  for (const x of dict) {
+    if (x === w) continue;
+    const d = x.length - w.length;
+    if (d < 2 || d > 5) continue;
+    if (x.endsWith(w))   prefix.push(x);
+    if (x.startsWith(w)) suffix.push(x);
+  }
+  const byLen = (a, b) => a.length !== b.length ? a.length - b.length : (a < b ? -1 : 1);
+  return {
+    prefix: prefix.sort(byLen).slice(0, 20),
+    suffix: suffix.sort(byLen).slice(0, 20)
+  };
+}
+
 function getWordMetadata(w) {
   let ana = dict.filter(x=>x.length===w.length&&x!==w&&[...x].sort().join('')===[...w].sort().join(''));
   let inf = ['S','ES','ED','ING'].filter(s=>dictSet.has(w+s)).map(s=>w+s);
@@ -260,16 +288,42 @@ function applyLimitFilters(res, filters) {
 function openUlu(idx) {
   if(idx<0||idx>=currentResultsList.length)return;
   currentWordIndex=idx;
-  let w=currentResultsList[idx],hk=getHooksAndDots(w),meta=getWordMetadata(w);
-  document.getElementById('mWord').innerText=w;
-  document.getElementById('mPos').innerText=meta.pos;
-  document.getElementById('mScore').innerText=getWordScore(w);
-  document.getElementById('mDef').innerText=meta.def;
-  document.getElementById('mFHooks').innerText=hk.f;
-  document.getElementById('mBHooks').innerText=hk.b;
-  document.getElementById('mAnagrams').innerText=meta.anagrams;
-  document.getElementById('mInflections').innerText=meta.inflections;
-  document.getElementById('mFavBtn').innerText=saved.includes(w)?'⭐':'☆';
+  const w   = currentResultsList[idx];
+  const hk  = getHooksAndDots(w);
+  const meta= getWordMetadata(w);
+  const hw  = getFullHookWords(w);
+  const ext = getWordExtensions(w);
+
+  document.getElementById('mWord').innerText   = w;
+  document.getElementById('mWordCenter').innerText = w;   // center of hook grid
+  document.getElementById('mPos').innerText    = meta.pos;
+  document.getElementById('mScore').innerText  = getWordScore(w);
+  document.getElementById('mDef').innerText    = meta.def || '—';
+  document.getElementById('mFavBtn').innerText = saved.includes(w) ? '⭐' : '☆';
+
+  // Hook letters (single-letter, compact)
+  document.getElementById('mFHooks').innerText = hk.f !== '-' ? hk.f.split('').join(' ') : '—';
+  document.getElementById('mBHooks').innerText = hk.b !== '-' ? hk.b.split('').join(' ') : '—';
+
+  // Full hook words
+  document.getElementById('mFHookWords').innerText = hw.front.length ? hw.front.join('  ') : '—';
+  document.getElementById('mBHookWords').innerText = hw.back.length  ? hw.back.join('  ')  : '—';
+
+  // Multi-letter prefix / suffix extensions
+  const fmtExt = (arr) => arr.length
+    ? arr.map(x => `<span style="color:var(--text2)">${x.slice(0, x.length - w.length)}</span><strong>${w}</strong>` ).join('  ')
+    : '—';
+  const fmtSfx = (arr) => arr.length
+    ? arr.map(x => `<strong>${w}</strong><span style="color:var(--text2)">${x.slice(w.length)}</span>`).join('  ')
+    : '—';
+
+  document.getElementById('mPrefixExt').innerHTML = fmtExt(ext.prefix);
+  document.getElementById('mSuffixExt').innerHTML = fmtSfx(ext.suffix);
+
+  // Anagrams & inflections
+  document.getElementById('mAnagrams').innerText    = meta.anagrams;
+  document.getElementById('mInflections').innerText = meta.inflections;
+
   document.getElementById('uluModal').classList.add('open');
 }
 const closeUlu = () => document.getElementById('uluModal').classList.remove('open');

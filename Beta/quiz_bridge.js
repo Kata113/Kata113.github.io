@@ -19,12 +19,24 @@ if (typeof Module !== 'undefined') {
 }
 
 async function tryInitCppEngine() {
-  // แก้ไขจุดนี้: ใช้ typeof dict !== 'undefined' เพื่อป้องกัน Error หลุดระหว่างโหลดเว็บ
+  // ตรวจสอบความพร้อม: Module พร้อม และ dict โหลดข้อมูลเข้ามาเรียบร้อยแล้ว
   if (typeof Module !== 'undefined' && Module.loadDictionary && typeof dict !== 'undefined' && dict && dict.length > 0 && !cppInitialized) {
-    document.getElementById('wCnt').innerText = "Loading WASM...";
+    const wCntEl = document.getElementById('wCnt');
+    if (wCntEl) wCntEl.innerText = "Loading WASM...";
+    
+    // โหลดคำศัพท์เข้าสู่ C++ Engine
     Module.loadDictionary(dict.join('\n'));
     cppInitialized = true;
-    document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " Words (WASM Active)";
+    
+    if (wCntEl) wCntEl.innerText = dict.length.toLocaleString() + " Words (WASM Active)";
+    
+    // ปลดล็อกซ่อนหน้าจอ Loading Screen ทันทีเมื่อระบบพร้อมรัน 100%
+    const loader = document.getElementById('loadingScreen');
+    if (loader) loader.style.display = 'none';
+    
+  } else if (!cppInitialized) {
+    // 💡 แก้ปัญหา Loading Loop: ถ้าเกิดว่าตวัแปรยังไม่พร้อม ให้รอ 100ms แล้วกลับมาเช็คใหม่เรื่อย ๆ
+    setTimeout(tryInitCppEngine, 100);
   }
 }
 

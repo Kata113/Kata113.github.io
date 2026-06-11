@@ -199,8 +199,6 @@ function renderQuizUI(q, prog) {
   for (const ch of q.questionText) tilesHtml += `<div class="quiz-tile">${ch}</div>`;
   const pct = (prog.currentQuestion / prog.totalQuestions) * 100;
 
-  // คีย์สำคัญ: เมื่อตรวจข้อนั้นเรียบร้อยแล้ว (q.checked === true) 
-  // เปลี่ยน Input เป็น Readonly และยิง Enter เพื่อไปข้อถัดไป
   const inputPlaceholder = q.checked ? "COMPLETED — PRESS ENTER FOR NEXT SET →" : "TYPE ANSWER & PRESS ENTER";
   const inputAction = q.checked ? "handleNext()" : "submitUserAnswer()";
   const inputModifiers = q.checked 
@@ -232,7 +230,7 @@ function renderQuizUI(q, prog) {
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn" style="flex:1; min-width:60px;" onclick="quitQuiz()">Quit</button>
-        <button class="btn" style="flex:1; min-width:70px; color:var(--orange);" onclick="toast('Save feature ready!')">Save 💾</button>
+        <button class="btn" style="flex:1; min-width:70px; color:var(--orange);" onclick="saveCurrentZzq()">Save 💾</button>
         <button class="btn" style="flex:1; min-width:70px; color:#0A84FF;">Analyze</button>
         ${q.checked
           ? `<button class="btn btn-p" style="flex:2; min-width:150px;" onclick="handleNext()">Next Question →</button>`
@@ -314,6 +312,89 @@ function submitUserAnswer() {
   document.getElementById('qAnswerInput')?.focus();
 }
 
+// ─── SAVE FUNCTION (.ZZQ GENERATOR) ──────────────────────────────────
+function saveCurrentZzq() {
+  if (!cppInitialized || currentQuizPool.length === 0) {
+    toast("No active quiz session to save!");
+    return;
+  }
+
+  let prog = { currentQuestion: 0, totalQuestions: 0, totalCorrect: 0 };
+  let q = { checked: false, userCorrectAnswers: [], userIncorrectAnswers: [] };
+  try {
+    prog = JSON.parse(Module.getProgressJson());
+    q = JSON.parse(Module.getCurrentQuestionJson());
+  } catch (e) { console.error("Error fetching WASM progress states", e); }
+
+  const qType = document.getElementById('qTypeSelect')?.value || "0";
+  let typeStr = "Anagrams";
+  if (qType === "1") typeStr = "Hooks";
+  if (qType === "2") typeStr = "Build";
+
+  // เริ่มสร้างไฟล์ XML โครงสร้าง .zzq
+  let xml = `<?xml version="1.0" encoding="ISO-8859-1"?>\n`;
+  xml += `<!DOCTYPE zyzzyva-quiz SYSTEM 'http://boshvark.com/dtd/zyzzyva-quiz.dtd'>\n`;
+  xml += `<zyzzyva-quiz type="${typeStr}" question-order="Random" method="Standard" lexicon="CSW24">\n`;
+  xml += ` <question-source type="search">\n`;
+  xml += `  <zyzzyva-search version="1">\n`;
+  xml += `   <conditions>\n`;
+  xml += `    <and>\n`;
+
+  // แปลงค่าอาร์เรย์ตัวกรองกลับคืนสู่มาตรฐาน XML Tags ของ Zyzzyva
+  qFilters.forEach(f => {
+    let neg = f.not ? ' negated="1"' : ' negated="0"';
+    if (f.type === 'length') {
+      xml += `     <condition type="Length" max="${f.v2}" min="${f.v1}"${neg}/>\n`;
+    } else if (f.type === 'point_value') {
+      xml += `     <condition type="Point Value" max="${f.v2}" min="${f.v1}"${neg}/>\n`;
+    } else if (f.type === 'begins') {
+      xml += `     <condition type="Begins With" string="${f.v1.toUpperCase()}"${neg}/>\n`;
+    } else if (f.type === 'ends') {
+      xml += `     <condition type="Ends With" string="${f.v1.toUpperCase()}"${neg}/>\n`;
+    } else if (f.type === 'includes') {
+      xml += `     <condition type="Includes Letters" string="${f.v1.toUpperCase()}"${neg}/>\n`;
+    }
+  });
+
+  xml += `    </and>\n`;
+  xml += `   </conditions>\n`;
+  xml += `  </zyzzyva-search>\n`;
+  xml += ` </question-source>\n`;
+  xml += ` <randomizer seed="${activeSeed1}" algorithm="1" seed2="${activeSeed2}"/>\n`;
+  
+  // บันทึกความคืบหน้า (Progress) และคำตอบย่อยในข้อปัจจุบันลง XML
+  const qComp = q.checked ? "true" : "false";
+  xml += ` <progress question="${prog.currentQuestion}" total-questions="${prog.totalQuestions}" correct="${prog.totalCorrect}" question-complete="${qComp}" correct-questions="${prog.totalCorrect}">\n`;
+  
+  if (q.userCorrectAnswers && q.userCorrectAnswers.length > 0) {
+    xml += `  <question-correct-responses>\n`;
+    q.userCorrectAnswers.forEach(w => { xml += `   <response word="${w}"/>\n`; });
+    xml += `  </question-correct-responses>\n`;
+  }
+  
+  if (q.userIncorrectAnswers && q.userIncorrectAnswers.length > 0) {
+    xml += `  <incorrect-responses>\n`;
+    q.userIncorrectAnswers.forEach(w => { xml += `   <response word="${w}"/>\n`; });
+    xml += `  </incorrect-responses>\n`;
+  }
+
+  xml += ` </progress>\n`;
+  xml += `</zyzzyva-quiz>\n`;
+
+  // ทำการดาวน์โหลดออกมาเป็นไฟล์ภายนอกเครื่องคอมพิวเตอร์
+  const blob = new Blob([xml], { type: "text/xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Zyzzylu_Quiz_${activeSeed1}.zzq`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast("Quiz Session saved successfully! 💾");
+}
+
+// ─── LOAD FUNCTION ───────────────────────────────────────────────────
 function loadZzq(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -394,7 +475,7 @@ function loadZzq(event) {
       document.getElementById('qSettingsPane').style.display = 'none';
       document.getElementById('qEnginePane').style.display  = 'block';
       loadCurrentQuestion();
-    } catch(err) { console.error(err); }
+    } catch(err) { console.error("Error reading file .zzq", err); }
   };
   reader.readAsText(file);
 }

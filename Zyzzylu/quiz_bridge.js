@@ -1,1059 +1,742 @@
-// quiz_bridge.js
+// ── STATE ──────────────────────────────────────────────────────────────
 let cppInitialized = false;
-let timerInterval = null;
-let quizTimeLimit = 0; // 0 means no timer
-let quizTimeLeft = 0;
-let currentQuizPool = []; // Stores the active list of words for saving
+let timerInterval  = null;
+let quizTimeLimit  = 0;
+let quizTimeLeft   = 0;
+let currentQuizPool = [];
 let activeSeed1 = 0;
 let activeSeed2 = 0;
-let sessionIncorrectAnswers = []; // Accumulates wrong guesses across ALL questions in this session
 
-// Listen for WebAssembly runtime initialized
-if (typeof Module !== 'undefined') {
-  Module.onRuntimeInitialized = () => {
-    console.log("WASM Runtime initialized");
-    tryInitCppEngine();
-  };
-}
+// Fixed per page-load — mirrors Zyzzyva's per-process PID behaviour
+const SESSION_SEED2 = Math.floor(Math.random() * 32767) + 1024;
 
-// Check if we can initialize C++ dictionary
+// Session-wide wrong-guess tracking { word: count }
+// Saved in <zyzzylu-session> so it survives quit → reload
+let sessionIncorrect = {};
+
+// ── WASM INIT ──────────────────────────────────────────────────────────
+if (typeof Module !== 'undefined')
+  Module.onRuntimeInitialized = () => tryInitCppEngine();
+
+const _coreOnload = window.onload;
+window.onload = async () => { if (_coreOnload) await _coreOnload(); tryInitCppEngine(); };
+
 async function tryInitCppEngine() {
-  if (typeof Module !== 'undefined' && Module.loadDictionary && dict && dict.length > 0 && !cppInitialized) {
-    console.log("Loading dictionary into C++ WASM engine...");
-    document.getElementById('wCnt').innerText = "Loading WASM...";
-    
-    // Pass the entire dictionary as a newline-separated string
-    const dictString = dict.join('\n');
-    Module.loadDictionary(dictString);
-    
+  if (!cppInitialized && typeof Module !== 'undefined'
+      && Module.loadDictionary && dict?.length) {
+    document.getElementById('wCnt').innerText = 'Loading WASM…';
+    Module.loadDictionary(dict.join('\n'));
     cppInitialized = true;
-    document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " Words (WASM Active)";
-    console.log("C++ WASM Engine initialized successfully.");
+    document.getElementById('wCnt').innerText =
+      dict.length.toLocaleString() + ' Words (WASM Active)';
   }
 }
 
-// Hook into core.js window.onload completion
-const oldOnload = window.onload;
-window.onload = async () => {
-  if (oldOnload) await oldOnload();
-  tryInitCppEngine();
-};
-
-// Seedable Random and Shuffler logic from quiz1.js
-function createSeedableRandom(s1, s2) {
-  let seed1 = Number(s1) || 0, seed2 = Number(s2) || 0;
-  return () => {
-    seed1 = (Math.imul(seed1, 1664525) + 1013904223) >>> 0;
-    seed2 = (Math.imul(seed2, 1103515245) + 12345) >>> 0;
-    return ((seed1 ^ seed2) >>> 0) / 4294967296;
-  };
-}
-
-function shuffleWithSeed(array, s1, s2) {
-  let rnd = createSeedableRandom(s1, s2);
-  let shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    let j = Math.floor(rnd() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
-
-function standardShuffle(array) {
-  let shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    let j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
-
-// Seedable Random and Shuffler logic matching Zyzzyva MWC (George Marsaglia Multiply-with-carry)
+// ── MWC RNG — matches Zyzzyva's George Marsaglia MWC exactly ──────────
+// z = 36969*(z & 0xffff) + (z >> 16)
+// w = 18000*(w & 0xffff) + (w >> 16)
+// result = (z << 16) + (w & 0xffff)
 function createMwcRandom(s1, s2) {
-  let z = Number(s1) >>> 0;
-  let w = Number(s2) >>> 0;
-  if (z === 0) z = 1;
-  if (w === 0) w = 1;
+  let z = (Number(s1) >>> 0) || 1;
+  let w = (Number(s2) >>> 0) || 1;
   return () => {
-    z = (36969 * (z & 65535) + (z >>> 16)) >>> 0;
-    w = (18000 * (w & 65535) + (w >>> 16)) >>> 0;
-    return ((z << 16) + w) >>> 0;
+    z = (36969 * (z & 0xffff) + (z >>> 16)) >>> 0;
+    w = (18000 * (w & 0xffff) + (w >>> 16)) >>> 0;
+    return ((z << 16) + (w & 0xffff)) >>> 0;
   };
 }
 
-function shuffleMwc(array, s1, s2) {
-  let nextRand = createMwcRandom(s1, s2);
-  let shuffled = [...array];
-  let n = shuffled.length;
-  for (let i = 0; i < n - 1; i++) {
-    let limit = n - i;
-    let val = nextRand();
-    let j = i + Math.floor((val * limit) / 4294967296);
-    let temp = shuffled[i];
-    shuffled[i] = shuffled[j];
-    shuffled[j] = temp;
+// Fisher-Yates using modulo — matches Zyzzyva's C++ `quint32 % limit`
+function shuffleMwc(arr, s1, s2) {
+  const rng = createMwcRandom(s1, s2);
+  const a = [...arr];
+  for (let i = 0; i < a.length - 1; i++) {
+    const j = i + (rng() % (a.length - i));
+    [a[i], a[j]] = [a[j], a[i]];
   }
-  return shuffled;
+  return a;
 }
 
-// Start a quiz session
-function startQuiz() {
-  if (!cppInitialized) {
-    toast("WASM Engine is still initializing. Please wait...");
-    return;
-  }
+// ── SESSION TRACKING ───────────────────────────────────────────────────
+const trackWrongGuess = w => { if (w) sessionIncorrect[w] = (sessionIncorrect[w] || 0) + 1; };
 
-  // Filter dictionary based on quiz filters
+// ── QUIZ LIFECYCLE ─────────────────────────────────────────────────────
+function startQuiz() {
+  if (!cppInitialized) { toast('WASM engine initialising — please wait'); return; }
+
   let pool = dict.filter(w => matchFilters(w, qFilters));
   pool = applyLimitFilters(pool, qFilters);
-  if (pool.length === 0) {
-    toast("No words match the selected filters!");
-    return;
-  }
+  if (!pool.length) { toast('No words match the selected filters!'); return; }
 
-  sessionIncorrectAnswers = []; // Reset session wrong-guess list on new quiz
-  activeSeed1 = Math.floor(Date.now() / 1000);
-  activeSeed2 = Math.floor(Math.random() * 65535) + 1;
+  sessionIncorrect = {};
+  activeSeed1 = Math.floor(Date.now() / 1000); // Unix timestamp — matches Zyzzyva seed
+  activeSeed2 = SESSION_SEED2;                  // fixed per session — mirrors Zyzzyva PID
 
-  const quizType = parseInt(document.getElementById('qTypeSelect')?.value || "0");
-  const order = parseInt(document.getElementById('qOrderSelect')?.value || "1");
-  quizTimeLimit = parseInt(document.getElementById('qTimerSelect')?.value || "0");
+  const quizType    = sel('qTypeSelect');
+  const order       = sel('qOrderSelect');
+  quizTimeLimit     = sel('qTimerSelect');
 
-  let finalPool = [...pool];
-  let finalOrder = order;
-
-  if (order === 1) { // Random
-    if (quizType === 0 || quizType === 1) {
-      let uniquePool = Array.from(new Set(pool.map(w => [...w].sort().join(''))));
-      uniquePool.sort(); // Sort alphabetically to match Zyzzyva before shuffling
-      let shuffledUnique = shuffleMwc(uniquePool, activeSeed1, activeSeed2);
-      
-      let wordsByAlphagram = {};
-      pool.forEach(w => {
-        let alphaG = [...w].sort().join('');
-        if (!wordsByAlphagram[alphaG]) {
-          wordsByAlphagram[alphaG] = [];
-        }
-        wordsByAlphagram[alphaG].push(w);
-      });
-      
-      let orderedWords = [];
-      shuffledUnique.forEach(alphaG => {
-        let matches = wordsByAlphagram[alphaG];
-        if (matches) {
-          orderedWords.push(...matches);
-        }
-      });
-      finalPool = orderedWords;
-    } else { // Build quiz shuffles base words directly
-      finalPool = shuffleMwc(pool, activeSeed1, activeSeed2);
-    }
-    finalOrder = 3; // PreserveOrder in C++
-  }
-
-  // Save active pool
-  currentQuizPool = finalPool;
-
-  // Call C++ to generate quiz
-  Module.generateQuiz(quizType, finalPool.join(' '), finalOrder);
-
-  // Switch UI panels
-  document.getElementById('qSettingsPane').style.display = 'none';
-  document.getElementById('qEnginePane').style.display = 'block';
-
+  currentQuizPool = buildOrderedPool(pool, quizType, order, activeSeed1, activeSeed2);
+  Module.generateQuiz(quizType, currentQuizPool.join(' '), order === 1 ? 3 : order);
+  showQuizPane();
   loadCurrentQuestion();
 }
 
-// Load and render current question
+// Build alphagram-shuffled word pool (matching Zyzzyva's question-order algorithm)
+function buildOrderedPool(pool, quizType, order, s1, s2) {
+  if (order !== 1) return [...pool];               // alphabetical or probability — no MWC
+  if (quizType === 2) return shuffleMwc(pool, s1, s2); // Build quiz: shuffle words directly
+
+  // Anagram/hook quizzes: deduplicate to alphagrams, sort, MWC-shuffle, then expand
+  const byAlpha = {};
+  pool.forEach(w => {
+    const a = [...w].sort().join('');
+    (byAlpha[a] = byAlpha[a] || []).push(w);
+  });
+  const shuffledAlphas = shuffleMwc(Object.keys(byAlpha).sort(), s1, s2);
+  return shuffledAlphas.flatMap(a => byAlpha[a]);
+}
+
 function loadCurrentQuestion() {
   clearInterval(timerInterval);
-  
-  const qJsonStr = Module.getCurrentQuestionJson();
-  if (qJsonStr === "{}" || !qJsonStr) {
-    endQuiz();
-    return;
-  }
-  
-  const q = JSON.parse(qJsonStr);
-  const prog = JSON.parse(Module.getProgressJson());
-  
-  renderQuizUI(q, prog);
-  
-  // Start timer if applicable
-  if (quizTimeLimit > 0) {
-    quizTimeLeft = quizTimeLimit;
-    updateTimerDisplay();
-    timerInterval = setInterval(() => {
-      quizTimeLeft--;
-      updateTimerDisplay();
-      if (quizTimeLeft <= 0) {
-        clearInterval(timerInterval);
-        handleCheck();
-      }
-    }, 1000);
-  } else {
-    const timerEl = document.getElementById('qTimerDisplay');
-    if (timerEl) timerEl.innerText = "";
-  }
-  
-  // Focus on input
-  setTimeout(() => {
-    const inp = document.getElementById('qAnswerInput');
-    if (inp) inp.focus();
-  }, 100);
+  const q = parseQ();
+  if (!q) { endQuiz(); return; }
+  renderQuizUI(q, parseProg());
+  startTimer();
+  setTimeout(() => document.getElementById('qAnswerInput')?.focus(), 80);
 }
 
-// Render the interactive quiz panel
-function renderQuizUI(q, prog) {
-  const pane = document.getElementById('qEnginePane');
-  if (!pane) return;
-  
-  // Format question text (alphagram tiles or word)
-  let tilesHtml = "";
-  for (let i = 0; i < q.questionText.length; i++) {
-    tilesHtml += `<div class="quiz-tile">${q.questionText[i]}</div>`;
-  }
-  
-  const progressPercent = (prog.currentQuestion / prog.totalQuestions) * 100;
-  
-  pane.innerHTML = `
-    <div class="q-clean-layout">
-      <!-- Top header bar: Progress, Timer, Stats -->
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 10px;">
-        <span class="mono" style="font-size: 13px; color: var(--text2)">
-          Question ${prog.currentQuestion}/${prog.totalQuestions}
-        </span>
-        <div style="display: flex; gap: 14px; align-items: center;">
-          <span class="mono" id="qTimerDisplay" style="font-weight: 700; color: var(--orange); font-size: 14px;"></span>
-          <span class="mono" style="font-size: 13px; color: var(--accent); font-weight: 600;">
-            ${q.correctAnswersCount}/${q.totalAnswers} found
-          </span>
-        </div>
-      </div>
-      
-      <!-- Progress Bar -->
-      <div style="height: 4px; width: 100%; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-bottom: 15px;">
-        <div style="height: 100%; width: ${progressPercent}%; background: var(--accent); transition: width 0.3s ease;"></div>
-      </div>
-      
-      <!-- Alphagram Tiles -->
-      <div style="display: flex; justify-content: center; gap: 8px; margin: 20px 0; flex-wrap: wrap;">
-        ${tilesHtml}
-      </div>
-      
-      <!-- Input Panel -->
-      <div style="margin-bottom: 16px;">
-        <input type="text" id="qAnswerInput" class="input-field mono" 
-               style="text-transform: uppercase; text-align: center; font-size: 18px; font-weight: 600; letter-spacing: 1px;" 
-               placeholder="${q.checked ? (q.correctAnswersCount === q.totalAnswers ? 'ALL ANSWERS FOUND!' : 'QUESTION CHECKED') : 'TYPE ANSWER & PRESS ENTER'}" 
-               ${q.checked ? 'disabled' : ''} 
-               oninput="onQuizInput()"
-               onkeydown="if(event.key==='Enter') submitUserAnswer()">
-      </div>
-      
-      <!-- Answers & Feedback List -->
-      <div class="quiz-history-pane" style="flex: 1; min-height: 180px; max-height: 250px; margin-bottom: 16px;">
-        <div id="qAnswersList" style="display: flex; flex-direction: column; gap: 8px;">
-          ${renderAnswersList(q)}
-        </div>
-      </div>
-      
-      <!-- Control Buttons -->
-      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <button class="btn" style="flex: 1; min-width: 60px;" onclick="quitQuiz()">Quit</button>
-        <button class="btn" style="flex: 1; min-width: 70px; color: var(--orange);" onclick="saveCurrentZzq()">Save 💾</button>
-        <button class="btn" style="flex: 1; min-width: 70px; color: #0A84FF;" onclick="showAnalysis()">Analyze</button>
-        ${q.checked ? 
-          `<button class="btn btn-p" style="flex: 2; min-width: 150px;" onclick="handleNext()">Next Question →</button>` :
-          `<button class="btn btn-p" id="qActionButton" style="flex: 2; min-width: 150px;" onclick="handleCheck()">Check Answers ✓</button>`
-        }
-      </div>
-    </div>
-  `;
-}
-
-// Render answer items list (green for correct, red for missed, orange for incorrect guesses)
-function renderAnswersList(q) {
-  if (!q.checked) {
-    if (q.userCorrectAnswers.length === 0 && q.userIncorrectAnswers.length === 0) {
-      return `<p style="text-align: center; color: var(--text2); padding: 20px 0;">No answers submitted yet.</p>`;
-    }
-    
-    let html = "";
-    q.userCorrectAnswers.forEach(word => {
-      const isSaved = saved.includes(word);
-      html += `
-        <div class="item-row" style="border-bottom: 1px solid rgba(58, 58, 60, 0.3); padding: 8px 4px;">
-          <span class="mono" style="color: var(--accent); font-weight: 600;">✓ ${word}</span>
-          <button class="btn-not" onclick="toggleSavedWord('${word}', this)" style="border: none; background: none; color: ${isSaved ? 'var(--orange)' : 'var(--text2)'}; font-size: 16px; cursor: pointer; padding: 0 4px;">
-            ${isSaved ? '★' : '☆'}
-          </button>
-        </div>
-      `;
-    });
-    
-    q.userIncorrectAnswers.forEach(word => {
-      html += `
-        <div class="item-row" style="border-bottom: 1px solid rgba(58, 58, 60, 0.3); padding: 8px 4px; opacity: 0.8;">
-          <span class="mono" style="color: var(--danger); text-decoration: line-through;">✕ ${word}</span>
-          <span style="color: var(--text2); font-size: 11px;">Incorrect</span>
-        </div>
-      `;
-    });
-    
-    return html;
-  }
-  
-  let checkResults = { answers: [], incorrectAnswers: [] };
-  try {
-    const resStr = Module.checkAnswers();
-    if (resStr && resStr !== "{}") {
-      checkResults = JSON.parse(resStr);
-    }
-  } catch (e) {
-    console.error("Failed to parse check results in renderAnswersList:", e);
-  }
-  if (!checkResults.answers) checkResults.answers = [];
-  if (!checkResults.incorrectAnswers) checkResults.incorrectAnswers = [];
-  
-  let html = "";
-  
-  checkResults.answers.forEach(ans => {
-    const isSaved = saved.includes(ans.word);
-    const isCorrect = ans.status === 'correct';
-    
-    html += `
-      <div class="item-row" style="border-bottom: 1px solid rgba(58, 58, 60, 0.3); padding: 8px 4px;">
-        <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-          <span style="color: ${isCorrect ? 'var(--accent)' : 'var(--danger)'}; font-weight: 700; width: 18px;">
-            ${isCorrect ? '✓' : '⊘'}
-          </span>
-          <span class="mono hook-box" style="font-size: 11px;">${ans.front || '-'}</span>
-          <span class="mono" style="font-weight: 700; font-size: 16px; color: ${isCorrect ? 'var(--text)' : 'rgba(255, 59, 48, 0.8)'};">
-            ${ans.word}
-          </span>
-          <span class="mono hook-box" style="font-size: 11px;">${ans.back || '-'}</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 11px; color: var(--text2);">${isCorrect ? 'Correct' : 'Missed'}</span>
-          <button class="btn-not" onclick="toggleSavedWord('${ans.word}', this)" style="border: none; background: none; color: ${isSaved ? 'var(--orange)' : 'var(--text2)'}; font-size: 16px; cursor: pointer; padding: 0 4px;">
-            ${isSaved ? '★' : '☆'}
-          </button>
-        </div>
-      </div>
-    `;
-  });
-  
-  checkResults.incorrectAnswers.forEach(word => {
-    html += `
-      <div class="item-row" style="border-bottom: 1px solid rgba(58, 58, 60, 0.3); padding: 8px 4px; opacity: 0.7;">
-        <span class="mono" style="color: var(--danger); text-decoration: line-through;">✕ ${word}</span>
-        <span style="color: var(--text2); font-size: 11px;">Incorrect</span>
-      </div>
-    `;
-  });
-  
-  return html;
-}
-
-// Toggle saved bookmark word inside quiz
-function toggleSavedWord(word, btnEl) {
-  toggleSave(word);
-  const isSaved = saved.includes(word);
-  btnEl.style.color = isSaved ? 'var(--orange)' : 'var(--text2)';
-  btnEl.innerText = isSaved ? '★' : '☆';
-}
-
-// Handle answer submission
-function submitUserAnswer() {
-  const inp = document.getElementById('qAnswerInput');
-  if (!inp) return;
-  
-  const val = inp.value.trim();
-  if (!val) return;
-  
-  const cleanVal = val.toUpperCase().trim();
-  let targetWord = cleanVal;
-  const firstColon = cleanVal.indexOf(':');
-  if (firstColon !== -1) {
-    const secondColon = cleanVal.indexOf(':', firstColon + 1);
-    if (secondColon !== -1) {
-      targetWord = cleanVal.substring(firstColon + 1, secondColon);
-    }
-  }
-  
-  const q = JSON.parse(Module.getCurrentQuestionJson());
-  const quizType = parseInt(document.getElementById('qTypeSelect')?.value || "0");
-  const expectedLen = q.questionText.length + (quizType === 2 ? 1 : 0);
-  
-  if (targetWord.length !== expectedLen) {
-    inp.classList.remove('shake-input');
-    void inp.offsetWidth; // force reflow
-    inp.classList.add('shake-input');
-    setTimeout(() => inp.classList.remove('shake-input'), 350);
-    toast(`⚠️ Answer must be exactly ${expectedLen} letters!`, '');
-    return;
-  }
-  
-  // Snapshot incorrect count before submitting to detect new wrong answers
-  const prevIncorrectCount = q.userIncorrectAnswers ? q.userIncorrectAnswers.length : 0;
-  
-  inp.value = "";
-  
-  const isNewCorrect = Module.submitAnswer(val);
-  if (isNewCorrect) {
-    toast("Correct!", "success");
-  } else {
-    // Check if a new wrong word was added (not just a duplicate correct)
-    const afterQ = JSON.parse(Module.getCurrentQuestionJson());
-    const newIncorrectCount = afterQ.userIncorrectAnswers ? afterQ.userIncorrectAnswers.length : 0;
-    if (newIncorrectCount > prevIncorrectCount) {
-      if (cleanVal && !sessionIncorrectAnswers.includes(cleanVal)) {
-        sessionIncorrectAnswers.push(cleanVal);
-      }
-    }
-  }
-  
-  const updatedQ = JSON.parse(Module.getCurrentQuestionJson());
-  const prog = JSON.parse(Module.getProgressJson());
-  renderQuizUI(updatedQ, prog);
-  
-  document.getElementById('qAnswerInput')?.focus();
-}
-
-// Handle click on "Check Answers"
 function handleCheck() {
   clearInterval(timerInterval);
-  const checkResultsJson = Module.checkAnswers();
-  
-  const q = JSON.parse(Module.getCurrentQuestionJson());
-  const prog = JSON.parse(Module.getProgressJson());
-  renderQuizUI(q, prog);
+  // Flush current-question wrong guesses into session tracker
+  parseQ()?.userIncorrectAnswers?.forEach(w => { sessionIncorrect[w] = sessionIncorrect[w] || 1; });
+  Module.checkAnswers();
+  renderQuizUI(parseQ(), parseProg());
 }
 
-// Handle click on "Next"
 function handleNext() {
-  const hasNext = Module.nextQuestion();
-  if (hasNext) {
-    loadCurrentQuestion();
-  } else {
-    endQuiz();
-  }
+  Module.nextQuestion() ? loadCurrentQuestion() : endQuiz();
 }
 
-// Quit quiz session
 function quitQuiz() {
   clearInterval(timerInterval);
-  document.getElementById('qEnginePane').style.display = 'none';
+  document.getElementById('qEnginePane').style.display   = 'none';
   document.getElementById('qSettingsPane').style.display = 'block';
 }
 
-// End of quiz stats screen
 function endQuiz() {
   clearInterval(timerInterval);
-  const prog = JSON.parse(Module.getProgressJson());
-  const pane = document.getElementById('qEnginePane');
-  if (!pane) return;
-  
-  const totalGuesses = prog.totalCorrect + prog.totalMissed;
-  const accuracy = totalGuesses > 0 ? Math.round((prog.totalCorrect / totalGuesses) * 100) : 0;
-  
-  pane.innerHTML = `
-    <div class="q-clean-layout" style="text-align: center; padding: 20px 0;">
-      <h2 style="font-size: 24px; color: var(--accent); margin-bottom: 20px;">Quiz Complete!</h2>
-      
-      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 12px;">
-        <div style="display: flex; justify-content: space-between;">
-          <span style="color: var(--text2);">Total Questions:</span>
-          <span class="mono" style="font-weight: 700;">${prog.totalQuestions}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <span style="color: var(--accent);">Correct Answers:</span>
-          <span class="mono" style="font-weight: 700; color: var(--accent);">${prog.totalCorrect}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <span style="color: var(--danger);">Missed Answers:</span>
-          <span class="mono" style="font-weight: 700; color: var(--danger);">${prog.totalMissed}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <span style="color: var(--orange);">Incorrect Guesses:</span>
-          <span class="mono" style="font-weight: 700; color: var(--orange);">${prog.totalIncorrect}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px;">
-          <span style="font-weight: 600;">Accuracy Rate:</span>
-          <span class="mono" style="font-weight: 700; color: var(--orange);">${accuracy}%</span>
+  const prog  = parseProg();
+  const total = prog.totalCorrect + prog.totalMissed;
+  const acc   = total > 0 ? Math.round(prog.totalCorrect / total * 100) : 0;
+  document.getElementById('qEnginePane').innerHTML = `
+    <div class="q-clean-layout" style="text-align:center;padding:20px 0">
+      <h2 style="font-size:24px;color:var(--accent);margin-bottom:20px">Quiz Complete!</h2>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+                  padding:20px;margin-bottom:24px;display:flex;flex-direction:column;gap:12px">
+        ${row('Total Questions',  prog.totalQuestions,   'var(--text2)')}
+        ${row('Correct Answers',  prog.totalCorrect,     'var(--accent)')}
+        ${row('Missed Answers',   prog.totalMissed,      'var(--danger)')}
+        ${row('Wrong Guesses',    prog.totalIncorrect,   'var(--orange)')}
+        <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;
+                    display:flex;justify-content:space-between">
+          <span style="font-weight:600">Accuracy</span>
+          <span class="mono" style="font-weight:700;color:var(--orange)">${acc}%</span>
         </div>
       </div>
-      
-      <button class="btn btn-p" style="width: 100%; padding: 14px;" onclick="quitQuiz()">Back to Settings</button>
-    </div>
-  `;
+      <button class="btn btn-p" style="width:100%;padding:14px" onclick="quitQuiz()">
+        Back to Settings
+      </button>
+    </div>`;
 }
 
-// Update timer text and color
-function updateTimerDisplay() {
-  const timerEl = document.getElementById('qTimerDisplay');
-  if (!timerEl) return;
-  
-  const min = Math.floor(quizTimeLeft / 60);
-  const sec = quizTimeLeft % 60;
-  const timeStr = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
-  timerEl.innerText = `⏱ ${timeStr}`;
-  
-  if (quizTimeLeft <= 10) {
-    timerEl.style.color = 'var(--danger)';
-    timerEl.style.textShadow = '0 0 8px rgba(255, 59, 48, 0.4)';
-  } else {
-    timerEl.style.color = 'var(--orange)';
-    timerEl.style.textShadow = 'none';
+// ── UI RENDERING ───────────────────────────────────────────────────────
+function renderQuizUI(q, prog) {
+  const pane = document.getElementById('qEnginePane');
+  if (!pane) return;
+  const pct   = (prog.currentQuestion / prog.totalQuestions) * 100;
+  const tiles = [...q.questionText].map(c => `<div class="quiz-tile">${c}</div>`).join('');
+  const isChecked = q.checked;
+
+  pane.innerHTML = `
+    <div class="q-clean-layout">
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;
+                  border-bottom:1px solid var(--border);padding-bottom:12px">
+        <span class="mono" style="font-size:13px;color:var(--text2)">
+          ${prog.currentQuestion} / ${prog.totalQuestions}
+        </span>
+        <div style="display:flex;gap:14px;align-items:center">
+          <span class="mono" id="qTimerDisplay"
+                style="font-weight:700;color:var(--orange);font-size:14px"></span>
+          <span class="mono" style="font-size:13px;color:var(--accent);font-weight:600">
+            ${q.correctAnswersCount} / ${q.totalAnswers} found
+          </span>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:var(--accent);transition:width .3s"></div>
+      </div>
+
+      <!-- Tiles -->
+      <div style="display:flex;justify-content:center;gap:8px;margin:16px 0;flex-wrap:wrap">
+        ${tiles}
+      </div>
+
+      <!-- Input — readonly (not disabled) so Enter key still fires -->
+      <input type="text" id="qAnswerInput" class="input-field mono"
+        style="text-transform:uppercase;text-align:center;font-size:18px;
+               font-weight:600;letter-spacing:1px;margin-bottom:12px;
+               ${isChecked ? 'opacity:.45;cursor:default;' : ''}"
+        placeholder="${isChecked
+          ? (q.correctAnswersCount === q.totalAnswers ? 'ALL FOUND — ENTER for next' : 'CHECKED — ENTER for next')
+          : 'TYPE ANSWER & PRESS ENTER'}"
+        ${isChecked ? 'readonly' : ''}
+        oninput="onQuizInput()"
+        onkeydown="handleEnterKey(event)">
+
+      <!-- Answers list -->
+      <div class="quiz-history-pane" style="min-height:160px;max-height:220px;margin-bottom:12px">
+        ${renderAnswersList(q)}
+      </div>
+
+      <!-- Buttons -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" style="flex:1;min-width:60px"  onclick="quitQuiz()">Quit</button>
+        <button class="btn" style="flex:1;min-width:64px;color:var(--orange)"
+                onclick="saveCurrentZzq()">Save 💾</button>
+        <button class="btn" style="flex:1;min-width:64px;color:#0A84FF"
+                onclick="showAnalysis()">Analyze</button>
+        ${isChecked
+          ? `<button class="btn btn-p" style="flex:2;min-width:140px"
+                     onclick="handleNext()">Next →&nbsp;<small style="opacity:.7">(Enter)</small></button>`
+          : `<button class="btn btn-p" id="qActionButton" style="flex:2;min-width:140px"
+                     onclick="handleCheck()">Check Answers ✓</button>`}
+      </div>
+    </div>`;
+
+  if (quizTimeLimit > 0) updateTimerDisplay();
+}
+
+function renderAnswersList(q) {
+  if (!q.checked) {
+    if (!q.userCorrectAnswers.length && !q.userIncorrectAnswers.length)
+      return `<p style="text-align:center;color:var(--text2);padding:20px 0">No answers yet</p>`;
+
+    return [
+      ...q.userCorrectAnswers.map(w => {
+        const star = saved.includes(w);
+        return `<div class="item-row" style="padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3)">
+          <span class="mono" style="color:var(--accent);font-weight:600">✓ ${w}</span>
+          <button onclick="toggleSavedWord('${w}',this)" style="border:none;background:none;
+            color:${star?'var(--orange)':'var(--text2)'};font-size:16px;cursor:pointer;padding:0 4px">
+            ${star?'★':'☆'}</button></div>`;
+      }),
+      ...q.userIncorrectAnswers.map(w =>
+        `<div class="item-row" style="padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3);opacity:.8">
+          <span class="mono" style="color:var(--danger);text-decoration:line-through">✕ ${w}</span>
+          <span style="color:var(--text2);font-size:11px">Invalid</span></div>`)
+    ].join('');
+  }
+
+  // Checked state — show full results
+  let cr = { answers: [], incorrectAnswers: [] };
+  try { const s = Module.checkAnswers(); if (s && s !== '{}') cr = JSON.parse(s); } catch(_) {}
+
+  return [
+    ...(cr.answers || []).map(a => {
+      const ok = a.status === 'correct', star = saved.includes(a.word);
+      return `<div class="item-row" style="padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3)">
+        <div style="display:flex;align-items:center;gap:8px;flex:1">
+          <span style="color:${ok?'var(--accent)':'var(--danger)'};font-weight:700;width:18px">${ok?'✓':'⊘'}</span>
+          <span class="mono hook-box" style="font-size:11px">${a.front||'—'}</span>
+          <span class="mono" style="font-weight:700;font-size:16px;
+            color:${ok?'var(--text)':'rgba(255,59,48,.8)'}">${a.word}</span>
+          <span class="mono hook-box" style="font-size:11px">${a.back||'—'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:var(--text2)">${ok?'✓':'Missed'}</span>
+          <button onclick="toggleSavedWord('${a.word}',this)" style="border:none;background:none;
+            color:${star?'var(--orange)':'var(--text2)'};font-size:16px;cursor:pointer;padding:0 4px">
+            ${star?'★':'☆'}</button></div></div>`;
+    }),
+    ...(cr.incorrectAnswers || []).map(w =>
+      `<div class="item-row" style="padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3);opacity:.7">
+        <span class="mono" style="color:var(--danger);text-decoration:line-through">✕ ${w}</span>
+        <span style="color:var(--text2);font-size:11px">Invalid</span></div>`)
+  ].join('') || `<p style="text-align:center;color:var(--text2);padding:20px 0">No answers</p>`;
+}
+
+// ── INPUT HANDLING ─────────────────────────────────────────────────────
+
+// Central Enter handler — routes to Next or Submit depending on question state
+function handleEnterKey(e) {
+  if (e.key !== 'Enter') return;
+  const q = parseQ();
+  if (!q) return;
+  if (q.checked) { e.preventDefault(); handleNext(); return; }
+  submitUserAnswer();
+}
+
+function submitUserAnswer() {
+  const inp = document.getElementById('qAnswerInput');
+  if (!inp) return;
+  const raw = inp.value.trim();
+  if (!raw) { handleCheck(); return; }     // empty input → check answers
+
+  const val  = raw.toUpperCase();
+  const q    = parseQ();
+  const qType = sel('qTypeSelect');
+  const expectedLen = q.questionText.length + (qType === 2 ? 1 : 0);
+
+  if (val.length !== expectedLen) {
+    shake(inp); toast(`⚠️ Answer must be ${expectedLen} letters`); return;
+  }
+
+  const prevWrong = q.userIncorrectAnswers?.length || 0;
+  inp.value = '';
+
+  Module.submitAnswer(val);
+
+  // If new wrong guess was added, track it in session
+  const afterQ = parseQ();
+  if ((afterQ.userIncorrectAnswers?.length || 0) > prevWrong)
+    trackWrongGuess(val);
+
+  renderQuizUI(afterQ, parseProg());
+  document.getElementById('qAnswerInput')?.focus();
+}
+
+function onQuizInput() {
+  const inp = document.getElementById('qAnswerInput');
+  const btn = document.getElementById('qActionButton');
+  if (!inp) return;
+  // Update action button label
+  if (btn) {
+    const hasText = inp.value.trim().length > 0;
+    btn.innerText  = hasText ? 'Submit' : 'Check Answers ✓';
+    btn.onclick    = hasText ? submitUserAnswer : handleCheck;
+  }
+  // Tile validation (anagram mode only)
+  if (!cppInitialized || sel('qTypeSelect') !== 0) return;
+  const q = parseQ();
+  if (!q || q.checked) return;
+  const typed = inp.value.toUpperCase();
+  const avail = {};
+  for (const c of q.questionText) avail[c] = (avail[c] || 0) + 1;
+  const used  = {};
+  for (const c of typed) {
+    used[c] = (used[c] || 0) + 1;
+    if (used[c] > (avail[c] || 0)) {
+      inp.value = typed.slice(0, -1);
+      shake(inp); toast(`⚠️ "${c}" not in tiles`); return;
+    }
   }
 }
 
-// Save current quiz back into Zyzzyva .zzq format
+// ── ANALYZE VIEW ───────────────────────────────────────────────────────
+function showAnalysis() {
+  const q = parseQ(); if (!q) return;
+  if (!q.checked) {
+    if (!confirm('⚠️ This reveals all answers and finalises this question. Proceed?')) return;
+    clearInterval(timerInterval);
+  }
+  const resultsStr = Module.checkAnswers();
+  let cr;
+  try { cr = JSON.parse(resultsStr); } catch(_) {}
+  if (!cr?.answers) { toast('No analysis data'); return; }
+
+  // Ensure session tracks any current-question wrong guesses
+  (cr.incorrectAnswers || []).forEach(w => { if (!sessionIncorrect[w]) trackWrongGuess(w); });
+
+  const prog      = parseProg();
+  const sessTotal = prog.totalCorrect + prog.totalMissed;
+  const sessAcc   = sessTotal > 0 ? Math.round(prog.totalCorrect / sessTotal * 100) : 0;
+  const curCorrect = cr.answers.filter(a => a?.status === 'correct').length;
+  const curAcc    = cr.answers.length > 0
+    ? Math.round(curCorrect / cr.answers.length * 100) : 0;
+  const col       = p => p >= 70 ? 'var(--accent)' : p >= 40 ? 'var(--orange)' : 'var(--danger)';
+
+  const missed     = cr.answers.filter(a => a?.status === 'missed').map(a => a.word);
+  const wrongThisQ = cr.incorrectAnswers || [];
+  const sessWords  = Object.keys(sessionIncorrect);
+  const isClean    = wrongThisQ.length === 0;
+
+  const badge = isClean
+    ? `<span style="background:rgba(52,199,89,.15);color:var(--accent);
+                    padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">✓ CLEAN</span>`
+    : `<span style="background:rgba(255,59,48,.1);color:var(--danger);
+                    padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">⚠ HAD WRONG GUESSES</span>`;
+
+  const listOf = (arr, col, icon = '•') => arr.length
+    ? arr.map(w => {
+        const cnt = sessionIncorrect[w];
+        return `<div class="mono" style="color:${col};font-size:15px;padding:2px 0">
+          ${icon} ${w}${cnt > 1 ? ` <span style="color:var(--text2);font-size:12px">(×${cnt})</span>` : ''}
+        </div>`;
+      }).join('')
+    : `<div class="mono" style="color:var(--text2);text-align:center;padding:8px 0">None</div>`;
+
+  document.getElementById('qEnginePane').innerHTML = `
+    <div class="q-clean-layout">
+      <h3 class="mono" style="font-size:16px;border-bottom:1px solid var(--border);padding-bottom:6px">
+        Analysis
+      </h3>
+
+      <!-- Stats grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--surface2);border:1px solid var(--border);
+                    border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text2);font-weight:700;
+                      text-transform:uppercase;margin-bottom:4px">Current Q</div>
+          <div style="font-size:26px;font-weight:800;color:${col(curAcc)}">${curAcc}%</div>
+          <div style="font-size:11px;color:var(--text2)">${curCorrect}/${cr.answers.length}</div>
+          <div style="margin-top:4px">${badge}</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);
+                    border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text2);font-weight:700;
+                      text-transform:uppercase;margin-bottom:4px">Session</div>
+          <div style="font-size:26px;font-weight:800;color:${col(sessAcc)}">${sessAcc}%</div>
+          <div style="font-size:11px;color:var(--text2)">${prog.totalCorrect}/${sessTotal}</div>
+        </div>
+      </div>
+
+      <!-- Missed -->
+      <div style="background:rgba(255,149,0,.08);border:1px solid rgba(255,149,0,.25);
+                  border-radius:8px;padding:12px;max-height:150px;overflow-y:auto">
+        <div style="font-size:11px;text-transform:uppercase;font-weight:700;
+                    color:var(--orange);margin-bottom:6px">Missed (${missed.length})</div>
+        ${listOf(missed, 'var(--orange)')}
+      </div>
+
+      <!-- Wrong this question -->
+      <div style="background:rgba(255,59,48,.05);border:1px solid rgba(255,59,48,.2);
+                  border-radius:8px;padding:12px;max-height:120px;overflow-y:auto">
+        <div style="font-size:11px;text-transform:uppercase;font-weight:700;
+                    color:var(--danger);margin-bottom:6px">Wrong This Q (${wrongThisQ.length})</div>
+        ${listOf(wrongThisQ, 'var(--danger)', '✕')}
+      </div>
+
+      <!-- All session wrong guesses -->
+      <div style="background:rgba(255,59,48,.03);border:1px solid rgba(255,59,48,.15);
+                  border-radius:8px;padding:12px;max-height:150px;overflow-y:auto">
+        <div style="font-size:11px;text-transform:uppercase;font-weight:700;
+                    color:var(--danger);margin-bottom:6px">
+          All Session Wrong — persists in save (${sessWords.length})
+        </div>
+        ${listOf(sessWords, 'var(--danger)', '✕')}
+      </div>
+
+      <button class="btn btn-p" style="width:100%" onclick="renderActiveQuiz()">Back to Quiz</button>
+    </div>`;
+}
+
+function renderActiveQuiz() {
+  const q = parseQ(); if (!q) return;
+  renderQuizUI(q, parseProg());
+}
+
+// ── SAVE .zzq ──────────────────────────────────────────────────────────
 function saveCurrentZzq() {
-  if (!currentQuizPool || !currentQuizPool.length) {
-    toast("No active word pool to save!");
-    return;
+  if (!currentQuizPool?.length) { toast('No active quiz to save'); return; }
+  let name = prompt('ชื่อไฟล์:', 'zyzzylu_quiz');
+  if (name === null) return;
+  name = (name.trim() || 'zyzzylu_quiz').replace(/\.zzq$/i, '') + '.zzq';
+
+  const prog       = parseProg();
+  const q          = parseQ();
+  const isChecked  = q.checked;
+
+  // Attempt to get check results for complete questions
+  let cr = null;
+  if (isChecked) {
+    try { const s = Module.checkAnswers(); if (s && s !== '{}') cr = JSON.parse(s); } catch(_) {}
   }
-  let fName = prompt("ชื่อไฟล์ควิซ:", "zyzzylu_quiz");
-  if (fName === null) return;
-  fName = fName.trim() || "zyzzylu_quiz";
-  if (!fName.toLowerCase().endsWith(".zzq")) fName += ".zzq";
-  
-  const prog = JSON.parse(Module.getProgressJson());
-  const q = JSON.parse(Module.getCurrentQuestionJson());
-  
-  let totalW = prog.totalQuestions;
-  let lengths = currentQuizPool.map(w => w.length);
-  let minL = lengths.length ? Math.min(...lengths) : 2;
-  let maxL = lengths.length ? Math.max(...lengths) : 15;
-  
-  const isComplete = q.checked;
-  const currentIdx = prog.currentQuestion - 1;
-  const correctQuestions = prog.fullyCorrectQuestions || 0;
-  const correctCount = prog.totalCorrect;
-  
-  let xml = [];
-  xml.push('<?xml version="1.0" encoding="ISO-8859-1"?>');
-  xml.push('<!DOCTYPE zyzzyva-quiz SYSTEM \'http://boshvark.com/dtd/zyzzyva-quiz.dtd\'>');
-  xml.push(`<zyzzyva-quiz method="Standard" lexicon="CSW24" type="Anagrams" question-order="Random">`);
-  xml.push(' <question-source type="search">');
-  xml.push('  <zyzzyva-search version="1">');
-  xml.push('   <conditions>');
-  xml.push('    <and>');
-  
-  if (qFilters && qFilters.length > 0) {
+
+  const lines = [
+    '<?xml version="1.0" encoding="ISO-8859-1"?>',
+    '<!DOCTYPE zyzzyva-quiz SYSTEM \'http://boshvark.com/dtd/zyzzyva-quiz.dtd\'>',
+    '<zyzzyva-quiz type="Anagrams" question-order="Random" lexicon="CSW24" method="Standard">',
+    ' <question-source type="search">',
+    '  <zyzzyva-search version="1">',
+    '   <conditions>',
+    '    <and>',
+  ];
+
+  // Conditions
+  if (qFilters.length) {
     qFilters.forEach(f => {
-      let negatedVal = f.not ? '1' : '0';
-      if (f.type === 'length') {
-        xml.push(`     <condition min="${f.v1}" max="${f.v2}" type="Length"/>`);
-      } else if (f.type === 'point_value') {
-        xml.push(`     <condition min="${f.v1}" max="${f.v2}" type="Point Value"/>`);
-      } else if (f.type === 'begins') {
-        xml.push(`     <condition string="${f.v1}" type="Begins With" negated="${negatedVal}"/>`);
-      } else if (f.type === 'ends') {
-        xml.push(`     <condition string="${f.v1}" type="Ends With" negated="${negatedVal}"/>`);
-      } else if (f.type === 'includes') {
-        xml.push(`     <condition string="${f.v1}" type="Includes Letters" negated="${negatedVal}"/>`);
-      } else if (f.type === 'probability_order') {
-        xml.push(`     <condition min="${f.v1}" max="${f.v2}" type="Probability"/>`);
-      } else if (f.type === 'limit_probability_order') {
-        xml.push(`     <condition min="${f.v1}" max="${f.v2}" type="LimitByProbabilityOrder"/>`);
-      } else if (f.type === 'anagram_match') {
-        xml.push(`     <condition string="${f.v1}" type="Anagram Match" negated="${negatedVal}"/>`);
-      }
+      const n = f.not ? '1' : '0';
+      if      (f.type === 'length')         lines.push(`     <condition type="Length" min="${f.v1}" max="${f.v2}"/>`);
+      else if (f.type === 'point_value')    lines.push(`     <condition type="Point Value" min="${f.v1}" max="${f.v2}"/>`);
+      else if (f.type === 'num_vowels')     lines.push(`     <condition type="Number of Vowels" min="${f.v1}" max="${f.v2}"/>`);
+      else if (f.type === 'begins')         lines.push(`     <condition type="Begins With" string="${f.v1}" negated="${n}"/>`);
+      else if (f.type === 'ends')           lines.push(`     <condition type="Ends With" string="${f.v1}" negated="${n}"/>`);
+      else if (f.type === 'includes')       lines.push(`     <condition type="Includes Letters" string="${f.v1}" negated="${n}"/>`);
+      else if (f.type === 'probability_order')
+        lines.push(`     <condition type="Probability Order" min="${f.v1}" max="${f.v2}"/>`);
+      else if (f.type === 'limit_probability_order')
+        // Zyzzyva uses int="2" bool="true" to mark LimitByProbabilityOrder
+        lines.push(`     <condition type="Probability Order" int="2" bool="true" min="0" max="${f.v2}"/>`);
+      else if (f.type === 'anagram_match')  lines.push(`     <condition type="Anagram Match" string="${f.v1}" negated="${n}"/>`);
     });
   } else {
-    xml.push(`     <condition min="${minL}" max="${maxL}" type="Length"/>`);
+    const lens = currentQuizPool.map(w => w.length);
+    lines.push(`     <condition type="Length" min="${Math.min(...lens)}" max="${Math.max(...lens)}"/>`);
   }
-  
-  xml.push('    </and>');
-  xml.push('   </conditions>');
-  xml.push('  </zyzzyva-search>');
-  xml.push(' </question-source>');
-  xml.push(` <randomizer seed="${activeSeed1}" algorithm="1" seed2="${activeSeed2}"/>`);
-  xml.push(` <progress correct-questions="${correctQuestions}" question="${currentIdx}" correct="${correctCount}" question-complete="${isComplete ? 'true' : 'false'}" total-questions="${totalW}">`);
-  
-  if (isComplete) {
-    xml.push('  <question-correct-responses>');
-    q.userCorrectAnswers.forEach(word => {
-      xml.push(`   <response word="${word}"/>`);
-    });
-    xml.push('  </question-correct-responses>');
+
+  lines.push('    </and>', '   </conditions>', '  </zyzzyva-search>', ' </question-source>',
+    ` <randomizer algorithm="1" seed="${activeSeed1}" seed2="${activeSeed2}"/>`,
+  );
+
+  // Progress
+  const attr = [
+    `question="${prog.currentQuestion - 1}"`,
+    `total-questions="${prog.totalQuestions}"`,
+    `correct="${prog.totalCorrect}"`,
+    `correct-questions="${prog.fullyCorrectQuestions || 0}"`,
+    `question-complete="${isChecked}"`,
+  ].join(' ');
+
+  const correctWords   = q.userCorrectAnswers   || [];
+  const incorrectWords = isChecked ? (cr?.incorrectAnswers || []) : (q.userIncorrectAnswers || []);
+  const missedWords    = isChecked ? (cr?.answers?.filter(a => a.status === 'missed').map(a => a.word) || []) : [];
+  const hasBody        = correctWords.length || incorrectWords.length || missedWords.length;
+
+  if (hasBody) {
+    lines.push(` <progress ${attr}>`);
+    if (correctWords.length) {
+      lines.push('  <question-correct-responses>');
+      correctWords.forEach(w => lines.push(`   <response word="${w}"/>`));
+      lines.push('  </question-correct-responses>');
+    }
+    if (incorrectWords.length) {
+      lines.push('  <incorrect-responses>');
+      incorrectWords.forEach(w => lines.push(`   <response word="${w}" count="1"/>`));
+      lines.push('  </incorrect-responses>');
+    }
+    if (missedWords.length) {
+      lines.push('  <missed-responses>');
+      missedWords.forEach(w => lines.push(`   <response word="${w}" count="1"/>`));
+      lines.push('  </missed-responses>');
+    }
+    lines.push(' </progress>');
   } else {
-    if (q.userCorrectAnswers && q.userCorrectAnswers.length > 0) {
-      xml.push('  <question-correct-responses>');
-      q.userCorrectAnswers.forEach(word => {
-        xml.push(`   <response word="${word}"/>`);
-      });
-      xml.push('  </question-correct-responses>');
-    }
-    if (q.userIncorrectAnswers && q.userIncorrectAnswers.length > 0) {
-      xml.push('  <incorrect-responses>');
-      q.userIncorrectAnswers.forEach(word => {
-        xml.push(`   <response word="${word}" count="1"/>`);
-      });
-      xml.push('  </incorrect-responses>');
-    }
+    lines.push(` <progress ${attr}/>`);
   }
-  
-  xml.push(' </progress>');
-  
-  // Zyzylu-specific: save all session wrong guesses across all questions
-  if (sessionIncorrectAnswers.length > 0) {
-    xml.push(' <zyzzylu-session>');
-    xml.push('  <all-incorrect-responses>');
-    sessionIncorrectAnswers.forEach(word => {
-      xml.push(`   <response word="${word}"/>`);
-    });
-    xml.push('  </all-incorrect-responses>');
-    xml.push(' </zyzzylu-session>');
+
+  // Zyzzylu extension — session wrong guesses
+  const sessWords = Object.keys(sessionIncorrect);
+  if (sessWords.length) {
+    lines.push(' <zyzzylu-session>', '  <all-incorrect-responses>');
+    sessWords.forEach(w => lines.push(`   <response word="${w}" count="${sessionIncorrect[w]}"/>`));
+    lines.push('  </all-incorrect-responses>', ' </zyzzylu-session>');
   }
-  
-  xml.push('</zyzzyva-quiz>');
-  
-  let blob = new Blob([xml.join("\r\n")], { type: "application/octet-stream" });
-  let a = document.createElement("a");
-  a.download = fName;
-  a.href = window.URL.createObjectURL(blob);
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  toast(`Saved ${fName}`);
+
+  lines.push('</zyzzyva-quiz>');
+
+  downloadText(lines.join('\r\n'), name);
+  toast(`Saved ${name}`);
 }
 
-// Parse Zyzzyva .zzq quiz file or plain words text file
+// ── LOAD .zzq ──────────────────────────────────────────────────────────
 function loadZzq(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  
+  const file = event.target.files[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = e => {
     const content = e.target.result.trim();
     try {
-      // 1. Check if plain text file
-      if (!content.startsWith("<?xml")) {
-        const loaded = content.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => dictSet.has(w));
-        if (!loaded.length) {
-          toast("No valid words found in the plain text file.");
-          return;
-        }
-        
-        sessionIncorrectAnswers = [];
-        currentQuizPool = loaded;
-        activeSeed1 = Math.floor(Date.now() / 1000);
-        activeSeed2 = 244;
-        
-        const quizType = parseInt(document.getElementById('qTypeSelect')?.value || "0");
-        quizTimeLimit = parseInt(document.getElementById('qTimerSelect')?.value || "0");
-        
-        const poolString = loaded.join(' ');
-        Module.generateQuiz(quizType, poolString, 3);
-        
-        document.getElementById('qSettingsPane').style.display = 'none';
-        document.getElementById('qEnginePane').style.display = 'block';
-        loadCurrentQuestion();
-        
-        toast(` Loaded Plain Words (${loaded.length} words)`);
-        return;
+      if (!content.startsWith('<?xml')) {
+        loadPlainWordList(content); return;
       }
-      
-      // 2. Parse XML (.zzq)
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(content, "text/xml");
-      
-      const quizNode = xmlDoc.querySelector('zyzzyva-quiz');
-      if (!quizNode) {
-        toast("Invalid .zzq file structure!");
-        return;
-      }
-      
-      const typeAttr = quizNode.getAttribute('type') || "Anagrams";
-      
-      let typeVal = "0";
-      if (typeAttr.toLowerCase().includes("hook")) {
-        typeVal = "1";
-      } else if (typeAttr.toLowerCase().includes("build")) {
-        typeVal = "2";
-      }
-      
-      const typeSelect = document.getElementById('qTypeSelect');
-      if (typeSelect) typeSelect.value = typeVal;
-      
-      // Extract randomizer seeds
-      let rNode = xmlDoc.getElementsByTagName("randomizer")[0];
-      let s1 = rNode ? rNode.getAttribute("seed") : null;
-      let s2 = rNode ? rNode.getAttribute("seed2") : null;
-      
-      activeSeed1 = s1 ? parseInt(s1) : Math.floor(Date.now() / 1000);
-      activeSeed2 = s2 ? parseInt(s2) : 244;
-      
-      // Parse search conditions to reconstruct the word pool
-      const conditionNodes = xmlDoc.querySelectorAll('condition');
-      let pool = [];
-      if (conditionNodes.length > 0) {
-        qFilters.length = 0;
-        conditionNodes.forEach(cond => {
-          const parentTag = cond.parentNode.tagName.toLowerCase();
-          const not = (parentTag === 'not' || cond.getAttribute('negated') === '1');
-          
-          let filterType = "";
-          let v1 = "";
-          let v2 = "";
-          
-          const type = cond.getAttribute('type');
-          if (!type) return;
-          const typeNorm = type.replace(/\s+/g, '').toLowerCase();
-          
-          if (typeNorm === 'length') {
-            filterType = 'length';
-            v1 = cond.getAttribute('min') || '2';
-            v2 = cond.getAttribute('max') || '8';
-          } else if (typeNorm === 'pointvalue') {
-            filterType = 'point_value';
-            v1 = cond.getAttribute('min') || '2';
-            v2 = cond.getAttribute('max') || '8';
-          } else if (typeNorm === 'beginswith' || typeNorm === 'begins') {
-            filterType = 'begins';
-            v1 = cond.getAttribute('text') || cond.getAttribute('string') || '';
-          } else if (typeNorm === 'endswith' || typeNorm === 'ends') {
-            filterType = 'ends';
-            v1 = cond.getAttribute('text') || cond.getAttribute('string') || '';
-          } else if (typeNorm === 'includesletters' || typeNorm === 'contains' || typeNorm === 'includes') {
-            filterType = 'includes';
-            v1 = cond.getAttribute('text') || cond.getAttribute('string') || '';
-          } else if (typeNorm === 'probability') {
-            filterType = 'probability_order';
-            v1 = cond.getAttribute('min') || '1';
-            v2 = cond.getAttribute('max') || '1000';
-          } else if (typeNorm === 'limitbyprobabilityorder') {
-            filterType = 'limit_probability_order';
-            v1 = cond.getAttribute('min') || '1';
-            v2 = cond.getAttribute('max') || '100';
-          } else if (typeNorm === 'anagrammatch') {
-            filterType = 'anagram_match';
-            v1 = cond.getAttribute('text') || cond.getAttribute('string') || '';
-          }
-          
-          if (filterType) {
-            fId++;
-            qFilters.push({
-              id: fId,
-              type: filterType,
-              v1: v1,
-              v2: v2,
-              not: not
-            });
-          }
-        });
-        
-        renderFilters('Q');
-        pool = dict.filter(w => matchFilters(w, qFilters));
-        pool = applyLimitFilters(pool, qFilters);
-      } else {
-        // Fallback: If no search conditions, check response nodes
-        let responseNodes = xmlDoc.getElementsByTagName("response");
-        let explicitWords = [];
-        for (let i = 0; i < responseNodes.length; i++) {
-          let w = responseNodes[i].getAttribute("word");
-          if (w) {
-            w = w.trim().toUpperCase();
-            if (dictSet.has(w)) explicitWords.push(w);
-          }
-        }
-        pool = explicitWords;
-      }
-      
-      if (!pool.length) {
-        alert("No valid words found matching this quiz file.");
-        return;
-      }
-      
-      // Shuffle pool using seeds
-      let orderedWords = [];
-      if (typeVal === "2") { // Build quiz shuffles words directly
-        orderedWords = (s1 && s2) ? shuffleMwc(pool, activeSeed1, activeSeed2) : standardShuffle(pool);
-      } else { // Anagrams / Hooks shuffles unique alphagrams
-        let uniquePool = Array.from(new Set(pool.map(w => [...w].sort().join(''))));
-        uniquePool.sort(); // Sort alphabetically to match Zyzzyva before shuffling
-        let shuffledUnique = (s1 && s2) ? shuffleMwc(uniquePool, activeSeed1, activeSeed2) : standardShuffle(uniquePool);
-        
-        let wordsByAlphagram = {};
-        pool.forEach(w => {
-          let alphaG = [...w].sort().join('');
-          if (!wordsByAlphagram[alphaG]) {
-            wordsByAlphagram[alphaG] = [];
-          }
-          wordsByAlphagram[alphaG].push(w);
-        });
-        
-        shuffledUnique.forEach(alphaG => {
-          let matches = wordsByAlphagram[alphaG];
-          if (matches) {
-            orderedWords.push(...matches);
-          }
-        });
-      }
-      
-      currentQuizPool = orderedWords;
-      quizTimeLimit = parseInt(document.getElementById('qTimerSelect')?.value || "0");
-      
-      const orderSelect = document.getElementById('qOrderSelect');
-      if (orderSelect) {
-        orderSelect.value = "1"; 
-      }
-      
-      // Generate the quiz in C++ preserving the order we established
-      Module.generateQuiz(parseInt(typeVal), orderedWords.join(' '), 3);
-      
-      // Restore progress if it exists in the XML
-      const progressNode = xmlDoc.querySelector('progress');
-      if (progressNode) {
-        let savedCorrectQuestions = parseInt(progressNode.getAttribute('correct-questions') || '0');
-        let savedQuestionIndex = parseInt(progressNode.getAttribute('question') || '0');
-        let savedCorrect = parseInt(progressNode.getAttribute('correct') || '0');
-        let savedQuestionComplete = progressNode.getAttribute('question-complete') === 'true';
-        
-        let userCorrect = [];
-        let userIncorrect = [];
-        
-        const correctNode = progressNode.querySelector('question-correct-responses');
-        if (correctNode) {
-          const respNodes = correctNode.querySelectorAll('response');
-          respNodes.forEach(node => {
-            let w = node.getAttribute('word');
-            if (w) userCorrect.push(w.trim().toUpperCase());
-          });
-        }
-        
-        const incorrectNode = progressNode.querySelector('incorrect-responses');
-        if (incorrectNode) {
-          const respNodes = incorrectNode.querySelectorAll('response');
-          respNodes.forEach(node => {
-            let w = node.getAttribute('word');
-            if (w) userIncorrect.push(w.trim().toUpperCase());
-          });
-        }
-        
-        Module.restoreProgress(
-          savedQuestionIndex,
-          savedCorrect,
-          0,                          // totalMissedVal
-          0,                          // totalIncorrectVal (not stored per-question in .zzq)
-          savedCorrectQuestions,      // fullyCorrectVal
-          userCorrect.join(' '),
-          userIncorrect.join(' '),
-          savedQuestionComplete
-        );
-      }
-      
-      // Restore session incorrect answers from Zyzylu-specific data
-      sessionIncorrectAnswers = [];
-      const sessionNode = xmlDoc.querySelector('zyzzylu-session all-incorrect-responses');
-      if (sessionNode) {
-        sessionNode.querySelectorAll('response').forEach(r => {
-          const w = r.getAttribute('word');
-          if (w) sessionIncorrectAnswers.push(w.trim().toUpperCase());
-        });
-      }
-      
-      document.getElementById('qSettingsPane').style.display = 'none';
-      document.getElementById('qEnginePane').style.display = 'block';
-      loadCurrentQuestion();
-      
-      toast(` Loaded .zzq Quiz (${pool.length} Words)`);
-      
+      loadXmlZzq(content);
     } catch(err) {
-      console.error(err);
-      toast("Error parsing quiz file.");
+      console.error(err); toast('Error parsing quiz file');
     }
   };
   reader.readAsText(file);
 }
 
-// Dynamic button text swapping based on input
-function updateQuizButtonText() {
-  const inp = document.getElementById('qAnswerInput');
-  const btn = document.getElementById('qActionButton');
-  if (!inp || !btn) return;
-  if (inp.value.trim()) {
-    btn.innerText = "Submit";
-    btn.onclick = submitUserAnswer;
-  } else {
-    btn.innerText = "Check Answers ✓";
-    btn.onclick = handleCheck;
-  }
+function loadPlainWordList(content) {
+  const words = content.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => dictSet.has(w));
+  if (!words.length) { toast('No valid words in file'); return; }
+  sessionIncorrect = {};
+  currentQuizPool  = words;
+  activeSeed1 = Math.floor(Date.now() / 1000);
+  activeSeed2 = SESSION_SEED2;
+  Module.generateQuiz(sel('qTypeSelect'), words.join(' '), 3);
+  showQuizPane();
+  loadCurrentQuestion();
+  toast(`Loaded ${words.length} words`);
 }
 
-// Validate quiz input — only allow letters present in the current alphagram
-function onQuizInput() {
-  updateQuizButtonText();
-  
-  const inp = document.getElementById('qAnswerInput');
-  if (!inp || !cppInitialized) return;
-  
-  const quizType = parseInt(document.getElementById('qTypeSelect')?.value || "0");
-  if (quizType !== 0) return; // Strict tile validation only for standard Anagrams
-  
-  const qJsonStr = Module.getCurrentQuestionJson();
-  if (!qJsonStr || qJsonStr === '{}') return;
-  const q = JSON.parse(qJsonStr);
-  if (q.checked) return;
-  
-  const typed = inp.value.toUpperCase();
-  if (!typed) return;
-  
-  // Count available letters from alphagram tiles
-  const alphagram = q.questionText || '';
-  let available = {};
-  for (let c of alphagram) {
-    available[c] = (available[c] || 0) + 1;
-  }
-  
-  // Check each letter typed against available tiles
-  let used = {};
-  for (let c of typed) {
-    used[c] = (used[c] || 0) + 1;
-    if ((used[c]) > (available[c] || 0)) {
-      // Invalid — remove last character and shake
-      inp.value = typed.slice(0, -1);
-      inp.classList.remove('shake-input');
-      void inp.offsetWidth; // force reflow
-      inp.classList.add('shake-input');
-      setTimeout(() => inp.classList.remove('shake-input'), 350);
-      toast(`⚠️ "${c}" not in tiles!`, '');
-      updateQuizButtonText();
-      return;
+function loadXmlZzq(content) {
+  const xml      = new DOMParser().parseFromString(content, 'text/xml');
+  const quizNode = xml.querySelector('zyzzyva-quiz');
+  if (!quizNode) { toast('Invalid .zzq file'); return; }
+
+  // Quiz type
+  const typeAttr = quizNode.getAttribute('type') || '';
+  const typeVal  = typeAttr.toLowerCase().includes('hook') ? 1
+                 : typeAttr.toLowerCase().includes('build') ? 2 : 0;
+  document.getElementById('qTypeSelect').value = String(typeVal);
+
+  // Seeds — use stored seeds to reproduce Zyzzyva's exact question order
+  const rnd = xml.getElementsByTagName('randomizer')[0];
+  activeSeed1 = parseInt(rnd?.getAttribute('seed') || '0') || Math.floor(Date.now() / 1000);
+  activeSeed2 = parseInt(rnd?.getAttribute('seed2') || '0') || SESSION_SEED2;
+
+  // Rebuild filter list from conditions
+  qFilters.length = 0;
+  xml.querySelectorAll('condition').forEach(cond => {
+    const negated  = cond.parentNode?.tagName?.toLowerCase() === 'not'
+                     || cond.getAttribute('negated') === '1';
+    const typeRaw  = cond.getAttribute('type') || '';
+    const typeNorm = typeRaw.replace(/\s+/g, '').toLowerCase();
+    const intAttr  = cond.getAttribute('int');
+    const boolAttr = cond.getAttribute('bool');
+    let ft = '', v1 = '', v2 = '';
+
+    if      (typeNorm === 'length')
+      { ft='length';          v1=cond.getAttribute('min')||'2';  v2=cond.getAttribute('max')||'8'; }
+    else if (typeNorm === 'pointvalue')
+      { ft='point_value';     v1=cond.getAttribute('min')||'0';  v2=cond.getAttribute('max')||'50'; }
+    else if (typeNorm === 'numberofvowels')
+      { ft='num_vowels';      v1=cond.getAttribute('min')||'1';  v2=cond.getAttribute('max')||'7'; }
+    else if (typeNorm === 'beginswith' || typeNorm === 'begins')
+      { ft='begins';          v1=cond.getAttribute('string') || cond.getAttribute('text') || ''; }
+    else if (typeNorm === 'endswith' || typeNorm === 'ends')
+      { ft='ends';            v1=cond.getAttribute('string') || cond.getAttribute('text') || ''; }
+    else if (typeNorm === 'includesletters' || typeNorm === 'includes' || typeNorm === 'contains')
+      { ft='includes';        v1=cond.getAttribute('string') || cond.getAttribute('text') || ''; }
+    else if (typeNorm === 'anagrammatch')
+      { ft='anagram_match';   v1=cond.getAttribute('string') || cond.getAttribute('text') || ''; }
+    else if (typeNorm === 'probabilityorder') {
+      // int="2" or bool="true" → Zyzzyva's LimitByProbabilityOrder; otherwise regular range
+      if (intAttr === '2' || boolAttr === 'true')
+        { ft='limit_probability_order'; v1='1'; v2=cond.getAttribute('max')||'100'; }
+      else
+        { ft='probability_order'; v1=cond.getAttribute('min')||'1'; v2=cond.getAttribute('max')||'1000'; }
     }
+    else if (typeNorm === 'limitbyprobabilityorder')
+      { ft='limit_probability_order'; v1=cond.getAttribute('min')||'1'; v2=cond.getAttribute('max')||'100'; }
+
+    if (ft) { fId++; qFilters.push({ id: fId, type: ft, v1, v2, not: negated }); }
+  });
+  renderFilters('Q');
+
+  // Build word pool from conditions
+  let pool = dict.filter(w => matchFilters(w, qFilters));
+  pool     = applyLimitFilters(pool, qFilters);
+
+  // Fallback: extract words from response nodes if no conditions matched
+  if (!pool.length) {
+    xml.querySelectorAll('response').forEach(r => {
+      const w = r.getAttribute('word')?.trim().toUpperCase();
+      if (w && dictSet.has(w)) pool.push(w);
+    });
   }
+  if (!pool.length) { alert('No matching words found in this quiz file'); return; }
+
+  // Shuffle using stored seeds to reproduce Zyzzyva's order
+  currentQuizPool = buildOrderedPool(pool, typeVal, 1, activeSeed1, activeSeed2);
+  quizTimeLimit   = sel('qTimerSelect');
+  document.getElementById('qOrderSelect').value = '1';
+  Module.generateQuiz(typeVal, currentQuizPool.join(' '), 3);
+
+  // Restore saved progress
+  const prog = xml.querySelector('progress');
+  if (prog) {
+    const qIdx      = parseInt(prog.getAttribute('question') || '0');
+    const correct   = parseInt(prog.getAttribute('correct')  || '0');
+    const complete  = prog.getAttribute('question-complete') === 'true';
+    const cq        = parseInt(prog.getAttribute('correct-questions') || '0');
+
+    const userCorrect   = [];
+    const userIncorrect = [];
+    prog.querySelector('question-correct-responses')
+      ?.querySelectorAll('response')
+      .forEach(r => { const w=r.getAttribute('word'); if(w) userCorrect.push(w.toUpperCase()); });
+    prog.querySelector('incorrect-responses')
+      ?.querySelectorAll('response')
+      .forEach(r => { const w=r.getAttribute('word'); if(w) userIncorrect.push(w.toUpperCase()); });
+
+    Module.restoreProgress(qIdx, correct, 0, 0, cq,
+      userCorrect.join(' '), userIncorrect.join(' '), complete);
+  }
+
+  // Load session wrong-guess history (Zyzzylu extension)
+  sessionIncorrect = {};
+  const sessNode = xml.querySelector('zyzzylu-session all-incorrect-responses');
+  if (sessNode) {
+    sessNode.querySelectorAll('response').forEach(r => {
+      const w = r.getAttribute('word')?.trim().toUpperCase();
+      const c = parseInt(r.getAttribute('count') || '1');
+      if (w) sessionIncorrect[w] = c;
+    });
+  } else if (prog) {
+    // Zyzzyva file without zyzzylu-session — seed from current question's incorrect-responses
+    prog.querySelector('incorrect-responses')
+      ?.querySelectorAll('response')
+      .forEach(r => {
+        const w = r.getAttribute('word')?.trim().toUpperCase();
+        const c = parseInt(r.getAttribute('count') || '1');
+        if (w) sessionIncorrect[w] = (sessionIncorrect[w] || 0) + c;
+      });
+  }
+
+  showQuizPane();
+  loadCurrentQuestion();
+  toast(`Loaded .zzq — ${pool.length} words`);
 }
 
-// Display Analyze Review Grid
-function showAnalysis() {
-  const qJsonStr = Module.getCurrentQuestionJson();
-  if (qJsonStr === "{}" || !qJsonStr) return;
-  const q = JSON.parse(qJsonStr);
-  
-  if (!q.checked) {
-    const confirmProceed = confirm("⚠️ Viewing analysis will reveal all answers and finalize this question. Do you want to proceed?");
-    if (!confirmProceed) return;
-    clearInterval(timerInterval);
+// ── TIMER ──────────────────────────────────────────────────────────────
+function startTimer() {
+  if (quizTimeLimit <= 0) {
+    const el = document.getElementById('qTimerDisplay'); if (el) el.innerText = ''; return;
   }
-  
-  const resultsStr = Module.checkAnswers();
-  if (!resultsStr || resultsStr === "{}") {
-    toast("No analysis available.");
-    return;
-  }
-  
-  let checkResults;
-  try {
-    checkResults = JSON.parse(resultsStr);
-  } catch (e) {
-    console.error("Failed to parse check results JSON:", e);
-    toast("Error loading analysis data.");
-    return;
-  }
-  
-  if (!checkResults || !checkResults.answers) {
-    toast("No analysis data available.");
-    return;
-  }
-  
-  const pane = document.getElementById('qEnginePane');
-  if (!pane) return;
-  
-  // Compute session-wide stats
-  const prog = JSON.parse(Module.getProgressJson());
-  const sessTotal = prog.totalCorrect + prog.totalMissed;
-  const sessAccuracy = sessTotal > 0 ? Math.round(prog.totalCorrect / sessTotal * 100) : 0;
-  const curTotal = (checkResults.answers || []).length;
-  const curCorrectCount = curTotal > 0 ? (checkResults.answers.filter(a => a && a.status === 'correct').length) : 0;
-  const curAccuracy = curTotal > 0 ? Math.round(curCorrectCount / curTotal * 100) : 0;
-  
-  const statColor = (pct) => pct >= 70 ? 'var(--accent)' : pct >= 40 ? 'var(--orange)' : 'var(--danger)';
-  const statsHtml = `
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
-      <div style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center;">
-        <div style="font-size:10px; color:var(--text2); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Current Q</div>
-        <div style="font-size:26px; font-weight:800; color:${statColor(curAccuracy)}">${curAccuracy}%</div>
-        <div style="font-size:11px; color:var(--text2);">${curCorrectCount}/${curTotal} found</div>
-      </div>
-      <div style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center;">
-        <div style="font-size:10px; color:var(--text2); text-transform:uppercase; font-weight:700; margin-bottom:4px;">Session Total</div>
-        <div style="font-size:26px; font-weight:800; color:${statColor(sessAccuracy)}">${sessAccuracy}%</div>
-        <div style="font-size:11px; color:var(--text2);">${prog.totalCorrect}/${sessTotal} correct</div>
-      </div>
-    </div>
-  `;
-  
-  const missed = checkResults.answers
-    .filter(ans => ans && ans.status === 'missed')
-    .map(ans => ans.word);
-    
-  const correct = checkResults.answers
-    .filter(ans => ans && ans.status === 'correct')
-    .map(ans => ans.word);
-    
-  // Also add current question's wrong guesses to session list (catches auto-checked questions)
-  const currentIncorrect = checkResults.incorrectAnswers || [];
-  currentIncorrect.forEach(w => {
-    if (w && !sessionIncorrectAnswers.includes(w)) sessionIncorrectAnswers.push(w);
-  });
-  
-  let invalidated = [];
-  if (sessionIncorrectAnswers.length > 0) {
-    invalidated = correct;
-  }
-  
-  let topHtml = "";
-  missed.forEach(w => {
-    topHtml += `<div class="mono" style="color: var(--orange); font-size: 15px; padding: 2px 0;">• ${w} (Missed)</div>`;
-  });
-  invalidated.forEach(w => {
-    topHtml += `<div class="mono" style="color: var(--danger); font-size: 15px; padding: 2px 0;">⚠️ ${w} (Invalidated)</div>`;
-  });
-  
-  if (!topHtml) {
-    topHtml = `<div class="mono" style="color: var(--text2); text-align: center; padding: 10px 0;">None</div>`;
-  }
-  
-  let bottomHtml = "";
-  sessionIncorrectAnswers.forEach(w => {
-    bottomHtml += `<div class="mono" style="color: var(--danger); font-size: 15px; padding: 2px 0;">✕ ${w}</div>`;
-  });
-  
-  if (!bottomHtml) {
-    bottomHtml = `<div class="mono" style="color: var(--text2); text-align: center; padding: 10px 0;">None</div>`;
-  }
-  
-  pane.innerHTML = `
-    <div class="q-clean-layout">
-      <h3 class="mono" style="font-size: 16px; margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 6px;">Review Grid Analysis</h3>
-      
-      ${statsHtml}
-      
-      <!-- Top Box: Missed / Invalidated words -->
-      <div style="background: rgba(10, 132, 255, 0.15); border: 1px solid rgba(10, 132, 255, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 12px; min-height: 60px; max-height: 180px; overflow-y: auto;">
-        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #0A84FF; margin-bottom: 6px;">Missed / Invalidated — Current Question</div>
-        ${topHtml}
-      </div>
-      
-      <!-- Bottom Box: All session incorrect attempts -->
-      <div style="background: rgba(255, 59, 48, 0.05); border: 1px solid rgba(255, 59, 48, 0.2); border-radius: 8px; padding: 12px; min-height: 60px; max-height: 180px; overflow-y: auto;">
-        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--danger); margin-bottom: 6px;">All Incorrect Attempts — Entire Session (${sessionIncorrectAnswers.length})</div>
-        ${bottomHtml}
-      </div>
-      
-      <button class="btn btn-p" style="width: 100%; margin-top: 14px;" onclick="renderActiveQuiz()">Back to Quiz</button>
-    </div>
-  `;
+  quizTimeLeft = quizTimeLimit;
+  updateTimerDisplay();
+  timerInterval = setInterval(() => {
+    quizTimeLeft--;
+    updateTimerDisplay();
+    if (quizTimeLeft <= 0) { clearInterval(timerInterval); handleCheck(); }
+  }, 1000);
 }
 
-function renderActiveQuiz() {
-  const qJsonStr = Module.getCurrentQuestionJson();
-  if (qJsonStr === "{}" || !qJsonStr) return;
-  const q = JSON.parse(qJsonStr);
-  const prog = JSON.parse(Module.getProgressJson());
-  renderQuizUI(q, prog);
+function updateTimerDisplay() {
+  const el = document.getElementById('qTimerDisplay'); if (!el) return;
+  const m = Math.floor(quizTimeLeft / 60), s = quizTimeLeft % 60;
+  el.innerText     = `⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  el.style.color   = quizTimeLeft <= 10 ? 'var(--danger)' : 'var(--orange)';
+}
+
+// ── UTILITIES ──────────────────────────────────────────────────────────
+const parseQ    = () => { try { const s=Module.getCurrentQuestionJson(); return (!s||s==='{}')?null:JSON.parse(s); } catch(_){return null;} };
+const parseProg = () => { try { return JSON.parse(Module.getProgressJson()); } catch(_){return {};} };
+const sel       = id => parseInt(document.getElementById(id)?.value || '0');
+const showQuizPane = () => {
+  document.getElementById('qSettingsPane').style.display = 'none';
+  document.getElementById('qEnginePane').style.display   = 'block';
+};
+const shake = el => { el.classList.remove('shake-input'); void el.offsetWidth; el.classList.add('shake-input'); setTimeout(()=>el.classList.remove('shake-input'),350); };
+const row   = (label, val, col) =>
+  `<div style="display:flex;justify-content:space-between">
+    <span style="color:${col}">${label}</span>
+    <span class="mono" style="font-weight:700;color:${col}">${val}</span></div>`;
+const downloadText = (text, filename) => {
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href = URL.createObjectURL(new Blob([text], { type: 'application/octet-stream' }));
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+};
+
+function toggleSavedWord(word, btn) {
+  toggleSave(word);
+  const s = saved.includes(word);
+  btn.style.color = s ? 'var(--orange)' : 'var(--text2)';
+  btn.innerText   = s ? '★' : '☆';
 }

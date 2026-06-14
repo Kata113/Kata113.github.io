@@ -17,22 +17,35 @@ const SESSION_SEED2 = Math.floor(Math.random() * 65534) + 1;
 let sessionIncorrect = {};
 
 // ── WASM INIT ──────────────────────────────────────────────────────────
-if (typeof Module !== 'undefined')
-  Module.onRuntimeInitialized = () => tryInitCppEngine();
-
-const _coreOnload = window.onload;
-window.onload = async () => { if (_coreOnload) await _coreOnload(); tryInitCppEngine(); };
-
+// Use polling instead of onRuntimeInitialized callback to avoid race
+// condition where zyzzylu_cpp_engine.js calls run() before quiz_bridge.js
+// has a chance to set the callback.
+let _wasmPollStarted = false;
 function tryInitCppEngine() {
-  if (!cppInitialized && typeof Module !== 'undefined'
-      && Module.loadDictionary && dict?.length) {
+  if (cppInitialized) return;
+  if (typeof Module !== 'undefined' && Module.loadDictionary && dict?.length) {
     document.getElementById('wCnt').innerText = 'Loading WASM…';
     Module.loadDictionary(dict.join('\n'));
     cppInitialized = true;
     document.getElementById('wCnt').innerText =
       dict.length.toLocaleString() + ' Words (WASM Active)';
+  } else if (!_wasmPollStarted) {
+    // Start a single polling loop — avoids multiple concurrent setTimeouts
+    _wasmPollStarted = true;
+    (function poll() {
+      if (cppInitialized) return;
+      if (typeof Module !== 'undefined' && Module.loadDictionary && dict?.length) {
+        tryInitCppEngine();
+      } else {
+        setTimeout(poll, 200);
+      }
+    })();
   }
 }
+
+// Kick off polling once the page has finished loading
+const _coreOnload = window.onload;
+window.onload = async () => { if (_coreOnload) await _coreOnload(); tryInitCppEngine(); };
 
 // ── MWC RNG — Zyzzyva's Marsaglia MWC algorithm ───────────────────────
 // Ref: QuizEngine.cpp + Rand class
@@ -691,6 +704,7 @@ function loadZzq(event) {
   const file = event.target.files[0]; if (!file) return;
   // Reset input so the same file can be reloaded
   event.target.value = '';
+  if (!cppInitialized) { toast('⏳ WASM engine not ready — please wait a moment'); return; }
   const reader = new FileReader();
   reader.onload = e => {
     try {

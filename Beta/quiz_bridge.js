@@ -264,7 +264,8 @@ function endQuiz() {
       <button class="btn btn-p" style="width:100%;padding:14px" onclick="quitQuiz()">
         Back to Settings
       </button>
-    </div>`;\n}
+    </div>`;
+}
 
 // ── QUIZ UI ────────────────────────────────────────────────────────────
 function renderQuizUI(q, prog) {

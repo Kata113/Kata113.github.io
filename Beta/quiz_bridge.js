@@ -7,8 +7,10 @@ let currentQuizPool = [];
 let activeSeed1 = 0;
 let activeSeed2 = 0;
 
-// Fixed per page-load — mirrors Zyzzyva's per-process PID behaviour
-const SESSION_SEED2 = Math.floor(Math.random() * 32767) + 1024;
+// seed2 = getPid() in Zyzzyva — constant per-process, used for every quiz in a session.
+// Linux PIDs are quint16-range (1–65535). We generate once per page-load to mirror this.
+// When loading a saved .zzq, we restore the exact seed2 from the file instead.
+const SESSION_SEED2 = Math.floor(Math.random() * 65534) + 1;   // [1..65535]
 
 // Session-wide wrong-guess tracking { word: count }
 // Saved in <zyzzylu-session> so it survives quit → reload
@@ -82,19 +84,46 @@ function startQuiz() {
   loadCurrentQuestion();
 }
 
-// Build alphagram-shuffled word pool (matching Zyzzyva's question-order algorithm)
+// Build word pool ordered to exactly match Zyzzyva's question sequence for a given seed.
+//
+// Zyzzyva source (QuizEngine.cpp):
+//   1. questionWords = wordEngine->search(...)   → alphabetically sorted word list
+//   2. questions = wordEngine->alphagrams(questionWords)
+//                                                → unique alphagrams in FIRST-APPEARANCE order
+//                                                  (NOT sorted alphabetically by alphagram)
+//   3. rng.srand(seed, getPid())                 → seed1=unix timestamp, seed2=process PID
+//   4. for i in 0..num-2: swap(i, i + rng.rand(num-i-1))
+//                                                → rand(n) returns [0..n] inclusive
+//                                                  = nextRng() % (n+1)
+//                                                  = nextRng() % (num-i)   ← Fisher-Yates
 function buildOrderedPool(pool, quizType, order, s1, s2) {
-  if (order !== 1) return [...pool];               // alphabetical or probability — no MWC
+  if (order !== 1) return [...pool];                  // alphabetical / probability — no MWC
+
   if (quizType === 2) return shuffleMwc(pool, s1, s2); // Build quiz: shuffle words directly
 
-  // Anagram/hook quizzes: deduplicate to alphagrams, sort, MWC-shuffle, then expand
+  // Step 1: sort words alphabetically — mirrors Zyzzyva's search() return order
+  const sorted = [...pool].sort();
+
+  // Step 2: collect unique alphagrams in FIRST-APPEARANCE order from sorted words.
+  //   This matches wordEngine->alphagrams(questionWords) exactly.
+  //   Key difference from naive approach: "ARTS" comes before "BAKE" alphabetically,
+  //   so alphagram ARST appears before ABEK in the list — even though ABEK < ARST
+  //   when sorted as strings. Sorting alphagrams directly gives wrong question order.
+  const seen    = new Set();
+  const ordered = [];       // alphagrams, Zyzzyva-ordered
   const byAlpha = {};
-  pool.forEach(w => {
+  for (const w of sorted) {
     const a = [...w].sort().join('');
     (byAlpha[a] = byAlpha[a] || []).push(w);
-  });
-  const shuffledAlphas = shuffleMwc(Object.keys(byAlpha).sort(), s1, s2);
-  return shuffledAlphas.flatMap(a => byAlpha[a]);
+    if (!seen.has(a)) { seen.add(a); ordered.push(a); }
+  }
+
+  // Step 3: MWC-shuffle the alphagram list (identical to Zyzzyva's shuffle loop)
+  const shuffled = shuffleMwc(ordered, s1, s2);
+
+  // Step 4: expand alphagrams back to words
+  //   WASM receives this flat list with order=3 (PreserveOrder) so it keeps our sequence
+  return shuffled.flatMap(a => byAlpha[a]);
 }
 
 function loadCurrentQuestion() {

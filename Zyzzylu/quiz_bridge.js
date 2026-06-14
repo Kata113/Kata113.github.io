@@ -12,9 +12,9 @@ let quizHistory = []; // { word, status } for end-screen review
 // Linux PIDs are quint16 range (1–65535); generated once per page load
 const SESSION_SEED2 = Math.floor(Math.random() * 65534) + 1;
 
-// Session-wide wrong-guess tracking { word: count }
-// Persisted in localStorage keyed by seed pair so it survives tab refresh
-let sessionIncorrect = {};
+// Session-wide tracking — in-memory only, persisted via .zzq XML comment
+let sessionIncorrect = {}; // { word: wrongGuessCount }
+let sessionMissed    = []; // words never answered correctly across all questions
 
 // ── WASM INIT ──────────────────────────────────────────────────────────
 // Use polling instead of onRuntimeInitialized callback to avoid race
@@ -105,7 +105,8 @@ function startQuiz() {
   activeSeed1 = Math.floor(Date.now() / 1000);
   activeSeed2 = SESSION_SEED2;
   sessionIncorrect = {};
-  quizHistory = [];
+  sessionMissed    = [];
+  quizHistory      = [];
 
   const quizType  = sel('qTypeSelect');
   const order     = sel('qOrderSelect');
@@ -172,19 +173,24 @@ function loadCurrentQuestion() {
 
 function handleCheck() {
   clearInterval(timerInterval);
+  // Track wrong guesses typed so far
   parseQ()?.userIncorrectAnswers?.forEach(w => {
-    if (w && !sessionIncorrect[w]) trackWrongGuess(w);
+    if (w) trackWrongGuess(w);
   });
   const resultStr = Module.checkAnswers();
-  // Track answered words for end-screen review
+  // Track answered words for end-screen review and accumulate session missed
   try {
     if (resultStr && resultStr !== '{}') {
       const cr = JSON.parse(resultStr);
       (cr.answers || []).forEach(a => {
-        if (a.word && !quizHistory.some(h => h.word === a.word)) {
+        if (a.word && !quizHistory.some(h => h.word === a.word))
           quizHistory.push({ word: a.word, status: a.status });
-        }
+        // Accumulate missed words across the whole quiz
+        if (a.status === 'missed' && !sessionMissed.includes(a.word))
+          sessionMissed.push(a.word);
       });
+      // Also track wrong-guess words that slipped through submitAnswer path
+      (cr.incorrectAnswers || []).forEach(w => { if (w) trackWrongGuess(w); });
     }
   } catch(_) {}
   renderQuizUI(parseQ(), parseProg());
@@ -206,7 +212,7 @@ function endQuiz() {
   const total = prog.totalCorrect + prog.totalMissed;
   const acc     = total > 0 ? Math.round(prog.totalCorrect / total * 100) : 0;
   const col     = p => p >= 70 ? 'var(--accent)' : p >= 40 ? 'var(--orange)' : 'var(--danger)';
-  const missed  = quizHistory.filter(h => h.status === 'missed').map(h => h.word);
+  const missed   = sessionMissed;
   const wrongAll = Object.keys(sessionIncorrect);
 
   const badge = prog.totalIncorrect === 0
@@ -472,28 +478,17 @@ function onQuizInput() {
 }
 
 // ── ANALYZE ────────────────────────────────────────────────────────────
+// Analyze shows session stats only — does NOT reveal current question answers.
+// Answers are only finalized when the user presses Check / Skip.
 function showAnalysis() {
   const q = parseQ(); if (!q) return;
-  if (!q.checked) {
-    if (!confirm('⚠️ This reveals all answers and finalises this question. Proceed?')) return;
-    clearInterval(timerInterval);
-  }
-  let cr;
-  try { cr = JSON.parse(Module.checkAnswers()); } catch(_) {}
-  if (!cr?.answers) { toast('No analysis data'); return; }
 
-  (cr.incorrectAnswers || []).forEach(w => { if (w && !sessionIncorrect[w]) trackWrongGuess(w); });
-
-  const prog      = parseProg();
+  const prog     = parseProg();
   const sessTotal = prog.totalCorrect + prog.totalMissed;
-  const sessAcc   = sessTotal > 0 ? Math.round(prog.totalCorrect / sessTotal * 100) : 0;
-  const curCorrect = cr.answers.filter(a => a?.status === 'correct').length;
-  const curAcc    = cr.answers.length > 0 ? Math.round(curCorrect / cr.answers.length * 100) : 0;
-  const col       = p => p >= 70 ? 'var(--accent)' : p >= 40 ? 'var(--orange)' : 'var(--danger)';
-  const missed    = cr.answers.filter(a => a?.status === 'missed').map(a => a.word);
-  const wrongQ    = cr.incorrectAnswers || [];
+  const sessAcc  = sessTotal > 0 ? Math.round(prog.totalCorrect / sessTotal * 100) : 0;
+  const col      = p => p >= 70 ? 'var(--accent)' : p >= 40 ? 'var(--orange)' : 'var(--danger)';
   const sessWords = Object.keys(sessionIncorrect);
-  const badge     = wrongQ.length === 0
+  const badge    = sessWords.length === 0
     ? `<span style="background:rgba(52,199,89,.15);color:var(--accent);
                     padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">✓ CLEAN</span>`
     : `<span style="background:rgba(255,59,48,.1);color:var(--danger);
@@ -510,44 +505,35 @@ function showAnalysis() {
   document.getElementById('qEnginePane').innerHTML = `
     <div class="q-clean-layout">
       <h3 class="mono" style="font-size:16px;border-bottom:1px solid var(--border);padding-bottom:6px">
-        Analysis
+        Session Analysis
       </h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div style="background:var(--surface2);border:1px solid var(--border);
-                    border-radius:8px;padding:10px;text-align:center">
-          <div style="font-size:10px;color:var(--text2);font-weight:700;
-                      text-transform:uppercase;margin-bottom:4px">Current Q</div>
-          <div style="font-size:26px;font-weight:800;color:${col(curAcc)}">${curAcc}%</div>
-          <div style="font-size:11px;color:var(--text2)">${curCorrect}/${cr.answers.length}</div>
-          <div style="margin-top:4px">${badge}</div>
-        </div>
         <div style="background:var(--surface2);border:1px solid var(--border);
                     border-radius:8px;padding:10px;text-align:center">
           <div style="font-size:10px;color:var(--text2);font-weight:700;
                       text-transform:uppercase;margin-bottom:4px">Session</div>
           <div style="font-size:26px;font-weight:800;color:${col(sessAcc)}">${sessAcc}%</div>
           <div style="font-size:11px;color:var(--text2)">${prog.totalCorrect}/${sessTotal}</div>
+          <div style="margin-top:4px">${badge}</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);
+                    border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text2);font-weight:700;
+                      text-transform:uppercase;margin-bottom:4px">Questions Done</div>
+          <div style="font-size:26px;font-weight:800;color:var(--text)">${prog.currentQuestion - 1}</div>
+          <div style="font-size:11px;color:var(--text2)">of ${prog.totalQuestions}</div>
         </div>
       </div>
       <div style="background:rgba(255,149,0,.08);border:1px solid rgba(255,149,0,.25);
                   border-radius:8px;padding:12px;max-height:150px;overflow-y:auto">
         <div style="font-size:11px;text-transform:uppercase;font-weight:700;
-                    color:var(--orange);margin-bottom:6px">Missed (${missed.length})</div>
-        ${wordList(missed, 'var(--orange)')}
+                    color:var(--orange);margin-bottom:6px">Missed so far (${sessionMissed.length})</div>
+        ${wordList(sessionMissed, 'var(--orange)')}
       </div>
       <div style="background:rgba(255,59,48,.05);border:1px solid rgba(255,59,48,.2);
-                  border-radius:8px;padding:12px;max-height:120px;overflow-y:auto">
-        <div style="font-size:11px;text-transform:uppercase;font-weight:700;
-                    color:var(--danger);margin-bottom:6px">Wrong This Q (${wrongQ.length})</div>
-        ${wordList(wrongQ, 'var(--danger)', '✕')}
-      </div>
-      <div style="background:rgba(255,59,48,.03);border:1px solid rgba(255,59,48,.15);
                   border-radius:8px;padding:12px;max-height:150px;overflow-y:auto">
         <div style="font-size:11px;text-transform:uppercase;font-weight:700;
-                    color:var(--danger);margin-bottom:6px">
-          All Session Wrong (${sessWords.length})
-          <span style="color:var(--text2);font-weight:400;font-size:10px"> — saved in localStorage per seed</span>
-        </div>
+                    color:var(--danger);margin-bottom:6px">Wrong Guesses (${sessWords.length})</div>
         ${wordList(sessWords, 'var(--danger)', '✕')}
       </div>
       <button class="btn btn-p" style="width:100%" onclick="renderActiveQuiz()">Back to Quiz</button>
@@ -672,13 +658,16 @@ function saveCurrentZzq() {
     lines.push(` <progress ${progressAttr}/>`);
   }
 
-  // Session wrong-guess data — stored as XML COMMENT so Zyzzyva ignores it.
+  // Session data — stored as XML COMMENTs so Zyzzyva ignores them.
   // QDomElement's toElement() skips comment nodes, so Zyzzyva's fromDomElement
-  // never sees this and the file remains fully compatible.
+  // never sees these and the file remains fully compatible.
   const sessWords = Object.keys(sessionIncorrect);
   if (sessWords.length) {
     const sessData = sessWords.map(w => `${w}:${sessionIncorrect[w]}`).join(',');
     lines.push(` <!-- zyzzylu-session: ${sessData} -->`);
+  }
+  if (sessionMissed.length) {
+    lines.push(` <!-- zyzzylu-missed: ${sessionMissed.join(',')} -->`);
   }
 
   lines.push('</zyzzyva-quiz>');
@@ -817,19 +806,23 @@ function loadXmlZzq(content) {
       correctWords.join(' '), incorrectWords.join(' '), complete);
   }
 
-  // Load session data — from our XML comment (ignored by Zyzzyva)
+  // Load session data — from our XML comments (ignored by Zyzzyva)
   sessionIncorrect = {};
+  sessionMissed    = [];
   // Walk raw DOM for comment nodes (querySelector can't find comments)
   const walker = document.createTreeWalker(xml, NodeFilter.SHOW_COMMENT, null, false);
   while (walker.nextNode()) {
     const text = walker.currentNode.nodeValue?.trim() || '';
-    const m    = text.match(/^zyzzylu-session:\s*(.+)$/);
-    if (m) {
-      m[1].split(',').forEach(pair => {
+    const mSess = text.match(/^zyzzylu-session:\s*(.+)$/);
+    if (mSess) {
+      mSess[1].split(',').forEach(pair => {
         const [w, c] = pair.trim().split(':');
         if (w) sessionIncorrect[w.toUpperCase()] = parseInt(c) || 1;
       });
-      break;
+    }
+    const mMiss = text.match(/^zyzzylu-missed:\s*(.+)$/);
+    if (mMiss) {
+      sessionMissed = mMiss[1].split(',').map(w => w.trim().toUpperCase()).filter(Boolean);
     }
   }
   showQuizPane();

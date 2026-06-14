@@ -204,75 +204,68 @@ function endQuiz() {
   clearInterval(timerInterval);
   const prog  = parseProg();
   const total = prog.totalCorrect + prog.totalMissed;
-  const acc   = total > 0 ? Math.round(prog.totalCorrect / total * 100) : 0;
+  const acc     = total > 0 ? Math.round(prog.totalCorrect / total * 100) : 0;
+  const col     = p => p >= 70 ? 'var(--accent)' : p >= 40 ? 'var(--orange)' : 'var(--danger)';
+  const missed  = quizHistory.filter(h => h.status === 'missed').map(h => h.word);
+  const wrongAll = Object.keys(sessionIncorrect);
 
-  // Build word review list with hook + prob layout
-  const wordRow = ({ word, status }) => {
-    const hk    = getHooksAndDots(word);
-    const prob  = probRankMap[word];
-    const score = getWordScore(word);
-    const ok    = status === 'correct';
-    const col   = ok ? 'var(--accent)' : 'var(--danger)';
-    const fH    = hk.f !== '-'
-      ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.f.split('').join(' ')}</span>`
-      : `<span style="color:var(--border);">—</span>`;
-    const bH    = hk.b !== '-'
-      ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.b.split('').join(' ')}</span>`
-      : `<span style="color:var(--border);">—</span>`;
-    return `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;
-                        padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3);">
-      <div class="mono" style="text-align:right;font-size:12px;font-weight:700;
-                                line-height:1.8;word-break:break-all;min-width:0;">${fH}</div>
-      <div style="text-align:center;white-space:nowrap;padding:0 4px;">
-        <div style="font-size:10px;color:${col};font-weight:700;margin-bottom:1px;">${ok?'✓':'⊘'}</div>
-        <span class="mono" style="font-size:18px;font-weight:700;color:${col};">${word}</span>
-        <div style="font-size:10px;color:var(--text2);margin-top:2px;">
-          <span style="color:var(--orange);font-weight:700;">${score}</span>pts
-          ${prob ? `<span style="margin-left:4px;">#${prob}</span>` : ''}
-        </div>
-      </div>
-      <div class="mono" style="text-align:left;font-size:12px;font-weight:700;
-                                line-height:1.8;word-break:break-all;min-width:0;">${bH}</div>
-    </div>`;
-  };
+  const badge = prog.totalIncorrect === 0
+    ? `<span style="background:rgba(52,199,89,.15);color:var(--accent);
+                    padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">✓ CLEAN</span>`
+    : `<span style="background:rgba(255,59,48,.1);color:var(--danger);
+                    padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">⚠ HAD WRONG GUESSES</span>`;
 
-  const wordListHtml = quizHistory.length
-    ? quizHistory.map(wordRow).join('')
-    : '<p style="text-align:center;color:var(--text2);padding:16px 0;">No word history</p>';
+  const wordList = (arr, color, icon = '•') => arr.length
+    ? arr.map(w => {
+        const cnt = sessionIncorrect[w];
+        return `<div class="mono" style="color:${color};font-size:15px;padding:2px 0">
+          ${icon} ${w}${cnt > 1 ? ` <span style="color:var(--text2);font-size:12px">(×${cnt})</span>` : ''}</div>`;
+      }).join('')
+    : `<div style="color:var(--text2);text-align:center;padding:6px 0;font-size:13px">None</div>`;
 
   document.getElementById('qEnginePane').innerHTML = `
-    <div class="q-clean-layout" style="text-align:center;padding:20px 0">
-      <h2 style="font-size:24px;color:var(--accent);margin-bottom:20px">Quiz Complete!</h2>
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;
-                  padding:20px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px">
-        ${statRow('Total Questions',  prog.totalQuestions, 'var(--text2)')}
-        ${statRow('Correct Answers',  prog.totalCorrect,   'var(--accent)')}
-        ${statRow('Missed Answers',   prog.totalMissed,    'var(--danger)')}
-        ${statRow('Wrong Guesses',    prog.totalIncorrect, 'var(--orange)')}
-        <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;
-                    display:flex;justify-content:space-between">
-          <span style="font-weight:600">Accuracy</span>
-          <span class="mono" style="font-weight:700;color:var(--orange)">${acc}%</span>
+    <div class="q-clean-layout">
+      <h3 class="mono" style="font-size:16px;border-bottom:1px solid var(--border);padding-bottom:6px">
+        Quiz Complete
+      </h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--surface2);border:1px solid var(--border);
+                    border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text2);font-weight:700;
+                      text-transform:uppercase;margin-bottom:4px">Accuracy</div>
+          <div style="font-size:26px;font-weight:800;color:${col(acc)}">${acc}%</div>
+          <div style="font-size:11px;color:var(--text2)">${prog.totalCorrect}/${total}</div>
+          <div style="margin-top:4px">${badge}</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);
+                    border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text2);font-weight:700;
+                      text-transform:uppercase;margin-bottom:4px">Questions</div>
+          <div style="font-size:26px;font-weight:800;color:var(--text)">${prog.totalQuestions}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:4px">
+            <span style="color:var(--orange);font-weight:700">${prog.totalMissed}</span> missed &nbsp;·&nbsp;
+            <span style="color:var(--danger);font-weight:700">${prog.totalIncorrect}</span> wrong guesses
+          </div>
         </div>
       </div>
-      <div style="text-align:left;margin-bottom:16px;">
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;font-size:10px;
-                    font-weight:700;text-transform:uppercase;color:var(--text2);
-                    padding:6px 4px;border-bottom:1px solid var(--border);margin-bottom:2px;">
-          <span style="text-align:right;">Front Hook</span>
-          <span style="text-align:center;padding:0 4px;">Word · Score · #Prob</span>
-          <span style="text-align:left;">Back Hook</span>
-        </div>
-        <div style="max-height:50vh;overflow-y:auto;background:var(--surface2);
-                    border:1px solid var(--border);border-radius:10px;">
-          ${wordListHtml}
-        </div>
+      <div style="background:rgba(255,149,0,.08);border:1px solid rgba(255,149,0,.25);
+                  border-radius:8px;padding:12px;max-height:150px;overflow-y:auto">
+        <div style="font-size:11px;text-transform:uppercase;font-weight:700;
+                    color:var(--orange);margin-bottom:6px">Missed (${missed.length})</div>
+        ${wordList(missed, 'var(--orange)')}
+      </div>
+      <div style="background:rgba(255,59,48,.05);border:1px solid rgba(255,59,48,.2);
+                  border-radius:8px;padding:12px;max-height:150px;overflow-y:auto">
+        <div style="font-size:11px;text-transform:uppercase;font-weight:700;
+                    color:var(--danger);margin-bottom:6px">Wrong Guesses (${wrongAll.length})</div>
+        ${wordList(wrongAll, 'var(--danger)', '✕')}
       </div>
       <button class="btn btn-p" style="width:100%;padding:14px" onclick="quitQuiz()">
         Back to Settings
       </button>
     </div>`;
 }
+
 
 // ── QUIZ UI ────────────────────────────────────────────────────────────
 function renderQuizUI(q, prog) {

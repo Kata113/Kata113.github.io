@@ -6,6 +6,7 @@ let quizTimeLeft   = 0;
 let currentQuizPool = [];
 let activeSeed1 = 0;
 let activeSeed2 = 0;
+let quizHistory = []; // { word, status } for end-screen review
 
 // seed2 mirrors Zyzzyva's getPid() — constant per process/session
 // Linux PIDs are quint16 range (1–65535); generated once per page load
@@ -96,6 +97,7 @@ function startQuiz() {
   activeSeed1 = Math.floor(Date.now() / 1000);
   activeSeed2 = SESSION_SEED2;
   sessionIncorrect = {};
+  quizHistory = [];
   saveSessionIncorrect();
 
   const quizType  = sel('qTypeSelect');
@@ -119,7 +121,15 @@ function startQuiz() {
 //  3. rng.srand(seed, getPid())
 //  4. for i in 0..num-2: swap(i, i + rng.rand(num-i-1))
 function buildOrderedPool(pool, quizType, order, s1, s2) {
-  if (order !== 1) return [...pool];               // alphabetical / probability: keep as-is
+  if (order === 2) {
+    // Probability order: sort by probability rank (best/most common first)
+    return [...pool].sort((a, b) => {
+      const ra = probRankMap[a] || 9999999;
+      const rb = probRankMap[b] || 9999999;
+      return ra !== rb ? ra - rb : (a < b ? -1 : 1);
+    });
+  }
+  if (order === 0) return [...pool].sort(); // Alphabetical
   if (quizType === 2) return shuffleMwc(pool, s1, s2);  // Build quiz: words directly
 
   // Step 1: alphabetical sort (matches search() output)
@@ -158,7 +168,18 @@ function handleCheck() {
   parseQ()?.userIncorrectAnswers?.forEach(w => {
     if (w && !sessionIncorrect[w]) trackWrongGuess(w);
   });
-  Module.checkAnswers();
+  const resultStr = Module.checkAnswers();
+  // Track answered words for end-screen review
+  try {
+    if (resultStr && resultStr !== '{}') {
+      const cr = JSON.parse(resultStr);
+      (cr.answers || []).forEach(a => {
+        if (a.word && !quizHistory.some(h => h.word === a.word)) {
+          quizHistory.push({ word: a.word, status: a.status });
+        }
+      });
+    }
+  } catch(_) {}
   renderQuizUI(parseQ(), parseProg());
 }
 
@@ -177,11 +198,46 @@ function endQuiz() {
   const prog  = parseProg();
   const total = prog.totalCorrect + prog.totalMissed;
   const acc   = total > 0 ? Math.round(prog.totalCorrect / total * 100) : 0;
+
+  // Build word review list with hook + prob layout
+  const wordRow = ({ word, status }) => {
+    const hk    = getHooksAndDots(word);
+    const prob  = probRankMap[word];
+    const score = getWordScore(word);
+    const ok    = status === 'correct';
+    const col   = ok ? 'var(--accent)' : 'var(--danger)';
+    const fH    = hk.f !== '-'
+      ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.f.split('').join(' ')}</span>`
+      : `<span style="color:var(--border);">—</span>`;
+    const bH    = hk.b !== '-'
+      ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.b.split('').join(' ')}</span>`
+      : `<span style="color:var(--border);">—</span>`;
+    return `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;
+                        padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3);">
+      <div class="mono" style="text-align:right;font-size:12px;font-weight:700;
+                                line-height:1.8;word-break:break-all;min-width:0;">${fH}</div>
+      <div style="text-align:center;white-space:nowrap;padding:0 4px;">
+        <div style="font-size:10px;color:${col};font-weight:700;margin-bottom:1px;">${ok?'✓':'⊘'}</div>
+        <span class="mono" style="font-size:18px;font-weight:700;color:${col};">${word}</span>
+        <div style="font-size:10px;color:var(--text2);margin-top:2px;">
+          <span style="color:var(--orange);font-weight:700;">${score}</span>pts
+          ${prob ? `<span style="margin-left:4px;">#${prob}</span>` : ''}
+        </div>
+      </div>
+      <div class="mono" style="text-align:left;font-size:12px;font-weight:700;
+                                line-height:1.8;word-break:break-all;min-width:0;">${bH}</div>
+    </div>`;
+  };
+
+  const wordListHtml = quizHistory.length
+    ? quizHistory.map(wordRow).join('')
+    : '<p style="text-align:center;color:var(--text2);padding:16px 0;">No word history</p>';
+
   document.getElementById('qEnginePane').innerHTML = `
     <div class="q-clean-layout" style="text-align:center;padding:20px 0">
       <h2 style="font-size:24px;color:var(--accent);margin-bottom:20px">Quiz Complete!</h2>
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;
-                  padding:20px;margin-bottom:24px;display:flex;flex-direction:column;gap:12px">
+                  padding:20px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px">
         ${statRow('Total Questions',  prog.totalQuestions, 'var(--text2)')}
         ${statRow('Correct Answers',  prog.totalCorrect,   'var(--accent)')}
         ${statRow('Missed Answers',   prog.totalMissed,    'var(--danger)')}
@@ -192,11 +248,23 @@ function endQuiz() {
           <span class="mono" style="font-weight:700;color:var(--orange)">${acc}%</span>
         </div>
       </div>
+      <div style="text-align:left;margin-bottom:16px;">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;font-size:10px;
+                    font-weight:700;text-transform:uppercase;color:var(--text2);
+                    padding:6px 4px;border-bottom:1px solid var(--border);margin-bottom:2px;">
+          <span style="text-align:right;">Front Hook</span>
+          <span style="text-align:center;padding:0 4px;">Word · Score · #Prob</span>
+          <span style="text-align:left;">Back Hook</span>
+        </div>
+        <div style="max-height:50vh;overflow-y:auto;background:var(--surface2);
+                    border:1px solid var(--border);border-radius:10px;">
+          ${wordListHtml}
+        </div>
+      </div>
       <button class="btn btn-p" style="width:100%;padding:14px" onclick="quitQuiz()">
         Back to Settings
       </button>
-    </div>`;
-}
+    </div>`;\n}
 
 // ── QUIZ UI ────────────────────────────────────────────────────────────
 function renderQuizUI(q, prog) {
@@ -244,7 +312,15 @@ function renderQuizUI(q, prog) {
         onkeydown="handleEnterKey(event)">
 
       <div class="quiz-history-pane"
-           style="min-height:160px;max-height:220px;margin-bottom:12px">
+           style="min-height:160px;max-height:260px;margin-bottom:12px;padding:0;">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;font-size:9px;
+                    font-weight:700;text-transform:uppercase;color:var(--text2);
+                    padding:5px 4px;border-bottom:1px solid var(--border);
+                    background:var(--surface);border-radius:8px 8px 0 0;position:sticky;top:0;">
+          <span style="text-align:right;">Front</span>
+          <span style="text-align:center;padding:0 4px;">Word · Pts · #Prob</span>
+          <span style="text-align:left;">Back</span>
+        </div>
         ${renderAnswersList(q)}
       </div>
 
@@ -266,21 +342,52 @@ function renderQuizUI(q, prog) {
 }
 
 function renderAnswersList(q) {
+  // Shared helper: render one word as 3-column hook row
+  const hookRow = (word, statusColor, statusIcon, showStar) => {
+    const hk    = getHooksAndDots(word);
+    const prob  = probRankMap[word];
+    const score = getWordScore(word);
+    const star  = saved.includes(word);
+    const fH = hk.f !== '-'
+      ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.f.split('').join(' ')}</span>`
+      : `<span style="color:var(--border);">—</span>`;
+    const bH = hk.b !== '-'
+      ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.b.split('').join(' ')}</span>`
+      : `<span style="color:var(--border);">—</span>`;
+    const dotF = hk.dotF.trim() === '•'
+      ? `<span style="color:var(--danger);font-size:9px;margin-right:2px;">●</span>` : '';
+    const dotB = hk.dotB.trim() === '•'
+      ? `<span style="color:var(--danger);font-size:9px;margin-left:2px;">●</span>` : '';
+    return `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:4px;
+                        padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3);">
+      <div class="mono" style="text-align:right;font-size:12px;font-weight:700;
+                                line-height:1.8;word-break:break-all;min-width:0;">${fH}</div>
+      <div style="text-align:center;white-space:nowrap;padding:0 4px;">
+        <div style="font-size:10px;color:${statusColor};font-weight:700;margin-bottom:1px;">${statusIcon}</div>
+        <div>${dotF}<span class="mono" style="font-size:18px;font-weight:700;
+                                               color:${statusColor};">${word}</span>${dotB}
+          ${showStar ? `<button onclick="toggleSavedWord('${word}',this)"
+            style="border:none;background:none;font-size:14px;cursor:pointer;padding:0 3px;vertical-align:middle;
+                   color:${star?'var(--orange)':'var(--text2)'}">${star?'★':'☆'}</button>` : ''}
+        </div>
+        <div style="font-size:10px;color:var(--text2);margin-top:1px;">
+          <span style="color:var(--orange);font-weight:700;">${score}</span>pts
+          ${prob ? `<span style="margin-left:4px;">#${prob}</span>` : ''}
+        </div>
+      </div>
+      <div class="mono" style="text-align:left;font-size:12px;font-weight:700;
+                                line-height:1.8;word-break:break-all;min-width:0;">${bH}</div>
+    </div>`;
+  };
+
   if (!q.checked) {
     const rows = [
-      ...q.userCorrectAnswers.map(w => {
-        const star = saved.includes(w);
-        return `<div class="item-row" style="padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3)">
-          <span class="mono" style="color:var(--accent);font-weight:600">✓ ${w}</span>
-          <button onclick="toggleSavedWord('${w}',this)"
-            style="border:none;background:none;font-size:16px;cursor:pointer;padding:0 4px;
-                   color:${star ? 'var(--orange)' : 'var(--text2)'}">
-            ${star ? '★' : '☆'}</button></div>`;
-      }),
+      ...q.userCorrectAnswers.map(w => hookRow(w, 'var(--accent)', '✓', true)),
       ...q.userIncorrectAnswers.map(w =>
-        `<div class="item-row" style="padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3);opacity:.8">
-          <span class="mono" style="color:var(--danger);text-decoration:line-through">✕ ${w}</span>
-          <span style="color:var(--text2);font-size:11px">Invalid</span></div>`)
+        `<div style="padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3);opacity:.8;">
+          <span class="mono" style="color:var(--danger);text-decoration:line-through;font-size:14px;">✕ ${w}</span>
+          <span style="color:var(--text2);font-size:11px;margin-left:8px;">Invalid</span>
+        </div>`)
     ].join('');
     return rows || `<p style="text-align:center;color:var(--text2);padding:20px 0">No answers yet</p>`;
   }
@@ -290,29 +397,14 @@ function renderAnswersList(q) {
 
   const rows = [
     ...(cr.answers || []).map(a => {
-      const ok   = a.status === 'correct';
-      const star = saved.includes(a.word);
-      return `<div class="item-row" style="padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3)">
-        <div style="display:flex;align-items:center;gap:8px;flex:1">
-          <span style="color:${ok ? 'var(--accent)' : 'var(--danger)'};font-weight:700;width:18px">
-            ${ok ? '✓' : '⊘'}</span>
-          <span class="mono hook-box" style="font-size:11px">${a.front || '—'}</span>
-          <span class="mono" style="font-weight:700;font-size:16px;
-            color:${ok ? 'var(--text)' : 'rgba(255,59,48,.8)'}">
-            ${a.word}</span>
-          <span class="mono hook-box" style="font-size:11px">${a.back || '—'}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:11px;color:var(--text2)">${ok ? '✓' : 'Missed'}</span>
-          <button onclick="toggleSavedWord('${a.word}',this)"
-            style="border:none;background:none;font-size:16px;cursor:pointer;padding:0 4px;
-                   color:${star ? 'var(--orange)' : 'var(--text2)'}">
-            ${star ? '★' : '☆'}</button></div></div>`;
+      const ok = a.status === 'correct';
+      return hookRow(a.word, ok ? 'var(--accent)' : 'var(--danger)', ok ? '✓' : '⊘ MISSED', ok);
     }),
     ...(cr.incorrectAnswers || []).map(w =>
-      `<div class="item-row" style="padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3);opacity:.7">
-        <span class="mono" style="color:var(--danger);text-decoration:line-through">✕ ${w}</span>
-        <span style="color:var(--text2);font-size:11px">Invalid</span></div>`)
+      `<div style="padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3);opacity:.7;">
+        <span class="mono" style="color:var(--danger);text-decoration:line-through;font-size:14px;">✕ ${w}</span>
+        <span style="color:var(--text2);font-size:11px;margin-left:8px;">Wrong guess</span>
+      </div>`)
   ].join('');
   return rows || `<p style="text-align:center;color:var(--text2);padding:20px 0">No answers</p>`;
 }
@@ -485,10 +577,15 @@ function saveCurrentZzq() {
     try { const s = Module.checkAnswers(); if (s && s !== '{}') cr = JSON.parse(s); } catch(_) {}
   }
 
+  const quizTypeVal  = sel('qTypeSelect');
+  const quizOrderVal = sel('qOrderSelect');
+  const quizTypeStr  = ['Anagrams', 'Anagrams with Hooks', 'Build Word'][quizTypeVal] || 'Anagrams';
+  const quizOrderStr = ['Alphabetical', 'Random', 'Probability'][quizOrderVal] || 'Random';
+
   const lines = [
     '<?xml version="1.0" encoding="ISO-8859-1"?>',
     '<!DOCTYPE zyzzyva-quiz SYSTEM \'http://boshvark.com/dtd/zyzzyva-quiz.dtd\'>',
-    '<zyzzyva-quiz type="Anagrams" question-order="Random" lexicon="CSW24" method="Standard">',
+    `<zyzzyva-quiz type="${quizTypeStr}" question-order="${quizOrderStr}" lexicon="CSW24" method="Standard">`,
     ' <question-source type="search">',
     '  <zyzzyva-search version="1">',
     '   <conditions>',
@@ -520,6 +617,10 @@ function saveCurrentZzq() {
           lines.push(`     <condition int="2" type="Probability Order" max="${f.v2}" bool="true" min="0"/>`); break;
         case 'anagram_match':
           lines.push(`     <condition type="Anagram Match" string="${f.v1}" negated="${neg}"/>`); break;
+        case 'subanagram_match':
+          lines.push(`     <condition type="Subanagram Match" string="${f.v1}" negated="${neg}"/>`); break;
+        case 'pattern_match':
+          lines.push(`     <condition type="Pattern Match" string="${f.v1}" negated="${neg}"/>`); break;
       }
     });
   } else {
@@ -624,7 +725,12 @@ function loadXmlZzq(content) {
   const typeVal = typeStr.toLowerCase().includes('hook') ? 1
                 : typeStr.toLowerCase().includes('build') ? 2 : 0;
   document.getElementById('qTypeSelect').value = String(typeVal);
-  document.getElementById('qOrderSelect').value = '1';
+
+  // Question order — parse and restore (was hardcoded to '1')
+  const orderAttr = quizNode.getAttribute('question-order') || 'Random';
+  const orderVal  = orderAttr.toLowerCase().includes('alpha') ? 0
+                  : orderAttr.toLowerCase().includes('prob')  ? 2 : 1;
+  document.getElementById('qOrderSelect').value = String(orderVal);
 
   // Seeds — restored exactly from file to reproduce Zyzzyva's question order
   const rnd = xml.getElementsByTagName('randomizer')[0];
@@ -657,6 +763,10 @@ function loadXmlZzq(content) {
         ft='includes'; v1=cond.getAttribute('string')||''; break;
       case 'Anagram Match':
         ft='anagram_match'; v1=cond.getAttribute('string')||''; break;
+      case 'Subanagram Match':
+        ft='subanagram_match'; v1=cond.getAttribute('string')||''; break;
+      case 'Pattern Match':
+        ft='pattern_match'; v1=cond.getAttribute('string')||''; break;
       case 'Probability Order':
         // int="2" bool="true" → LimitByProbabilityOrder (see 7_Letter_Prob_100.zzq)
         if (intAttr === '2' || boolAttr === 'true')
@@ -684,9 +794,9 @@ function loadXmlZzq(content) {
   if (!pool.length) { alert('No matching words found'); return; }
 
   // Reproduce Zyzzyva's exact question order using saved seeds
-  currentQuizPool = buildOrderedPool(pool, typeVal, 1, activeSeed1, activeSeed2);
+  currentQuizPool = buildOrderedPool(pool, typeVal, orderVal, activeSeed1, activeSeed2);
   quizTimeLimit   = sel('qTimerSelect');
-  Module.generateQuiz(typeVal, currentQuizPool.join(' '), 3); // 3 = PreserveOrder
+  Module.generateQuiz(typeVal, currentQuizPool.join(' '), orderVal === 1 ? 3 : orderVal);
 
   // Restore progress
   const prog = xml.querySelector('progress');

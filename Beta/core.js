@@ -208,40 +208,168 @@ function addFilter(mode) {
     anagram_match:{v1:'AEINRST',v2:''}, subanagram_match:{v1:'AEINRST.',v2:''},
     pattern_match:{v1:'A...E',v2:''}, begins:{v1:'',v2:''}, ends:{v1:'',v2:''}, includes:{v1:'',v2:''},
   };
-  const d = defaults[type]||{v1:'',v2:''};
-  const item = {id:fId,type,v1:d.v1,v2:d.v2,not:false};
-  if(mode==='S'){sFilters.push(item);renderFilters('S');}
-  else          {qFilters.push(item);renderFilters('Q');}
+  const d = defaults[type] || {v1:'',v2:''};
+  const arr = mode==='S' ? sFilters : qFilters;
+  arr.push({id:fId, type, v1:d.v1, v2:d.v2, not:false});
+  renderFilters(mode);
 }
-function toggleNot(mode,id) {
-  let a=mode==='S'?sFilters:qFilters, f=a.find(x=>x.id===id); if(f)f.not=!f.not; renderFilters(mode);
+function toggleNot(mode, id) {
+  const arr = mode==='S' ? sFilters : qFilters;
+  const f = arr.find(x => x.id === id); if (f) f.not = !f.not;
+  renderFilters(mode);
 }
-function deleteFilter(mode,id) {
-  if(mode==='S'){sFilters=sFilters.filter(x=>x.id!==id);renderFilters('S');}
-  else          {qFilters=qFilters.filter(x=>x.id!==id);renderFilters('Q');}
+function deleteFilter(mode, id) {
+  if (mode==='S') { sFilters = sFilters.filter(x => x.id !== id); renderFilters('S'); }
+  else            { qFilters = qFilters.filter(x => x.id !== id); renderFilters('Q'); }
 }
-function updateFilterVal(mode,id,field,val) {
-  let a=mode==='S'?sFilters:qFilters, f=a.find(x=>x.id===id); if(f)f[field]=val.toUpperCase();
+function updateFilterVal(mode, id, field, val) {
+  const arr = mode==='S' ? sFilters : qFilters;
+  const f = arr.find(x => x.id === id); if (f) f[field] = val.toUpperCase();
+}
+
+// Detect logical impossibility when the same filter type is used multiple times.
+// Returns a tooltip string if impossible, null if valid.
+//
+// Rules per type:
+//   range (length/point_value/num_vowels/probability_order/limit_probability_order):
+//     two positive instances with non-overlapping ranges → impossible
+//     (two NOTs, or one NOT + one positive → always valid)
+//
+//   begins / ends:
+//     two positive instances where neither string is a prefix/suffix of the other → impossible
+//     e.g. "RE" AND "UN" → impossible; "RE" AND "REAL" → valid (REAL implies RE)
+//
+//   includes:
+//     always valid — AND of letter requirements only adds more specificity
+//
+//   anagram_match:
+//     two positive instances with different alphagrams → impossible
+//     (a word has exactly one alphagram, so it cannot match two different ones)
+//
+//   subanagram_match:
+//     always valid — word must fit into BOTH racks (intersection of letter pools)
+//
+//   pattern_match:
+//     warn if two positive patterns have different fixed lengths (e.g. A...E vs B....E)
+//     but patterns with wildcards (*) are too complex to analyse → no warning
+function detectConflict(f, arr) {
+  // Only check conflicts between two positive (non-NOT) instances of same type
+  const peers = arr.filter(x => x.id !== f.id && x.type === f.type && !x.not && !f.not);
+  if (!peers.length || f.not) return null;
+
+  switch (f.type) {
+    case 'length':
+    case 'point_value':
+    case 'num_vowels':
+    case 'probability_order':
+    case 'limit_probability_order': {
+      const conflict = peers.find(x => +x.v2 < +f.v1 || +x.v1 > +f.v2);
+      return conflict
+        ? `Ranges [${f.v1}–${f.v2}] and [${conflict.v1}–${conflict.v2}] do not overlap → empty result`
+        : null;
+    }
+
+    case 'begins': {
+      const a = f.v1.trim().toUpperCase();
+      const conflict = peers.find(x => {
+        const b = x.v1.trim().toUpperCase();
+        // One must be a prefix of the other; otherwise no word can start with both
+        return a && b && !a.startsWith(b) && !b.startsWith(a);
+      });
+      return conflict
+        ? `"${f.v1}" and "${conflict.v1}" — no word can start with both → empty result`
+        : null;
+    }
+
+    case 'ends': {
+      const a = f.v1.trim().toUpperCase();
+      const conflict = peers.find(x => {
+        const b = x.v1.trim().toUpperCase();
+        return a && b && !a.endsWith(b) && !b.endsWith(a);
+      });
+      return conflict
+        ? `"${f.v1}" and "${conflict.v1}" — no word can end with both → empty result`
+        : null;
+    }
+
+    case 'anagram_match': {
+      const alphaOf = s => [...s.replace(/\./g,'')].sort().join('');
+      const a = alphaOf(f.v1.trim().toUpperCase());
+      const conflict = peers.find(x => {
+        const b = alphaOf(x.v1.trim().toUpperCase());
+        return a !== b; // different alphagrams = impossible
+      });
+      return conflict
+        ? `"${f.v1}" and "${conflict.v1}" have different letter sets — a word can only match one alphagram`
+        : null;
+    }
+
+    case 'pattern_match': {
+      // Warn if both patterns specify a fixed length (no * wildcard) but lengths differ
+      const lenOf = s => s.includes('*') ? null : s.trim().length;
+      const la = lenOf(f.v1), conflict = peers.find(x => {
+        const lb = lenOf(x.v1);
+        return la !== null && lb !== null && la !== lb;
+      });
+      return conflict
+        ? `Patterns "${f.v1}" (${lenOf(f.v1)} chars) and "${conflict.v1}" (${lenOf(conflict.v1)} chars) imply different lengths → empty result`
+        : null;
+    }
+
+    // includes: always valid (must contain letters from all — additive constraint)
+    // subanagram_match: always valid (intersection of racks)
+    default: return null;
+  }
 }
 
 function renderFilters(mode) {
-  const arr = mode==='S'?sFilters:qFilters;
-  const ph = {anagram_match:'e.g. AEINRST',subanagram_match:'e.g. AEINRST.',pattern_match:'e.g. A...E',begins:'e.g. RE',ends:'e.g. ING',includes:'e.g. QU'};
-  const lbl= {length:'LENGTH',point_value:'POINT VALUE',probability_order:'PROBABILITY ORDER',limit_probability_order:'LIMIT BY PROB',num_vowels:'NO. OF VOWELS',anagram_match:'ANAGRAM',subanagram_match:'SUBANAGRAM',pattern_match:'PATTERN',begins:'BEGINS WITH',ends:'ENDS WITH',includes:'INCLUDES LETTERS'};
+  const arr = mode==='S' ? sFilters : qFilters;
+  const ph  = {
+    anagram_match:'e.g. AEINRST', subanagram_match:'e.g. AEINRST.', pattern_match:'e.g. A...E',
+    begins:'e.g. RE', ends:'e.g. ING', includes:'e.g. QU'
+  };
+  const lbl = {
+    length:'LENGTH', point_value:'POINT VALUE', probability_order:'PROBABILITY ORDER',
+    limit_probability_order:'LIMIT BY PROB', num_vowels:'NO. OF VOWELS',
+    anagram_match:'ANAGRAM', subanagram_match:'SUBANAGRAM', pattern_match:'PATTERN',
+    begins:'BEGINS WITH', ends:'ENDS WITH', includes:'INCLUDES LETTERS'
+  };
+
   document.getElementById(mode==='S'?'sStack':'qStack').innerHTML = arr.map(f => {
-    const isR = RANGE_TYPES.has(f.type);
-    return `<div class="f-item">
-      <div style="display:flex;gap:6px;align-items:center;flex:1;">
-        <button class="btn-not ${f.not?'active':''}" onclick="toggleNot('${mode}',${f.id})">NOT</button>
-        <span class="mono" style="color:var(--accent);font-size:11px;">${lbl[f.type]||f.type}</span>
+    const isR    = RANGE_TYPES.has(f.type);
+    const warn   = detectConflict(f, arr);
+    const badge  = warn
+      ? `<span title="${warn.replace(/"/g,"'")}"
+               style="color:var(--danger);font-size:11px;font-weight:700;
+                      margin-left:3px;cursor:help;">⚠</span>`
+      : '';
+
+    return `<div class="f-item" data-fid="${f.id}"
+              style="${warn ? 'border-color:rgba(255,59,48,.5);' : ''}">
+      <div style="display:flex;gap:6px;align-items:center;flex:1;min-width:0;">
+        <button class="btn-not ${f.not?'active':''}"
+                onclick="toggleNot('${mode}',${f.id})">NOT</button>
+        <span class="mono" style="color:var(--accent);font-size:11px;white-space:nowrap;">
+          ${lbl[f.type]||f.type}</span>${badge}
         ${isR
-          ? `<input type="number" style="width:55px;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px;" value="${f.v1}" onchange="updateFilterVal('${mode}',${f.id},'v1',this.value)">
-             &ndash;
-             <input type="number" style="width:55px;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px;" value="${f.v2}" onchange="updateFilterVal('${mode}',${f.id},'v2',this.value)">`
-          : `<input type="text" placeholder="${ph[f.type]||''}" style="flex:1;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px;" value="${f.v1}" oninput="updateFilterVal('${mode}',${f.id},'v1',this.value)">`
+          ? `<input type="number"
+               style="width:52px;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px;"
+               value="${f.v1}"
+               onchange="updateFilterVal('${mode}',${f.id},'v1',this.value)">
+             <span style="color:var(--text2)">–</span>
+             <input type="number"
+               style="width:52px;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px;"
+               value="${f.v2}"
+               onchange="updateFilterVal('${mode}',${f.id},'v2',this.value)">`
+          : `<input type="text" placeholder="${ph[f.type]||''}"
+               style="flex:1;min-width:0;background:var(--bg);color:#fff;
+                      border:1px solid var(--border);padding:2px;"
+               value="${f.v1}"
+               oninput="updateFilterVal('${mode}',${f.id},'v1',this.value)">`
         }
       </div>
-      <span style="cursor:pointer;color:var(--danger);" onclick="deleteFilter('${mode}',${f.id})">✕</span>
+      <span style="cursor:pointer;color:var(--danger);padding-left:6px;flex-shrink:0;"
+            onclick="deleteFilter('${mode}',${f.id})">✕</span>
     </div>`;
   }).join('');
 }
@@ -276,12 +404,28 @@ function matchFilters(w, arr) {
 }
 
 function applyLimitFilters(res, filters) {
-  let lf=filters.find(f=>f.type==='limit_probability_order'); if(!lf)return res;
-  res.sort((a,b)=>{let d=(probRankMap[a]||9999999)-(probRankMap[b]||9999999);return d||a<b?-1:1;});
-  let start=Math.max(0,+lf.v1-1), end=Math.max(0,+lf.v2);
-  let sl=res.slice(start,end);
-  if(lf.not){let ss=new Set(sl);return res.filter(w=>!ss.has(w));}
-  return sl;
+  const lfs = filters.filter(f => f.type === 'limit_probability_order');
+  if (!lfs.length) return res;
+
+  // Sort by probability rank once (ascending = best first)
+  res = [...res].sort((a, b) => {
+    const d = (probRankMap[a] || 9999999) - (probRankMap[b] || 9999999);
+    return d !== 0 ? d : (a < b ? -1 : 1);
+  });
+
+  // Apply each limit filter in order — each one further restricts the set
+  for (const lf of lfs) {
+    const start = Math.max(0, +lf.v1 - 1);
+    const end   = Math.max(0, +lf.v2);
+    const slice = res.slice(start, end);
+    if (lf.not) {
+      const excluded = new Set(slice);
+      res = res.filter(w => !excluded.has(w));
+    } else {
+      res = slice;
+    }
+  }
+  return res;
 }
 
 // ─── WORD MODAL ───────────────────────────────────────────────────────

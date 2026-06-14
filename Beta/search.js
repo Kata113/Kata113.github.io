@@ -43,14 +43,13 @@ function search() {
   }
 
   res = applyLimitFilters(res, sFilters);
-  currentResultsList = res.slice(0, 200);
+  currentResultsList = res;
   const hasBlanks = q.includes('.');
 
   const count = currentResultsList.length;
-  const total = res.length;
-  const countLine = total > 0
+  const countLine = count > 0
     ? `<div class="mono" style="font-size:11px;color:var(--text2);text-align:right;padding:4px 6px 6px;">
-        ${count < total ? `Showing ${count} of ${total}` : `${total} result${total !== 1 ? 's' : ''}`}
+        ${count} result${count !== 1 ? 's' : ''}
        </div>`
     : '';
 

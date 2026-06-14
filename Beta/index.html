@@ -78,6 +78,16 @@
     .info-label { font-size:11px; color:var(--text2); text-transform:uppercase; font-weight:700; margin-bottom:4px; }
     .info-val { font-size:14px; color:var(--text); }
     .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    /* Calculator */
+    .calc-key { background:var(--surface2); border:1px solid var(--border); color:var(--text);
+                font-size:20px; font-weight:600; padding:18px 0; border-radius:10px;
+                cursor:pointer; font-family:'Inter',sans-serif; transition:.12s;
+                -webkit-tap-highlight-color:transparent; }
+    .calc-key:active { transform:scale(.94); opacity:.8; }
+    .calc-fn  { background:var(--surface); color:var(--text2); }
+    .calc-op  { color:var(--orange); border-color:rgba(255,149,0,.35); }
+    .calc-eq  { background:var(--accent); color:#000; border:none; }
   </style>
 </head>
 <body>
@@ -97,6 +107,7 @@
     <button class="nav-item" id="nb-1" onclick="tab(1, this)"><span style="font-size:18px;">🧠</span><span>Quiz</span></button>
     <button class="nav-item" id="nb-2" onclick="tab(2, this)"><span style="font-size:18px;">⚖️</span><span>Judge</span></button>
     <button class="nav-item" id="nb-3" onclick="tab(3, this)"><span style="font-size:18px;">📚</span><span>Saved</span></button>
+    <button class="nav-item" id="nb-4" onclick="tab(4, this)"><span style="font-size:18px;">🧮</span><span>Calc</span></button>
   </nav>
 
   <main>
@@ -210,6 +221,52 @@
       </div>
       <div id="bList"></div>
     </div>
+    <!-- ── CALCULATOR ──────────────────────────────────────────────────── -->
+    <div class="section" id="t4">
+      <!-- Display -->
+      <div class="card" style="margin-bottom:14px;padding:0;overflow:hidden;">
+        <div id="calcExpr" style="min-height:28px;padding:12px 16px 4px;font-family:'JetBrains Mono',monospace;
+             font-size:13px;color:var(--text2);text-align:right;word-break:break-all;"></div>
+        <div id="calcDisplay" style="padding:4px 16px 16px;font-family:'JetBrains Mono',monospace;
+             font-size:36px;font-weight:700;text-align:right;color:var(--text);word-break:break-all;">0</div>
+      </div>
+
+      <!-- Keypad -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
+        <button class="calc-key calc-fn" onclick="calcFn('C')">C</button>
+        <button class="calc-key calc-fn" onclick="calcFn('CE')">CE</button>
+        <button class="calc-key calc-fn" onclick="calcFn('%')">%</button>
+        <button class="calc-key calc-op" onclick="calcFn('/')">÷</button>
+
+        <button class="calc-key" onclick="calcFn('7')">7</button>
+        <button class="calc-key" onclick="calcFn('8')">8</button>
+        <button class="calc-key" onclick="calcFn('9')">9</button>
+        <button class="calc-key calc-op" onclick="calcFn('*')">×</button>
+
+        <button class="calc-key" onclick="calcFn('4')">4</button>
+        <button class="calc-key" onclick="calcFn('5')">5</button>
+        <button class="calc-key" onclick="calcFn('6')">6</button>
+        <button class="calc-key calc-op" onclick="calcFn('-')">−</button>
+
+        <button class="calc-key" onclick="calcFn('1')">1</button>
+        <button class="calc-key" onclick="calcFn('2')">2</button>
+        <button class="calc-key" onclick="calcFn('3')">3</button>
+        <button class="calc-key calc-op" onclick="calcFn('+')">+</button>
+
+        <button class="calc-key" onclick="calcFn('+/-')" style="font-size:16px;">+/−</button>
+        <button class="calc-key" onclick="calcFn('0')">0</button>
+        <button class="calc-key" onclick="calcFn('.')">.</button>
+        <button class="calc-key calc-eq" onclick="calcFn('=')">=</button>
+      </div>
+
+      <!-- History -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;">History</span>
+        <button class="btn" style="padding:3px 10px;font-size:11px;color:var(--danger);"
+                onclick="calcClearHistory()">Clear</button>
+      </div>
+      <div id="calcHistory" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;"></div>
+    </div>
   </main>
 
   <!-- Judge overlay -->
@@ -295,6 +352,139 @@
   <script src="zyzzylu_cpp_engine.js"></script>
   <script src="quiz_bridge.js"></script>
   <script src="judge.js"></script>
+  <script>
+    // ── CALCULATOR ─────────────────────────────────────────────────────
+    let calcExpr     = '';   // full expression string
+    let calcCurrent  = '0';  // display number
+    let calcOperator = '';   // pending operator
+    let calcPrev     = null; // previous value
+    let calcNewNum   = true; // next digit starts a fresh number
+    let calcResult   = false;// last action was =
+    let calcHistory  = JSON.parse(localStorage.getItem('zyz_calc_hist') || '[]');
+
+    function calcSaveHistory() {
+      localStorage.setItem('zyz_calc_hist', JSON.stringify(calcHistory.slice(-50)));
+    }
+    function calcRenderHistory() {
+      const el = document.getElementById('calcHistory');
+      if (!el) return;
+      el.innerHTML = [...calcHistory].reverse().map(h =>
+        `<div class="card" style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div style="font-size:12px;color:var(--text2);font-family:'JetBrains Mono',monospace;
+                      flex:1;word-break:break-all;">${h.expr}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;
+                      color:var(--orange);white-space:nowrap;">${h.result}</div>
+         </div>`
+      ).join('') || '<p style="text-align:center;color:var(--text2);font-size:13px;padding:12px;">No history yet</p>';
+    }
+    function calcUpdate() {
+      document.getElementById('calcDisplay').innerText = calcCurrent;
+      document.getElementById('calcExpr').innerText    = calcExpr;
+    }
+    function calcFn(key) {
+      const digits = '0123456789';
+      if (digits.includes(key)) {
+        if (calcResult) { calcExpr = ''; calcResult = false; }
+        if (calcNewNum || calcCurrent === '0') {
+          calcCurrent = key;
+          calcNewNum  = false;
+        } else {
+          if (calcCurrent.replace('-','').replace('.','').length < 15)
+            calcCurrent += key;
+        }
+      } else if (key === '.') {
+        if (calcResult) { calcCurrent = '0'; calcExpr = ''; calcResult = false; }
+        if (calcNewNum) { calcCurrent = '0.'; calcNewNum = false; }
+        else if (!calcCurrent.includes('.')) calcCurrent += '.';
+      } else if (key === '+/-') {
+        if (calcCurrent !== '0')
+          calcCurrent = calcCurrent.startsWith('-') ? calcCurrent.slice(1) : '-' + calcCurrent;
+      } else if (key === 'CE') {
+        calcCurrent = '0';
+        calcNewNum  = true;
+      } else if (key === 'C') {
+        calcCurrent = '0'; calcExpr = ''; calcOperator = ''; calcPrev = null;
+        calcNewNum = true; calcResult = false;
+      } else if (key === '%') {
+        const v = parseFloat(calcCurrent);
+        calcCurrent = String(calcPrev !== null ? calcPrev * v / 100 : v / 100);
+        calcNewNum  = true;
+      } else if (['+', '-', '*', '/'].includes(key)) {
+        if (calcOperator && !calcNewNum) {
+          const a = calcPrev, b = parseFloat(calcCurrent);
+          calcPrev    = calcCompute(a, b, calcOperator);
+          calcCurrent = calcFormat(calcPrev);
+          calcExpr    = calcCurrent + ' ' + calcOpSym(key) + ' ';
+        } else {
+          calcPrev = parseFloat(calcCurrent);
+          calcExpr = calcCurrent + ' ' + calcOpSym(key) + ' ';
+        }
+        calcOperator = key;
+        calcNewNum   = true;
+        calcResult   = false;
+      } else if (key === '=') {
+        if (calcOperator && calcPrev !== null) {
+          const a = calcPrev, b = parseFloat(calcCurrent);
+          const expr = calcExpr + calcCurrent;
+          const res  = calcCompute(a, b, calcOperator);
+          calcCurrent  = calcFormat(res);
+          calcHistory.push({ expr, result: calcCurrent });
+          calcSaveHistory();
+          calcRenderHistory();
+          calcExpr     = '';
+          calcOperator = '';
+          calcPrev     = null;
+          calcNewNum   = true;
+          calcResult   = true;
+        }
+      }
+      calcUpdate();
+    }
+    function calcCompute(a, b, op) {
+      switch(op) {
+        case '+': return a + b;
+        case '-': return a - b;
+        case '*': return a * b;
+        case '/': return b !== 0 ? a / b : (b === 0 ? Infinity : NaN);
+      }
+      return b;
+    }
+    function calcFormat(n) {
+      if (!isFinite(n)) return isNaN(n) ? 'Error' : '∞';
+      // Avoid floating point garbage: round to 12 sig figs
+      const s = parseFloat(n.toPrecision(12));
+      return String(s);
+    }
+    function calcOpSym(op) {
+      return {'+':'+','-':'−','*':'×','/':'÷'}[op] || op;
+    }
+    function calcClearHistory() {
+      if (confirm('ล้างประวัติเครื่องคิดเลขทั้งหมด?')) {
+        calcHistory = [];
+        calcSaveHistory();
+        calcRenderHistory();
+      }
+    }
+    // Keyboard support for calculator tab
+    document.addEventListener('keydown', e => {
+      const calcSection = document.getElementById('t4');
+      if (!calcSection?.classList.contains('active')) return;
+      if (e.key >= '0' && e.key <= '9') calcFn(e.key);
+      else if (e.key === '+') calcFn('+');
+      else if (e.key === '-') calcFn('-');
+      else if (e.key === '*') calcFn('*');
+      else if (e.key === '/') { e.preventDefault(); calcFn('/'); }
+      else if (e.key === '.' || e.key === ',') calcFn('.');
+      else if (e.key === 'Enter' || e.key === '=') calcFn('=');
+      else if (e.key === 'Backspace') {
+        if (calcCurrent.length > 1) calcCurrent = calcCurrent.slice(0,-1);
+        else { calcCurrent = '0'; calcNewNum = true; }
+        calcUpdate();
+      } else if (e.key === 'Escape') calcFn('C');
+    });
+    // Init history display
+    calcRenderHistory();
+  </script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {

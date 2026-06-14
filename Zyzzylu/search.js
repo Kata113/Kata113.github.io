@@ -47,10 +47,9 @@ function search() {
   const hasBlanks = q.includes('.');
 
   const count = currentResultsList.length;
-  const total = res.length;
-  const countLine = total > 0
+  const countLine = count > 0
     ? `<div class="mono" style="font-size:11px;color:var(--text2);text-align:right;padding:4px 6px 6px;">
-        ${total} result${total !== 1 ? 's' : ''}
+        ${count} result${count !== 1 ? 's' : ''}
        </div>`
     : '';
 

@@ -75,27 +75,22 @@ function shuffleMwc(arr, s1, s2) {
   return a;
 }
 
-// ── SESSION STORAGE (localStorage keyed by seed pair) ─────────────────
-function sessionKey() { return `zzlu_si_${activeSeed1}_${activeSeed2}`; }
-function saveSessionIncorrect() {
-  if (!activeSeed1) return;
-  if (Object.keys(sessionIncorrect).length)
-    localStorage.setItem(sessionKey(), JSON.stringify(sessionIncorrect));
-  else
-    localStorage.removeItem(sessionKey());
-}
-function loadSessionIncorrect() {
-  if (!activeSeed1) return;
-  try {
-    const raw = localStorage.getItem(sessionKey());
-    sessionIncorrect = raw ? JSON.parse(raw) : {};
-  } catch(_) { sessionIncorrect = {}; }
-}
+// ── SESSION TRACKING (in-memory only — persisted via .zzq file) ────────
+// Wrong-guess data lives in sessionIncorrect{} while the quiz is running.
+// It is written into the .zzq XML comment by saveCurrentZzq() and read
+// back by loadXmlZzq(). No localStorage is used so old entries never
+// accumulate in the browser.
 function trackWrongGuess(w) {
   if (!w) return;
   sessionIncorrect[w] = (sessionIncorrect[w] || 0) + 1;
-  saveSessionIncorrect();
 }
+
+// One-time cleanup: remove any stale zzlu_si_* keys left by older versions
+;(function cleanupOldSessionKeys() {
+  Object.keys(localStorage)
+    .filter(k => k.startsWith('zzlu_si_'))
+    .forEach(k => localStorage.removeItem(k));
+})();
 
 // ── QUIZ LIFECYCLE ─────────────────────────────────────────────────────
 function startQuiz() {
@@ -111,7 +106,6 @@ function startQuiz() {
   activeSeed2 = SESSION_SEED2;
   sessionIncorrect = {};
   quizHistory = [];
-  saveSessionIncorrect();
 
   const quizType  = sel('qTypeSelect');
   const order     = sel('qOrderSelect');
@@ -845,9 +839,6 @@ function loadXmlZzq(content) {
       break;
     }
   }
-  // Also try localStorage (for same seed pair, saved from previous session)
-  loadSessionIncorrect();
-
   showQuizPane();
   loadCurrentQuestion();
   toast(`Loaded .zzq — ${pool.length} words`);

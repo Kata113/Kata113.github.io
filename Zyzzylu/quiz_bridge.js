@@ -12,40 +12,27 @@ let quizHistory = []; // { word, status } for end-screen review
 // Linux PIDs are quint16 range (1–65535); generated once per page load
 const SESSION_SEED2 = Math.floor(Math.random() * 65534) + 1;
 
-// Session-wide tracking — in-memory only, persisted via .zzq XML comment
-let sessionIncorrect = {}; // { word: wrongGuessCount }
-let sessionMissed    = []; // words never answered correctly across all questions
+// Session-wide wrong-guess tracking { word: count }
+// Persisted in localStorage keyed by seed pair so it survives tab refresh
+let sessionIncorrect = {};
 
 // ── WASM INIT ──────────────────────────────────────────────────────────
-// Use polling instead of onRuntimeInitialized callback to avoid race
-// condition where zyzzylu_cpp_engine.js calls run() before quiz_bridge.js
-// has a chance to set the callback.
-let _wasmPollStarted = false;
+if (typeof Module !== 'undefined')
+  Module.onRuntimeInitialized = () => tryInitCppEngine();
+
+const _coreOnload = window.onload;
+window.onload = async () => { if (_coreOnload) await _coreOnload(); tryInitCppEngine(); };
+
 function tryInitCppEngine() {
-  if (cppInitialized) return;
-  if (typeof Module !== 'undefined' && Module.loadDictionary && dict?.length) {
+  if (!cppInitialized && typeof Module !== 'undefined'
+      && Module.loadDictionary && dict?.length) {
     document.getElementById('wCnt').innerText = 'Loading WASM…';
     Module.loadDictionary(dict.join('\n'));
     cppInitialized = true;
     document.getElementById('wCnt').innerText =
       dict.length.toLocaleString() + ' Words (WASM Active)';
-  } else if (!_wasmPollStarted) {
-    // Start a single polling loop — avoids multiple concurrent setTimeouts
-    _wasmPollStarted = true;
-    (function poll() {
-      if (cppInitialized) return;
-      if (typeof Module !== 'undefined' && Module.loadDictionary && dict?.length) {
-        tryInitCppEngine();
-      } else {
-        setTimeout(poll, 200);
-      }
-    })();
   }
 }
-
-// Kick off polling once the page has finished loading
-const _coreOnload = window.onload;
-window.onload = async () => { if (_coreOnload) await _coreOnload(); tryInitCppEngine(); };
 
 // ── MWC RNG — Zyzzyva's Marsaglia MWC algorithm ───────────────────────
 // Ref: QuizEngine.cpp + Rand class
@@ -75,22 +62,27 @@ function shuffleMwc(arr, s1, s2) {
   return a;
 }
 
-// ── SESSION TRACKING (in-memory only — persisted via .zzq file) ────────
-// Wrong-guess data lives in sessionIncorrect{} while the quiz is running.
-// It is written into the .zzq XML comment by saveCurrentZzq() and read
-// back by loadXmlZzq(). No localStorage is used so old entries never
-// accumulate in the browser.
+// ── SESSION STORAGE (localStorage keyed by seed pair) ─────────────────
+function sessionKey() { return `zzlu_si_${activeSeed1}_${activeSeed2}`; }
+function saveSessionIncorrect() {
+  if (!activeSeed1) return;
+  if (Object.keys(sessionIncorrect).length)
+    localStorage.setItem(sessionKey(), JSON.stringify(sessionIncorrect));
+  else
+    localStorage.removeItem(sessionKey());
+}
+function loadSessionIncorrect() {
+  if (!activeSeed1) return;
+  try {
+    const raw = localStorage.getItem(sessionKey());
+    sessionIncorrect = raw ? JSON.parse(raw) : {};
+  } catch(_) { sessionIncorrect = {}; }
+}
 function trackWrongGuess(w) {
   if (!w) return;
   sessionIncorrect[w] = (sessionIncorrect[w] || 0) + 1;
+  saveSessionIncorrect();
 }
-
-// One-time cleanup: remove any stale zzlu_si_* keys left by older versions
-;(function cleanupOldSessionKeys() {
-  Object.keys(localStorage)
-    .filter(k => k.startsWith('zzlu_si_'))
-    .forEach(k => localStorage.removeItem(k));
-})();
 
 // ── QUIZ LIFECYCLE ─────────────────────────────────────────────────────
 function startQuiz() {
@@ -105,8 +97,8 @@ function startQuiz() {
   activeSeed1 = Math.floor(Date.now() / 1000);
   activeSeed2 = SESSION_SEED2;
   sessionIncorrect = {};
-  sessionMissed    = [];
-  quizHistory      = [];
+  quizHistory = [];
+  saveSessionIncorrect();
 
   const quizType  = sel('qTypeSelect');
   const order     = sel('qOrderSelect');
@@ -173,24 +165,19 @@ function loadCurrentQuestion() {
 
 function handleCheck() {
   clearInterval(timerInterval);
-  // Track wrong guesses typed so far
   parseQ()?.userIncorrectAnswers?.forEach(w => {
-    if (w) trackWrongGuess(w);
+    if (w && !sessionIncorrect[w]) trackWrongGuess(w);
   });
   const resultStr = Module.checkAnswers();
-  // Track answered words for end-screen review and accumulate session missed
+  // Track answered words for end-screen review
   try {
     if (resultStr && resultStr !== '{}') {
       const cr = JSON.parse(resultStr);
       (cr.answers || []).forEach(a => {
-        if (a.word && !quizHistory.some(h => h.word === a.word))
+        if (a.word && !quizHistory.some(h => h.word === a.word)) {
           quizHistory.push({ word: a.word, status: a.status });
-        // Accumulate missed words across the whole quiz
-        if (a.status === 'missed' && !sessionMissed.includes(a.word))
-          sessionMissed.push(a.word);
+        }
       });
-      // Also track wrong-guess words that slipped through submitAnswer path
-      (cr.incorrectAnswers || []).forEach(w => { if (w) trackWrongGuess(w); });
     }
   } catch(_) {}
   renderQuizUI(parseQ(), parseProg());
@@ -210,68 +197,75 @@ function endQuiz() {
   clearInterval(timerInterval);
   const prog  = parseProg();
   const total = prog.totalCorrect + prog.totalMissed;
-  const acc     = total > 0 ? Math.round(prog.totalCorrect / total * 100) : 0;
-  const col     = p => p >= 70 ? 'var(--accent)' : p >= 40 ? 'var(--orange)' : 'var(--danger)';
-  const missed   = sessionMissed;
-  const wrongAll = Object.keys(sessionIncorrect);
+  const acc   = total > 0 ? Math.round(prog.totalCorrect / total * 100) : 0;
 
-  const badge = prog.totalIncorrect === 0
-    ? `<span style="background:rgba(52,199,89,.15);color:var(--accent);
-                    padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">✓ CLEAN</span>`
-    : `<span style="background:rgba(255,59,48,.1);color:var(--danger);
-                    padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">⚠ HAD WRONG GUESSES</span>`;
+  // Build word review list with hook + prob layout
+  const wordRow = ({ word, status }) => {
+    const hk    = getHooksAndDots(word);
+    const prob  = probRankMap[word];
+    const score = getWordScore(word);
+    const ok    = status === 'correct';
+    const col   = ok ? 'var(--accent)' : 'var(--danger)';
+    const fH    = hk.f !== '-'
+      ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.f.split('').join(' ')}</span>`
+      : `<span style="color:var(--border);">—</span>`;
+    const bH    = hk.b !== '-'
+      ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.b.split('').join(' ')}</span>`
+      : `<span style="color:var(--border);">—</span>`;
+    return `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;
+                        padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3);">
+      <div class="mono" style="text-align:right;font-size:12px;font-weight:700;
+                                line-height:1.8;word-break:break-all;min-width:0;">${fH}</div>
+      <div style="text-align:center;white-space:nowrap;padding:0 4px;">
+        <div style="font-size:10px;color:${col};font-weight:700;margin-bottom:1px;">${ok?'✓':'⊘'}</div>
+        <span class="mono" style="font-size:18px;font-weight:700;color:${col};">${word}</span>
+        <div style="font-size:10px;color:var(--text2);margin-top:2px;">
+          <span style="color:var(--orange);font-weight:700;">${score}</span>pts
+          ${prob ? `<span style="margin-left:4px;">#${prob}</span>` : ''}
+        </div>
+      </div>
+      <div class="mono" style="text-align:left;font-size:12px;font-weight:700;
+                                line-height:1.8;word-break:break-all;min-width:0;">${bH}</div>
+    </div>`;
+  };
 
-  const wordList = (arr, color, icon = '•') => arr.length
-    ? arr.map(w => {
-        const cnt = sessionIncorrect[w];
-        return `<div class="mono" style="color:${color};font-size:15px;padding:2px 0">
-          ${icon} ${w}${cnt > 1 ? ` <span style="color:var(--text2);font-size:12px">(×${cnt})</span>` : ''}</div>`;
-      }).join('')
-    : `<div style="color:var(--text2);text-align:center;padding:6px 0;font-size:13px">None</div>`;
+  const wordListHtml = quizHistory.length
+    ? quizHistory.map(wordRow).join('')
+    : '<p style="text-align:center;color:var(--text2);padding:16px 0;">No word history</p>';
 
   document.getElementById('qEnginePane').innerHTML = `
-    <div class="q-clean-layout">
-      <h3 class="mono" style="font-size:16px;border-bottom:1px solid var(--border);padding-bottom:6px">
-        Quiz Complete
-      </h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div style="background:var(--surface2);border:1px solid var(--border);
-                    border-radius:8px;padding:10px;text-align:center">
-          <div style="font-size:10px;color:var(--text2);font-weight:700;
-                      text-transform:uppercase;margin-bottom:4px">Accuracy</div>
-          <div style="font-size:26px;font-weight:800;color:${col(acc)}">${acc}%</div>
-          <div style="font-size:11px;color:var(--text2)">${prog.totalCorrect}/${total}</div>
-          <div style="margin-top:4px">${badge}</div>
-        </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);
-                    border-radius:8px;padding:10px;text-align:center">
-          <div style="font-size:10px;color:var(--text2);font-weight:700;
-                      text-transform:uppercase;margin-bottom:4px">Questions</div>
-          <div style="font-size:26px;font-weight:800;color:var(--text)">${prog.totalQuestions}</div>
-          <div style="font-size:11px;color:var(--text2);margin-top:4px">
-            <span style="color:var(--orange);font-weight:700">${prog.totalMissed}</span> missed &nbsp;·&nbsp;
-            <span style="color:var(--danger);font-weight:700">${prog.totalIncorrect}</span> wrong guesses
-          </div>
+    <div class="q-clean-layout" style="text-align:center;padding:20px 0">
+      <h2 style="font-size:24px;color:var(--accent);margin-bottom:20px">Quiz Complete!</h2>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+                  padding:20px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px">
+        ${statRow('Total Questions',  prog.totalQuestions, 'var(--text2)')}
+        ${statRow('Correct Answers',  prog.totalCorrect,   'var(--accent)')}
+        ${statRow('Missed Answers',   prog.totalMissed,    'var(--danger)')}
+        ${statRow('Wrong Guesses',    prog.totalIncorrect, 'var(--orange)')}
+        <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;
+                    display:flex;justify-content:space-between">
+          <span style="font-weight:600">Accuracy</span>
+          <span class="mono" style="font-weight:700;color:var(--orange)">${acc}%</span>
         </div>
       </div>
-      <div style="background:rgba(255,149,0,.08);border:1px solid rgba(255,149,0,.25);
-                  border-radius:8px;padding:12px;max-height:150px;overflow-y:auto">
-        <div style="font-size:11px;text-transform:uppercase;font-weight:700;
-                    color:var(--orange);margin-bottom:6px">Missed (${missed.length})</div>
-        ${wordList(missed, 'var(--orange)')}
-      </div>
-      <div style="background:rgba(255,59,48,.05);border:1px solid rgba(255,59,48,.2);
-                  border-radius:8px;padding:12px;max-height:150px;overflow-y:auto">
-        <div style="font-size:11px;text-transform:uppercase;font-weight:700;
-                    color:var(--danger);margin-bottom:6px">Wrong Guesses (${wrongAll.length})</div>
-        ${wordList(wrongAll, 'var(--danger)', '✕')}
+      <div style="text-align:left;margin-bottom:16px;">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;font-size:10px;
+                    font-weight:700;text-transform:uppercase;color:var(--text2);
+                    padding:6px 4px;border-bottom:1px solid var(--border);margin-bottom:2px;">
+          <span style="text-align:right;">Front Hook</span>
+          <span style="text-align:center;padding:0 4px;">Word · Score · #Prob</span>
+          <span style="text-align:left;">Back Hook</span>
+        </div>
+        <div style="max-height:50vh;overflow-y:auto;background:var(--surface2);
+                    border:1px solid var(--border);border-radius:10px;">
+          ${wordListHtml}
+        </div>
       </div>
       <button class="btn btn-p" style="width:100%;padding:14px" onclick="quitQuiz()">
         Back to Settings
       </button>
     </div>`;
 }
-
 
 // ── QUIZ UI ────────────────────────────────────────────────────────────
 function renderQuizUI(q, prog) {
@@ -478,17 +472,28 @@ function onQuizInput() {
 }
 
 // ── ANALYZE ────────────────────────────────────────────────────────────
-// Analyze shows session stats only — does NOT reveal current question answers.
-// Answers are only finalized when the user presses Check / Skip.
 function showAnalysis() {
   const q = parseQ(); if (!q) return;
+  if (!q.checked) {
+    if (!confirm('⚠️ This reveals all answers and finalises this question. Proceed?')) return;
+    clearInterval(timerInterval);
+  }
+  let cr;
+  try { cr = JSON.parse(Module.checkAnswers()); } catch(_) {}
+  if (!cr?.answers) { toast('No analysis data'); return; }
 
-  const prog     = parseProg();
+  (cr.incorrectAnswers || []).forEach(w => { if (w && !sessionIncorrect[w]) trackWrongGuess(w); });
+
+  const prog      = parseProg();
   const sessTotal = prog.totalCorrect + prog.totalMissed;
-  const sessAcc  = sessTotal > 0 ? Math.round(prog.totalCorrect / sessTotal * 100) : 0;
-  const col      = p => p >= 70 ? 'var(--accent)' : p >= 40 ? 'var(--orange)' : 'var(--danger)';
+  const sessAcc   = sessTotal > 0 ? Math.round(prog.totalCorrect / sessTotal * 100) : 0;
+  const curCorrect = cr.answers.filter(a => a?.status === 'correct').length;
+  const curAcc    = cr.answers.length > 0 ? Math.round(curCorrect / cr.answers.length * 100) : 0;
+  const col       = p => p >= 70 ? 'var(--accent)' : p >= 40 ? 'var(--orange)' : 'var(--danger)';
+  const missed    = cr.answers.filter(a => a?.status === 'missed').map(a => a.word);
+  const wrongQ    = cr.incorrectAnswers || [];
   const sessWords = Object.keys(sessionIncorrect);
-  const badge    = sessWords.length === 0
+  const badge     = wrongQ.length === 0
     ? `<span style="background:rgba(52,199,89,.15);color:var(--accent);
                     padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">✓ CLEAN</span>`
     : `<span style="background:rgba(255,59,48,.1);color:var(--danger);
@@ -505,35 +510,44 @@ function showAnalysis() {
   document.getElementById('qEnginePane').innerHTML = `
     <div class="q-clean-layout">
       <h3 class="mono" style="font-size:16px;border-bottom:1px solid var(--border);padding-bottom:6px">
-        Session Analysis
+        Analysis
       </h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--surface2);border:1px solid var(--border);
+                    border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text2);font-weight:700;
+                      text-transform:uppercase;margin-bottom:4px">Current Q</div>
+          <div style="font-size:26px;font-weight:800;color:${col(curAcc)}">${curAcc}%</div>
+          <div style="font-size:11px;color:var(--text2)">${curCorrect}/${cr.answers.length}</div>
+          <div style="margin-top:4px">${badge}</div>
+        </div>
         <div style="background:var(--surface2);border:1px solid var(--border);
                     border-radius:8px;padding:10px;text-align:center">
           <div style="font-size:10px;color:var(--text2);font-weight:700;
                       text-transform:uppercase;margin-bottom:4px">Session</div>
           <div style="font-size:26px;font-weight:800;color:${col(sessAcc)}">${sessAcc}%</div>
           <div style="font-size:11px;color:var(--text2)">${prog.totalCorrect}/${sessTotal}</div>
-          <div style="margin-top:4px">${badge}</div>
-        </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);
-                    border-radius:8px;padding:10px;text-align:center">
-          <div style="font-size:10px;color:var(--text2);font-weight:700;
-                      text-transform:uppercase;margin-bottom:4px">Questions Done</div>
-          <div style="font-size:26px;font-weight:800;color:var(--text)">${prog.currentQuestion - 1}</div>
-          <div style="font-size:11px;color:var(--text2)">of ${prog.totalQuestions}</div>
         </div>
       </div>
       <div style="background:rgba(255,149,0,.08);border:1px solid rgba(255,149,0,.25);
                   border-radius:8px;padding:12px;max-height:150px;overflow-y:auto">
         <div style="font-size:11px;text-transform:uppercase;font-weight:700;
-                    color:var(--orange);margin-bottom:6px">Missed so far (${sessionMissed.length})</div>
-        ${wordList(sessionMissed, 'var(--orange)')}
+                    color:var(--orange);margin-bottom:6px">Missed (${missed.length})</div>
+        ${wordList(missed, 'var(--orange)')}
       </div>
       <div style="background:rgba(255,59,48,.05);border:1px solid rgba(255,59,48,.2);
+                  border-radius:8px;padding:12px;max-height:120px;overflow-y:auto">
+        <div style="font-size:11px;text-transform:uppercase;font-weight:700;
+                    color:var(--danger);margin-bottom:6px">Wrong This Q (${wrongQ.length})</div>
+        ${wordList(wrongQ, 'var(--danger)', '✕')}
+      </div>
+      <div style="background:rgba(255,59,48,.03);border:1px solid rgba(255,59,48,.15);
                   border-radius:8px;padding:12px;max-height:150px;overflow-y:auto">
         <div style="font-size:11px;text-transform:uppercase;font-weight:700;
-                    color:var(--danger);margin-bottom:6px">Wrong Guesses (${sessWords.length})</div>
+                    color:var(--danger);margin-bottom:6px">
+          All Session Wrong (${sessWords.length})
+          <span style="color:var(--text2);font-weight:400;font-size:10px"> — saved in localStorage per seed</span>
+        </div>
         ${wordList(sessWords, 'var(--danger)', '✕')}
       </div>
       <button class="btn btn-p" style="width:100%" onclick="renderActiveQuiz()">Back to Quiz</button>
@@ -658,16 +672,13 @@ function saveCurrentZzq() {
     lines.push(` <progress ${progressAttr}/>`);
   }
 
-  // Session data — stored as XML COMMENTs so Zyzzyva ignores them.
+  // Session wrong-guess data — stored as XML COMMENT so Zyzzyva ignores it.
   // QDomElement's toElement() skips comment nodes, so Zyzzyva's fromDomElement
-  // never sees these and the file remains fully compatible.
+  // never sees this and the file remains fully compatible.
   const sessWords = Object.keys(sessionIncorrect);
   if (sessWords.length) {
     const sessData = sessWords.map(w => `${w}:${sessionIncorrect[w]}`).join(',');
     lines.push(` <!-- zyzzylu-session: ${sessData} -->`);
-  }
-  if (sessionMissed.length) {
-    lines.push(` <!-- zyzzylu-missed: ${sessionMissed.join(',')} -->`);
   }
 
   lines.push('</zyzzyva-quiz>');
@@ -680,7 +691,6 @@ function loadZzq(event) {
   const file = event.target.files[0]; if (!file) return;
   // Reset input so the same file can be reloaded
   event.target.value = '';
-  if (!cppInitialized) { toast('⏳ WASM engine not ready — please wait a moment'); return; }
   const reader = new FileReader();
   reader.onload = e => {
     try {
@@ -806,25 +816,24 @@ function loadXmlZzq(content) {
       correctWords.join(' '), incorrectWords.join(' '), complete);
   }
 
-  // Load session data — from our XML comments (ignored by Zyzzyva)
+  // Load session data — from our XML comment (ignored by Zyzzyva)
   sessionIncorrect = {};
-  sessionMissed    = [];
   // Walk raw DOM for comment nodes (querySelector can't find comments)
   const walker = document.createTreeWalker(xml, NodeFilter.SHOW_COMMENT, null, false);
   while (walker.nextNode()) {
     const text = walker.currentNode.nodeValue?.trim() || '';
-    const mSess = text.match(/^zyzzylu-session:\s*(.+)$/);
-    if (mSess) {
-      mSess[1].split(',').forEach(pair => {
+    const m    = text.match(/^zyzzylu-session:\s*(.+)$/);
+    if (m) {
+      m[1].split(',').forEach(pair => {
         const [w, c] = pair.trim().split(':');
         if (w) sessionIncorrect[w.toUpperCase()] = parseInt(c) || 1;
       });
-    }
-    const mMiss = text.match(/^zyzzylu-missed:\s*(.+)$/);
-    if (mMiss) {
-      sessionMissed = mMiss[1].split(',').map(w => w.trim().toUpperCase()).filter(Boolean);
+      break;
     }
   }
+  // Also try localStorage (for same seed pair, saved from previous session)
+  loadSessionIncorrect();
+
   showQuizPane();
   loadCurrentQuestion();
   toast(`Loaded .zzq — ${pool.length} words`);

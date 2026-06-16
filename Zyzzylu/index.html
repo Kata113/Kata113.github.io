@@ -2,8 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zyzzylu - Web</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Zyzzylu">
+  <meta name="theme-color" content="#30D158">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>Zyzzylu</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -106,8 +112,8 @@
     <button class="nav-item active" id="nb-0" onclick="tab(0, this)"><span style="font-size:18px;">🔍</span><span>Search</span></button>
     <button class="nav-item" id="nb-1" onclick="tab(1, this)"><span style="font-size:18px;">🧠</span><span>Quiz</span></button>
     <button class="nav-item" id="nb-2" onclick="tab(2, this)"><span style="font-size:18px;">⚖️</span><span>Judge</span></button>
-    <button class="nav-item" id="nb-3" onclick="tab(3, this)"><span style="font-size:18px;">🧮</span><span>Calc</span></button>
-    <button class="nav-item" id="nb-4" onclick="tab(4, this)"><span style="font-size:18px;">📚</span><span>Saved</span></button>
+    <button class="nav-item" id="nb-3" onclick="tab(3, this)"><span style="font-size:18px;">📚</span><span>Saved</span></button>
+    <button class="nav-item" id="nb-4" onclick="tab(4, this)"><span style="font-size:18px;">🧮</span><span>Calc</span></button>
   </nav>
 
   <main>
@@ -213,8 +219,16 @@
       </div>
     </div>
 
-    <!-- ── CALCULATOR ──────────────────────────────────────────────────── -->
+    <!-- ── SAVED ─────────────────────────────────────────────────── -->
     <div class="section" id="t3">
+      <div style="display:flex; justify-content:space-between; margin-bottom:14px; align-items:center;">
+        <h3 style="font-size:16px;">Bookmarks</h3>
+        <button class="btn" style="color:var(--danger); padding:4px 10px; font-size:12px;" onclick="clearSaved()">Clear All</button>
+      </div>
+      <div id="bList"></div>
+    </div>
+    <!-- ── CALCULATOR ──────────────────────────────────────────────────── -->
+    <div class="section" id="t4">
       <!-- Display -->
       <div class="card" style="margin-bottom:14px;padding:0;overflow:hidden;">
         <div id="calcExpr" style="min-height:28px;padding:12px 16px 4px;font-family:'JetBrains Mono',monospace;
@@ -226,7 +240,7 @@
       <!-- Keypad -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
         <button class="calc-key calc-fn" onclick="calcFn('C')">C</button>
-        <button class="calc-key calc-fn" onclick="calcFn('CE')">CE</button>
+        <button class="calc-key calc-fn" onclick="calcFn('⌫')" style="font-size:20px;">⌫</button>
         <button class="calc-key calc-fn" onclick="calcFn('%')">%</button>
         <button class="calc-key calc-op" onclick="calcFn('/')">÷</button>
 
@@ -258,15 +272,6 @@
                 onclick="calcClearHistory()">Clear</button>
       </div>
       <div id="calcHistory" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;"></div>
-    </div>
-
-    <!-- ── SAVED ─────────────────────────────────────────────────── -->
-    <div class="section" id="t4">
-      <div style="display:flex; justify-content:space-between; margin-bottom:14px; align-items:center;">
-        <h3 style="font-size:16px;">Bookmarks</h3>
-        <button class="btn" style="color:var(--danger); padding:4px 10px; font-size:12px;" onclick="clearSaved()">Clear All</button>
-      </div>
-      <div id="bList"></div>
     </div>
   </main>
 
@@ -403,6 +408,12 @@
       } else if (key === 'CE') {
         calcCurrent = '0';
         calcNewNum  = true;
+      } else if (key === '⌫') {
+        if (!calcNewNum && calcCurrent !== '0') {
+          calcCurrent = calcCurrent.length > 1 ? calcCurrent.slice(0, -1) : '0';
+          if (calcCurrent === '-') calcCurrent = '0';
+          calcNewNum = calcCurrent === '0';
+        }
       } else if (key === 'C') {
         calcCurrent = '0'; calcExpr = ''; calcOperator = ''; calcPrev = null;
         calcNewNum = true; calcResult = false;
@@ -468,7 +479,7 @@
     }
     // Keyboard support for calculator tab
     document.addEventListener('keydown', e => {
-      const calcSection = document.getElementById('t3');
+      const calcSection = document.getElementById('t4');
       if (!calcSection?.classList.contains('active')) return;
       if (e.key >= '0' && e.key <= '9') calcFn(e.key);
       else if (e.key === '+') calcFn('+');
@@ -477,11 +488,7 @@
       else if (e.key === '/') { e.preventDefault(); calcFn('/'); }
       else if (e.key === '.' || e.key === ',') calcFn('.');
       else if (e.key === 'Enter' || e.key === '=') calcFn('=');
-      else if (e.key === 'Backspace') {
-        if (calcCurrent.length > 1) calcCurrent = calcCurrent.slice(0,-1);
-        else { calcCurrent = '0'; calcNewNum = true; }
-        calcUpdate();
-      } else if (e.key === 'Escape') calcFn('C');
+      else if (e.key === 'Backspace') { e.preventDefault(); calcFn('⌫'); } else if (e.key === 'Escape') calcFn('C');
     });
     // Init history display
     calcRenderHistory();

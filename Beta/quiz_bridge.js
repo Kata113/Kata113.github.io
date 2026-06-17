@@ -586,7 +586,7 @@ function saveCurrentZzq() {
   const lines = [
     '<?xml version="1.0" encoding="ISO-8859-1"?>',
     '<!DOCTYPE zyzzyva-quiz SYSTEM \'http://boshvark.com/dtd/zyzzyva-quiz.dtd\'>',
-    `<zyzzyva-quiz question-order="${quizOrderStr}" type="${quizTypeStr}" lexicon="CSW24" method="Standard">`,
+    `<zyzzyva-quiz lexicon="CSW24" method="Standard" question-order="${quizOrderStr}" type="${quizTypeStr}">`,
     ' <question-source type="search">',
     '  <zyzzyva-search version="1">',
     '   <conditions>',
@@ -599,41 +599,41 @@ function saveCurrentZzq() {
       const neg = f.not ? '1' : '0';
       switch (f.type) {
         case 'length':
-          lines.push(`     <condition type="Length" min="${f.v1}" max="${f.v2}"/>`); break;
+          lines.push(`     <condition max="${f.v2}" min="${f.v1}" type="Length"/>`); break;
         case 'point_value':
-          lines.push(`     <condition type="Point Value" min="${f.v1}" max="${f.v2}"/>`); break;
+          lines.push(`     <condition max="${f.v2}" min="${f.v1}" type="Point Value"/>`); break;
         case 'num_vowels':
-          lines.push(`     <condition type="Number of Vowels" min="${f.v1}" max="${f.v2}"/>`); break;
+          lines.push(`     <condition max="${f.v2}" min="${f.v1}" type="Number of Vowels"/>`); break;
         case 'begins':
-          lines.push(`     <condition type="Begins With" string="${f.v1}" negated="${neg}"/>`); break;
+          lines.push(`     <condition negated="${neg}" string="${f.v1}" type="Begins With"/>`); break;
         case 'ends':
-          lines.push(`     <condition type="Ends With" string="${f.v1}" negated="${neg}"/>`); break;
+          lines.push(`     <condition negated="${neg}" string="${f.v1}" type="Ends With"/>`); break;
         case 'includes':
-          lines.push(`     <condition type="Includes Letters" negated="${neg}" string="${f.v1}"/>`); break;
+          lines.push(`     <condition negated="${neg}" string="${f.v1}" type="Includes Letters"/>`); break;
         case 'probability_order':
-          lines.push(`     <condition type="Probability Order" min="${f.v1}" max="${f.v2}"/>`); break;
+          lines.push(`     <condition max="${f.v2}" min="${f.v1}" type="Probability Order"/>`); break;
         case 'limit_probability_order':
-          // Zyzzyva saves LimitByProbabilityOrder as Probability Order with int="2" bool="true"
-          // Confirmed from 7_Letter_Prob_100.zzq reference file
-          lines.push(`     <condition int="2" type="Probability Order" max="${f.v2}" bool="true" min="0"/>`); break;
+          // Zyzzyva saves LimitByProbabilityOrder as Probability Order with int="2"
+          // Confirmed from 7_Letter_Prob_100.zzq: bool="false" int="2" max min type (alphabetical)
+          lines.push(`     <condition bool="false" int="2" max="${f.v2}" min="${f.v1 || '1'}" type="Probability Order"/>`); break;
         case 'anagram_match':
-          lines.push(`     <condition type="Anagram Match" string="${f.v1}" negated="${neg}"/>`); break;
+          lines.push(`     <condition negated="${neg}" string="${f.v1}" type="Anagram Match"/>`); break;
         case 'subanagram_match':
-          lines.push(`     <condition type="Subanagram Match" string="${f.v1}" negated="${neg}"/>`); break;
+          lines.push(`     <condition negated="${neg}" string="${f.v1}" type="Subanagram Match"/>`); break;
         case 'pattern_match':
-          lines.push(`     <condition type="Pattern Match" string="${f.v1}" negated="${neg}"/>`); break;
+          lines.push(`     <condition negated="${neg}" string="${f.v1}" type="Pattern Match"/>`); break;
       }
     });
   } else {
     // Fallback: infer length range from the pool
     const lens = currentQuizPool.map(w => w.length);
-    lines.push(`     <condition type="Length" min="${Math.min(...lens)}" max="${Math.max(...lens)}"/>`);
+    lines.push(`     <condition max="${Math.max(...lens)}" min="${Math.min(...lens)}" type="Length"/>`);
   }
 
   lines.push('    </and>', '   </conditions>', '  </zyzzyva-search>', ' </question-source>');
 
   // Randomizer — algorithm="1" = Marsaglia MWC (QuizSpec::setRandomAlgorithm)
-  lines.push(` <randomizer algorithm="1" seed2="${activeSeed2}" seed="${activeSeed1}"/>`);
+  lines.push(` <randomizer algorithm="1" seed="${activeSeed1}" seed2="${activeSeed2}"/>`);
 
   // Progress
   const qIdx      = (prog.currentQuestion ?? 1) - 1;
@@ -644,10 +644,8 @@ function saveCurrentZzq() {
 
   const progressAttr = [
     `correct="${prog.totalCorrect}"`,
-    `total-questions="${prog.totalQuestions}"`,
-    `correct-questions="${prog.fullyCorrectQuestions || 0}"`,
-    `question-complete="${isChecked}"`,
     `question="${qIdx}"`,
+    `question-complete="${isChecked}"`,
   ].join(' ');
 
   if (hasBody) {
@@ -659,12 +657,12 @@ function saveCurrentZzq() {
     }
     if (incorrectW.length) {
       lines.push('  <incorrect-responses>');
-      incorrectW.forEach(w => lines.push(`   <response word="${w}" count="1"/>`));
+      incorrectW.forEach(w => lines.push(`   <response count="1" word="${w}"/>`));
       lines.push('  </incorrect-responses>');
     }
     if (missedW.length) {
       lines.push('  <missed-responses>');
-      missedW.forEach(w => lines.push(`   <response word="${w}" count="1"/>`));
+      missedW.forEach(w => lines.push(`   <response count="1" word="${w}"/>`));
       lines.push('  </missed-responses>');
     }
     lines.push(' </progress>');

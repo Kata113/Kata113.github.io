@@ -1,7 +1,8 @@
-const CACHE_NAME = 'zyzzylu-v2';
+const CACHE_NAME = 'zyzzylu-v3';
 const ASSETS = [
   './', './index.html', './core.js', './search.js',
-  './quiz_bridge.js', './judge.js',
+  './quiz_bridge.js', './judge.js', './manifest.json',
+  './icons/icon-192.png', './icons/icon-512.png',
   './zyzzylu_cpp_engine.js', './zyzzylu_cpp_engine.wasm', './CSW24.txt',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap'
 ];

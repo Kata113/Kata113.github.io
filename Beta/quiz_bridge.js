@@ -17,35 +17,22 @@ const SESSION_SEED2 = Math.floor(Math.random() * 65534) + 1;
 let sessionIncorrect = {};
 
 // ── WASM INIT ──────────────────────────────────────────────────────────
-// Use polling instead of onRuntimeInitialized callback to avoid race
-// condition where zyzzylu_cpp_engine.js calls run() before quiz_bridge.js
-// has a chance to set the callback.
-let _wasmPollStarted = false;
+if (typeof Module !== 'undefined')
+  Module.onRuntimeInitialized = () => tryInitCppEngine();
+
+const _coreOnload = window.onload;
+window.onload = async () => { if (_coreOnload) await _coreOnload(); tryInitCppEngine(); };
+
 function tryInitCppEngine() {
-  if (cppInitialized) return;
-  if (typeof Module !== 'undefined' && Module.loadDictionary && dict?.length) {
+  if (!cppInitialized && typeof Module !== 'undefined'
+      && Module.loadDictionary && dict?.length) {
     document.getElementById('wCnt').innerText = 'Loading WASM…';
     Module.loadDictionary(dict.join('\n'));
     cppInitialized = true;
     document.getElementById('wCnt').innerText =
       dict.length.toLocaleString() + ' Words (WASM Active)';
-  } else if (!_wasmPollStarted) {
-    // Start a single polling loop — avoids multiple concurrent setTimeouts
-    _wasmPollStarted = true;
-    (function poll() {
-      if (cppInitialized) return;
-      if (typeof Module !== 'undefined' && Module.loadDictionary && dict?.length) {
-        tryInitCppEngine();
-      } else {
-        setTimeout(poll, 200);
-      }
-    })();
   }
 }
-
-// Kick off polling once the page has finished loading
-const _coreOnload = window.onload;
-window.onload = async () => { if (_coreOnload) await _coreOnload(); tryInitCppEngine(); };
 
 // ── MWC RNG — Zyzzyva's Marsaglia MWC algorithm ───────────────────────
 // Ref: QuizEngine.cpp + Rand class
@@ -599,7 +586,7 @@ function saveCurrentZzq() {
   const lines = [
     '<?xml version="1.0" encoding="ISO-8859-1"?>',
     '<!DOCTYPE zyzzyva-quiz SYSTEM \'http://boshvark.com/dtd/zyzzyva-quiz.dtd\'>',
-    `<zyzzyva-quiz type="${quizTypeStr}" question-order="${quizOrderStr}" lexicon="CSW24" method="Standard">`,
+    `<zyzzyva-quiz question-order="${quizOrderStr}" type="${quizTypeStr}" lexicon="CSW24" method="Standard">`,
     ' <question-source type="search">',
     '  <zyzzyva-search version="1">',
     '   <conditions>',
@@ -622,7 +609,7 @@ function saveCurrentZzq() {
         case 'ends':
           lines.push(`     <condition type="Ends With" string="${f.v1}" negated="${neg}"/>`); break;
         case 'includes':
-          lines.push(`     <condition type="Includes Letters" string="${f.v1}" negated="${neg}"/>`); break;
+          lines.push(`     <condition type="Includes Letters" negated="${neg}" string="${f.v1}"/>`); break;
         case 'probability_order':
           lines.push(`     <condition type="Probability Order" min="${f.v1}" max="${f.v2}"/>`); break;
         case 'limit_probability_order':
@@ -646,7 +633,7 @@ function saveCurrentZzq() {
   lines.push('    </and>', '   </conditions>', '  </zyzzyva-search>', ' </question-source>');
 
   // Randomizer — algorithm="1" = Marsaglia MWC (QuizSpec::setRandomAlgorithm)
-  lines.push(` <randomizer seed="${activeSeed1}" seed2="${activeSeed2}" algorithm="1"/>`);
+  lines.push(` <randomizer algorithm="1" seed2="${activeSeed2}" seed="${activeSeed1}"/>`);
 
   // Progress
   const qIdx      = (prog.currentQuestion ?? 1) - 1;
@@ -656,11 +643,11 @@ function saveCurrentZzq() {
   const hasBody   = correctW.length || incorrectW.length || missedW.length;
 
   const progressAttr = [
-    `question="${qIdx}"`,
-    `total-questions="${prog.totalQuestions}"`,
     `correct="${prog.totalCorrect}"`,
+    `total-questions="${prog.totalQuestions}"`,
     `correct-questions="${prog.fullyCorrectQuestions || 0}"`,
     `question-complete="${isChecked}"`,
+    `question="${qIdx}"`,
   ].join(' ');
 
   if (hasBody) {
@@ -704,7 +691,6 @@ function loadZzq(event) {
   const file = event.target.files[0]; if (!file) return;
   // Reset input so the same file can be reloaded
   event.target.value = '';
-  if (!cppInitialized) { toast('⏳ WASM engine not ready — please wait a moment'); return; }
   const reader = new FileReader();
   reader.onload = e => {
     try {

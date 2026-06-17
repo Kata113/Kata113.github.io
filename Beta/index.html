@@ -2,8 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zyzzylu - Web</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Zyzzylu">
+  <meta name="theme-color" content="#30D158">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>Zyzzylu</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -234,7 +240,7 @@
       <!-- Keypad -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
         <button class="calc-key calc-fn" onclick="calcFn('C')">C</button>
-        <button class="calc-key calc-fn" onclick="calcFn('CE')">CE</button>
+        <button class="calc-key calc-fn" onclick="calcFn('⌫')" style="font-size:20px;">⌫</button>
         <button class="calc-key calc-fn" onclick="calcFn('%')">%</button>
         <button class="calc-key calc-op" onclick="calcFn('/')">÷</button>
 
@@ -402,6 +408,12 @@
       } else if (key === 'CE') {
         calcCurrent = '0';
         calcNewNum  = true;
+      } else if (key === '⌫') {
+        if (!calcNewNum && calcCurrent !== '0') {
+          calcCurrent = calcCurrent.length > 1 ? calcCurrent.slice(0, -1) : '0';
+          if (calcCurrent === '-') calcCurrent = '0';
+          calcNewNum = calcCurrent === '0';
+        }
       } else if (key === 'C') {
         calcCurrent = '0'; calcExpr = ''; calcOperator = ''; calcPrev = null;
         calcNewNum = true; calcResult = false;
@@ -476,11 +488,7 @@
       else if (e.key === '/') { e.preventDefault(); calcFn('/'); }
       else if (e.key === '.' || e.key === ',') calcFn('.');
       else if (e.key === 'Enter' || e.key === '=') calcFn('=');
-      else if (e.key === 'Backspace') {
-        if (calcCurrent.length > 1) calcCurrent = calcCurrent.slice(0,-1);
-        else { calcCurrent = '0'; calcNewNum = true; }
-        calcUpdate();
-      } else if (e.key === 'Escape') calcFn('C');
+      else if (e.key === 'Backspace') { e.preventDefault(); calcFn('⌫'); } else if (e.key === 'Escape') calcFn('C');
     });
     // Init history display
     calcRenderHistory();

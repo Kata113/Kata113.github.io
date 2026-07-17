@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Crossword Bonus Summary</title>
-<!-- ชื่อไฟล์: crossword_bonus_summary.html -->
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Sarabun:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -96,6 +95,28 @@
     color: var(--muted);
     font-family: 'JetBrains Mono', monospace;
     margin-top: 4px;
+  }
+
+  /* ปุ่มลบทุกเกมสไตล์เดียวกับธีมเว็บ */
+  .clear-all-btn {
+    margin-left: auto;
+    background: rgba(232, 74, 106, 0.1);
+    border: 1px solid rgba(232, 74, 106, 0.3);
+    color: var(--red);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .clear-all-btn:hover {
+    background: var(--red);
+    color: #fff;
+    border-color: var(--red);
   }
 
   .main {
@@ -565,8 +586,6 @@
     color: var(--accent2);
   }
 
-
-
   .rank-field { width: 80px !important; }
 
   /* ── MOBILE RESPONSIVE ── */
@@ -574,10 +593,18 @@
     header {
       padding: 16px 16px 14px;
       gap: 12px;
+      flex-wrap: wrap;
     }
     .tile { width: 32px; height: 32px; font-size: 18px; }
     .header-text h1 { font-size: 22px; }
     .header-text p { font-size: 10px; }
+    
+    .clear-all-btn {
+      margin-left: 0;
+      width: 100%;
+      justify-content: center;
+      order: 3;
+    }
 
     .main {
       grid-template-columns: 1fr;
@@ -704,10 +731,10 @@
     <h1>Crossword Bonus Summary</h1>
     <p>CROSSWORD BONUS SUMMARY — TOURNAMENT SCORING</p>
   </div>
+  <button class="clear-all-btn" onclick="clearAllGames()">🗑️ ลบทุกเกม</button>
 </header>
 
 <div class="main">
-  <!-- LEFT -->
   <div class="left-panel">
     <div class="section-title">ข้อมูลทั่วไป</div>
     <div class="info-grid">
@@ -747,7 +774,6 @@
     </button>
   </div>
 
-  <!-- RIGHT -->
   <div class="right-panel">
     <div class="section-title">สรุปผล</div>
 
@@ -896,7 +922,6 @@
   </div>
 </div>
 
-<!-- Export Modal -->
 <div class="modal-overlay" id="exportModal" style="display:none;">
   <div class="modal">
     <h3>ส่งออกสรุปโบนัส</h3>
@@ -908,7 +933,6 @@
   </div>
 </div>
 
-<!-- Bingo Modal -->
 <div class="modal-overlay" id="bingoModal" style="display:none;">
   <div class="modal">
     <h3>เพิ่ม Bingo / Big Point</h3>
@@ -944,7 +968,78 @@
 let games = [];
 let currentBingoGameId = null;
 
-const INITIAL_GAMES = [];
+// ฟังก์ชันบันทึกข้อมูลทุกอย่างลง LocalStorage
+function saveData() {
+  const dataToSave = {
+    playerName: document.getElementById('playerName').value,
+    tourName: document.getElementById('tourName').value,
+    finalRank: document.getElementById('finalRank').value,
+    rates: getRates(),
+    games: games
+  };
+  localStorage.setItem('crossword_bonus_data', JSON.stringify(dataToSave));
+}
+
+// ฟังก์ชันโหลดข้อมูลขึ้นมาจาก LocalStorage
+function loadData() {
+  const savedDataStr = localStorage.getItem('crossword_bonus_data');
+  if (!savedDataStr) {
+    recalc();
+    return;
+  }
+  
+  try {
+    const data = JSON.parse(savedDataStr);
+    
+    if (data.playerName) document.getElementById('playerName').value = data.playerName;
+    if (data.tourName) document.getElementById('tourName').value = data.tourName;
+    if (data.finalRank) document.getElementById('finalRank').value = data.finalRank;
+    
+    if (data.rates) {
+      const r = data.rates;
+      if (r.W !== undefined) document.getElementById('rateW').value = r.W;
+      if (r.L !== undefined) document.getElementById('rateL').value = r.L;
+      if (r.diff250 !== undefined) document.getElementById('rateDiff250').value = r.diff250;
+      if (r.bingo7 !== undefined) document.getElementById('rateBingo7').value = r.bingo7;
+      if (r.bingo8 !== undefined) document.getElementById('rateBingo8').value = r.bingo8;
+      if (r.bingo9 !== undefined) document.getElementById('rateBingo9').value = r.bingo9;
+      if (r.bingo10 !== undefined) document.getElementById('rateBingo10').value = r.bingo10;
+      if (r.big !== undefined) document.getElementById('rateBig').value = r.big;
+      if (r.big100 !== undefined) document.getElementById('rateBig100').value = r.big100;
+      if (r.under300 !== undefined) document.getElementById('rateUnder300').value = r.under300;
+      if (r.under200 !== undefined) document.getElementById('rateUnder200').value = r.under200;
+      if (r.phony !== undefined) document.getElementById('ratePhony').value = r.phony;
+      if (r.time !== undefined) document.getElementById('rateTime').value = r.time;
+    }
+    
+    if (data.games && Array.isArray(data.games)) {
+      document.getElementById('gamesContainer').innerHTML = '';
+      games = [];
+      data.games.forEach(g => {
+        games.push(g);
+        renderGame(g);
+      });
+    }
+  } catch (e) {
+    console.error("Error parsing saved local storage data:", e);
+  }
+  recalc();
+}
+
+// ฟังก์ชันลบเกมทั้งหมดออก
+function clearAllGames() {
+  if (confirm('⚠️ คุณแน่ใจหรือไม่ว่าต้องการลบรายชื่อเกมทั้งหมด? ข้อมูลนี้ไม่สามารถกู้คืนได้')) {
+    games = [];
+    document.getElementById('gamesContainer').innerHTML = '';
+    recalc();
+    saveData();
+  }
+}
+
+// ตรวจจับการพิมพ์ในข้อมูลทั่วไปเพื่อบันทึกเซฟอัตโนมัติ
+document.getElementById('playerName').addEventListener('input', saveData);
+document.getElementById('tourName').addEventListener('input', saveData);
+document.getElementById('finalRank').addEventListener('input', saveData);
 
 function addGame(data = null) {
   const id = Date.now();
@@ -953,6 +1048,7 @@ function addGame(data = null) {
   games.push(g);
   renderGame(g);
   recalc();
+  saveData();
 }
 
 function renderGame(g) {
@@ -1035,7 +1131,6 @@ function updateGame(id, field, value) {
   if (!g) return;
   g[field] = value;
 
-  // update dif & badge
   const dif = g.myScore - g.oppScore;
   const win = dif > 0;
   const difEl = document.getElementById(`dif-${id}`);
@@ -1048,15 +1143,14 @@ function updateGame(id, field, value) {
   if (badgeEl) { badgeEl.textContent = win ? 'W' : 'L'; badgeEl.className = `result-badge ${win ? 'W' : 'L'}`; }
   if (rowEl) { rowEl.className = `game-row ${win ? 'win' : 'loss'}`; }
 
-  // phony count
   const pc = document.getElementById(`pc-${id}`);
   if (pc) { const c = countPhonies(g.phonies); pc.textContent = `${c} phon${c===1?'y':'ies'}`; }
 
-  // time penalty label
   const tpEl = document.getElementById(`tp-${id}`);
   if (tpEl) tpEl.textContent = calcTimePenaltyLabel(g.timePenalty);
 
   recalc();
+  saveData();
 }
 
 function openBingo(gameId) {
@@ -1081,16 +1175,16 @@ function confirmBingo() {
     g.bingos.push({ word, score, type });
     renderBingos(g);
     recalc();
+    saveData();
   }
   closeBingo();
 }
 
 function removeBingo(gameId, idx) {
   const g = games.find(x => x.id === gameId);
-  if (g) { g.bingos.splice(idx, 1); renderBingos(g); recalc(); }
+  if (g) { g.bingos.splice(idx, 1); renderBingos(g); recalc(); saveData(); }
 }
 
-// Auto-format MM:SS as user types
 function formatTimeInput(el) {
   let v = el.value.replace(/[^0-9]/g, '');
   if (v.length > 4) v = v.slice(0, 4);
@@ -1098,7 +1192,6 @@ function formatTimeInput(el) {
   el.value = v;
 }
 
-// Parse MM:SS → total seconds
 function parseTimeToSeconds(str) {
   if (!str || !str.trim()) return 0;
   const parts = str.split(':');
@@ -1110,12 +1203,9 @@ function parseTimeToSeconds(str) {
   return 0;
 }
 
-// Calculate time penalty: -10 per minute started
-// 00:01–01:00 → -10, 01:01–02:00 → -20, 02:01–03:00 → -30, etc.
 function calcTimePenalty(str) {
   const secs = parseTimeToSeconds(str);
   if (secs <= 0) return 0;
-  // ceil to next whole minute: 1s→1min, 60s→1min, 61s→2min
   return Math.ceil(secs / 60) * 10;
 }
 
@@ -1125,21 +1215,17 @@ function calcTimePenaltyLabel(str) {
   return `−${p} บาท`;
 }
 
-// คำนวณเงินต่อเกม
 function calcGameMoney(g, r) {
   const dif = g.myScore - g.oppScore;
   const win = dif > 0;
   let money = 0;
 
-  // W/L base
   if (win) money += r.W;
   else money -= r.L;
 
-  // MAX diff bonus/penalty
   if (dif >= 250) money += r.diff250;
   if (dif <= -250) money -= r.diff250;
 
-  // Bingos
   g.bingos.forEach(b => {
     if (b.type === 'bingo7') money += r.bingo7;
     else if (b.type === 'bingo8') money += r.bingo8;
@@ -1149,16 +1235,11 @@ function calcGameMoney(g, r) {
     else if (b.type === 'bigpoint100') money += r.big100;
   });
 
-  // Score tiers ≥500/600/700 — ยกเว้นถ้าได้ MAX (diff ≥250) จะไม่นับ scoreBonus เพิ่ม
   if (dif < 250) money += scoreBonus(g.myScore);
 
-  // Score penalty <300/<200
   money -= scorePenalty(g.myScore, r);
-
-  // Phony
   money -= countPhonies(g.phonies) * r.phony;
 
-  // Time penalty
   const timeSecs = parseTimeToSeconds(g.timePenalty);
   if (timeSecs > 0) money -= Math.ceil(timeSecs / 60) * r.time;
 
@@ -1183,7 +1264,6 @@ function getRates() {
   };
 }
 
-// Tiered score bonus: ≥700→+30, ≥600→+20, ≥500→+10, else 0
 function scoreBonus(score) {
   if (score >= 700) return 30;
   if (score >= 600) return 20;
@@ -1191,10 +1271,8 @@ function scoreBonus(score) {
   return 0;
 }
 
-// Score penalty: <200→-20 (use under200 rate), <300→-10 (use under300 rate), else 0
-// Note: <200 already satisfies <300 so we pick the higher penalty
 function scorePenalty(score, r) {
-  if (score <= 0) return 0; // no score entered yet
+  if (score <= 0) return 0;
   if (score < 200) return r.under200;
   if (score < 300) return r.under300;
   return 0;
@@ -1205,8 +1283,8 @@ function recalc() {
   let wins = 0, losses = 0;
   let bingo7 = 0, bingo8 = 0, bingo9 = 0, bingo10 = 0, bigpoint = 0, bigpoint100 = 0;
   let dmax250 = 0, dmin250 = 0;
-  let over500_10 = 0, over500_20 = 0, over500_30 = 0; // ≥500, ≥600, ≥700
-  let under300cnt = 0; // counts games <300 (including <200)
+  let over500_10 = 0, over500_20 = 0, over500_30 = 0;
+  let under300cnt = 0;
   let phonies = 0;
   let timePenaltyTotal = 0;
   let totalScoreBonus = 0;
@@ -1216,7 +1294,6 @@ function recalc() {
     const dif = g.myScore - g.oppScore;
     if (dif > 0) wins++; else losses++;
 
-    // Score tiers ≥500/600/700 — ยกเว้นถ้าได้ MAX (diff ≥250)
     if (dif < 250) {
       const sb = scoreBonus(g.myScore);
       totalScoreBonus += sb;
@@ -1225,12 +1302,10 @@ function recalc() {
       else if (sb === 10) over500_10++;
     }
 
-    // Score penalty <300 / <200
     const sp = scorePenalty(g.myScore, r);
     totalScorePenalty += sp;
     if (sp > 0) under300cnt++;
 
-    // Diff MAX
     if (dif >= 250) dmax250++;
     if (dif <= -250) dmin250++;
 
@@ -1262,7 +1337,6 @@ function recalc() {
   const total = (wB + dm250B + b7B + b8B + b9B + b10B + bigB + big100B + totalScoreBonus)
               - (lP + dn250P + totalScorePenalty + phP + timePenaltyTotal);
 
-  // Per-game money display + total
   let totalMoneySum = 0;
   games.forEach(g => {
     const gm = calcGameMoney(g, r);
@@ -1274,7 +1348,6 @@ function recalc() {
     }
   });
 
-  // Over-500 display: show breakdown e.g. "×10 +×20 +×30"
   const over500total = totalScoreBonus;
   const over500count_total = over500_10 + over500_20 + over500_30;
 
@@ -1317,8 +1390,11 @@ function recalc() {
   tmEl.style.color = totalMoneySum >= 0 ? 'var(--accent2)' : 'var(--red)';
 }
 
-// listen to rate changes
-document.querySelectorAll('.rate-item input').forEach(el => el.addEventListener('input', recalc));
+// ตรวจจับการเปลี่ยนเแปลงค่าโบนัสให้คำนวณและบันทึกข้อมูล
+document.querySelectorAll('.rate-item input').forEach(el => el.addEventListener('input', () => {
+  recalc();
+  saveData();
+}));
 
 function showExport() {
   const name = document.getElementById('playerName').value || 'ผู้เล่น';
@@ -1365,15 +1441,11 @@ function copyExport() {
   setTimeout(() => btn.textContent = '📋 คัดลอก', 1500);
 }
 
-// close modals on overlay click
 document.getElementById('exportModal').addEventListener('click', function(e){ if(e.target===this) closeExport(); });
 document.getElementById('bingoModal').addEventListener('click', function(e){ if(e.target===this) closeBingo(); });
 
-INITIAL_GAMES.forEach(g => {
-  games.push(g);
-  renderGame(g);
-});
-recalc();
+// โหลดข้อมูลล่าสุดที่บันทึกไว้เมื่อเปิดหน้าเว็บ
+loadData();
 </script>
 </body>
 </html>

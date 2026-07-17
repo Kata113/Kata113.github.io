@@ -1,550 +1,2272 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Zyzzylu">
-  <meta name="theme-color" content="#0F1714">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <title>Zyzzylu</title>
-  <style>
-    :root {
-      --bg: #000000; --surface: #1C1C1E; --surface2: #2C2C2E;
-      --border: #3A3A3C; --accent: #34C759; --danger: #FF3B30;
-      --orange: #FF9500; --text: #FFFFFF; --text2: #8E8E93;
-    }
-    * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent; }
-    body { background:var(--bg); color:var(--text); min-height:100vh; padding-bottom:90px; }
-    .mono { font-family:'JetBrains Mono',monospace; }
-    mark { background:#FFE600; color:#000; border-radius:2px; padding:0 1px; font-weight:700; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Uthai Crossword Team — Leaderboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@600;700&family=Noto+Sans+Thai:wght@300;400;500;600&family=Noto+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#09090f; --surface:#0f1018; --card:#14161f; --border:#1e2130; --border2:#262a3c;
+  --gold:#e8c84a; --gold2:#f5db7a; --silver:#a8b0c8; --bronze:#cd7f3e;
+  --green:#3fd68a; --red:#e8506a; --blue:#5098e8; --muted:#4a5070;
+  --text:#c8cce0; --text2:#7a80a0;
+  --admin-accent:#b06cff;
+  --font-body:'Noto Sans Thai','Noto Sans',sans-serif;
+  --font-display:'Kanit','Noto Sans',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:15px;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:48px 48px;opacity:.35;pointer-events:none;z-index:0}
 
-    #loadingScreen { position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:16px; }
-    .spinner { width:42px; height:42px; border:4px solid var(--surface); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
-    @keyframes spin { to { transform:rotate(360deg); } }
+/* ── TOPBAR ── */
+.topbar{position:sticky;top:0;z-index:50;background:rgba(9,9,15,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:10px 20px}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo-tiles{display:flex;gap:3px}
+.ltile{width:28px;height:28px;background:var(--blue);color:#fff;font-family:var(--font-display);font-size:16px;display:flex;align-items:center;justify-content:center;border-radius:3px;box-shadow:0 2px 0 #2060a0;position:relative;animation:tileIn .5s ease backwards}
+.ltile{animation-delay:calc(var(--i,0)*.06s)}
+.ltile span{position:absolute;bottom:1px;right:2px;font-family:var(--font-mono);font-size:5px;color:rgba(255,255,255,.65)}
+@keyframes tileIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.logo-text{font-family:var(--font-display);font-size:18px;letter-spacing:2px;color:#fff}
+.logo-sub{font-size:9px;color:var(--muted);font-family:var(--font-mono)}
+.topbar-nav{display:none}
+.tnav{background:none;border:none;color:var(--text2);font-family:var(--font-body);font-size:13px;padding:6px 12px;border-radius:6px;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap}
+.tnav:hover{background:var(--card);color:var(--text)}
+.tnav.act{background:var(--card);color:var(--gold);border:1px solid var(--border2)}
+.tnav.cwbs-link{display:flex;align-items:center;gap:6px;background:rgba(232,200,74,.07);border:1px solid rgba(232,200,74,.18);border-radius:7px;color:var(--gold);padding:5px 11px;font-family:var(--font-mono);font-size:11px;letter-spacing:.5px;transition:background .15s,border-color .15s,transform .1s}
+.tnav.cwbs-link:hover{background:rgba(232,200,74,.15);border-color:rgba(232,200,74,.4);transform:translateY(-1px)}
+.tnav.cwbs-link svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;flex-shrink:0}
 
-    header { position:sticky; top:0; z-index:100; background:rgba(0,0,0,.85); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:16px; display:flex; justify-content:flex-end; }
-    nav.bottom-nav { position:fixed; bottom:0; left:0; right:0; height:68px; background:var(--surface); border-top:1px solid var(--border); display:flex; z-index:1000; padding-bottom:env(safe-area-inset-bottom); }
-    .nav-item { flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px; font-size:10px; font-weight:600; color:var(--text2); border:none; background:none; cursor:pointer; }
-    .nav-item.active { color:var(--accent); }
-    main { padding:16px; max-width:650px; margin:0 auto; }
-    .section { display:none; }
-    .section.active { display:block; }
+/* ── LOGIN BUTTON (topbar) ── */
+.login-trigger-btn{display:flex;align-items:center;gap:7px;background:rgba(176,108,255,.10);border:1px solid rgba(176,108,255,.25);border-radius:8px;padding:6px 13px;color:var(--admin-accent);font-family:var(--font-mono);font-size:12px;cursor:pointer;transition:background .15s,border-color .15s;white-space:nowrap;flex-shrink:0}
+.login-trigger-btn:hover{background:rgba(176,108,255,.20);border-color:rgba(176,108,255,.45)}
+.login-trigger-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0}
 
-    .capsule-wrapper { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:30px; padding:4px; display:flex; margin-bottom:14px; }
-    .capsule-btn { flex:1; background:none; border:none; color:var(--text2); font-size:13px; font-weight:600; padding:8px 0; cursor:pointer; border-radius:25px; transition:.2s; text-align:center; }
-    .capsule-btn.active { background:var(--text); color:var(--bg); }
+/* admin badge in topbar */
+.admin-badge{display:none;align-items:center;gap:6px;background:rgba(176,108,255,.12);border:1px solid rgba(176,108,255,.3);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--admin-accent);font-family:var(--font-mono);flex-shrink:0}
+.admin-badge.show{display:flex}
+.admin-dot{width:6px;height:6px;border-radius:50%;background:var(--admin-accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-    .search-box { display:flex; width:100%; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:4px 8px; align-items:center; margin-bottom:14px; }
-    .search-box input { flex:1; background:transparent; border:none; outline:none; color:var(--text); font-size:16px; padding:10px 12px; text-transform:uppercase; }
-    .search-btn { width:34px; height:34px; border-radius:8px; background:var(--surface2); border:none; color:var(--text); cursor:pointer; }
-    .drawer { height:0; overflow:hidden; transition:.25s ease-in-out; background:var(--surface); border-radius:12px; }
-    .drawer.open { height:auto; padding:14px; border:1px solid var(--border); margin-bottom:14px; }
-    .f-row { display:flex; gap:8px; margin-bottom:10px; align-items:center; }
-    .f-stack { max-height:150px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; }
-    .f-item { display:flex; align-items:center; justify-content:space-between; background:var(--surface2); border:1px solid var(--border); padding:6px 12px; border-radius:8px; font-size:13px; }
-    .btn { background:var(--surface); border:1px solid var(--border); color:var(--text); padding:10px 16px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:500; }
-    .btn-p { background:var(--accent); border:none; color:var(--text); font-weight:700; }
-    .btn-not { padding:4px 8px; font-size:11px; font-weight:700; border:1px solid var(--border); background:none; color:var(--text2); border-radius:4px; cursor:pointer; }
-    .btn-not.active { color:var(--danger); border-color:var(--danger); background:rgba(255,59,48,.1); }
-    .input-field { width:100%; padding:14px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:15px; outline:none; }
-    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
-    .shake-input { animation:shake .35s ease-in-out; border-color:var(--danger)!important; }
-    .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; position:relative; }
+/* ── LOGIN DROPDOWN ── */
+.login-dropdown-wrap{position:relative;flex-shrink:0;z-index:310}
+.login-dropdown{position:absolute;top:calc(100% + 10px);right:0;background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:20px;width:280px;z-index:300;animation:dropIn .18s ease;box-shadow:0 16px 40px rgba(0,0,0,.6)}
+.login-dropdown.hidden{display:none}
+@keyframes dropIn{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:none}}
+.dropdown-title{font-family:var(--font-display);font-size:17px;letter-spacing:2px;color:var(--admin-accent);margin-bottom:4px}
+.dropdown-sub{font-size:10px;color:var(--text2);font-family:var(--font-mono);margin-bottom:16px}
+.dropdown-tiles{display:flex;gap:3px;margin-bottom:14px}
+.dtile{width:24px;height:24px;background:var(--gold);color:#0a0800;font-family:var(--font-display);font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:3px;box-shadow:0 2px 0 #7a6010}
+.dd-error{background:rgba(232,80,106,.1);border:1px solid rgba(232,80,106,.3);border-radius:6px;padding:7px 11px;font-size:12px;color:var(--red);margin-bottom:10px;display:none}
+.dd-form-row{margin-bottom:11px}
+.dd-form-row label{display:block;font-size:10px;color:var(--text2);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.dd-form-row input{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--font-body);font-size:14px;padding:8px 11px;outline:none;transition:border-color .2s}
+.dd-form-row input:focus{border-color:var(--admin-accent)}
+.dd-login-btn{width:100%;padding:9px;font-size:13px;font-weight:600;border-radius:7px;cursor:pointer;border:none;background:var(--admin-accent);color:#fff;font-family:var(--font-body);transition:opacity .15s}
+.dd-login-btn:hover{opacity:.88}
+.dd-divider{display:flex;align-items:center;gap:10px;margin:12px 0;color:var(--muted);font-size:11px}
+.dd-divider::before,.dd-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.dd-skip-btn{width:100%;padding:8px;font-size:12px;background:none;border:1px solid var(--border2);border-radius:7px;color:var(--text2);font-family:var(--font-body);cursor:pointer;transition:background .15s,color .15s}
+.dd-skip-btn:hover{background:var(--card);color:var(--text)}
 
-    .item-row { border-bottom:1px solid rgba(58,58,60,.5); padding:12px 4px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
-    .hook-box { color:var(--text2); font-size:12px; padding:2px 4px; background:rgba(44,44,46,.5); border-radius:4px; max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .word-core { font-weight:700; color:var(--text); cursor:pointer; font-size:20px; letter-spacing:.5px; }
-    .word-core:hover { color:var(--accent); }
-    .dot-indicator { color:var(--danger); font-weight:700; margin:0 1px; font-size:16px; }
-    .score-badge { font-size:14px; font-weight:700; color:var(--orange); }
+/* ── PAGES ── */
+.page{display:none;padding:24px 20px;position:relative;z-index:1;max-width:900px;margin:0 auto}
+.page.active{display:block}
 
-    .q-clean-layout { display:flex; flex-direction:column; gap:16px; }
-    .quiz-history-pane { max-height:200px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; background:rgba(0,0,0,.3); padding:10px; border-radius:8px; border:1px solid var(--border); }
-    .quiz-tile { width:44px; height:44px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; display:flex; justify-content:center; align-items:center; font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--text); box-shadow:0 4px 6px rgba(0,0,0,.2); transition:transform .2s,background-color .2s; }
-    .quiz-tile:hover { transform:scale(1.08); background-color:var(--border); }
+/* ── SECTION HEAD ── */
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.sec-title{font-family:var(--font-display);font-size:20px;letter-spacing:2px;color:var(--text)}
+.sec-title span{color:var(--gold)}
 
-    .judge-overlay { position:fixed; inset:0; background:rgba(0,0,0,.95); z-index:5000; display:none; flex-direction:column; justify-content:center; align-items:center; padding:24px; text-align:center; cursor:pointer; }
-    .judge-overlay.open { display:flex; }
-    .judge-symbol { font-size:96px; font-weight:bold; margin-bottom:10px; line-height:1; }
-    .judge-status-text { font-size:32px; font-weight:800; text-transform:uppercase; margin-bottom:24px; }
-    .judge-sub-list { font-size:14px; color:var(--text2); max-width:80%; overflow-y:auto; max-height:30vh; }
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:7px;font-family:var(--font-body);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text);transition:background .15s,border-color .15s,transform .1s}
+.btn:hover{background:var(--border)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--gold);color:#0a0800;border-color:var(--gold);font-weight:600}
+.btn.primary:hover{background:var(--gold2)}
+.btn.danger{background:rgba(232,80,106,.1);color:var(--red);border-color:rgba(232,80,106,.3)}
+.btn.admin-only{background:rgba(176,108,255,.1);color:var(--admin-accent);border-color:rgba(176,108,255,.3)}
+.btn.admin-only:hover{background:rgba(176,108,255,.2)}
+.btn.sm{padding:5px 11px;font-size:12px;border-radius:5px}
+.btn.icon{padding:6px 8px}
+/* hide admin-only buttons when not admin */
+.admin-only{display:none}
+body.is-admin .admin-only{display:inline-flex}
 
-    .toast { position:fixed; bottom:84px; left:50%; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:12px 20px; border-radius:10px; font-size:13px; font-weight:600; opacity:0; transition:.2s; pointer-events:none; z-index:9999; }
-    .toast.show { opacity:1; }
-    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.85); backdrop-filter:blur(10px); z-index:2000; display:none; justify-content:center; align-items:center; padding:16px; }
-    .modal-overlay.open { display:flex; }
-    .modal-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; width:100%; max-width:480px; overflow:hidden; }
-    .modal-header { padding:20px; background:var(--surface2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
-    .modal-body { padding:20px; display:flex; flex-direction:column; gap:16px; max-height:55vh; overflow-y:auto; }
-    .modal-footer { padding:14px 16px; background:var(--surface2); border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
-    .info-label { font-size:11px; color:var(--text2); text-transform:uppercase; font-weight:700; margin-bottom:4px; }
-    .info-val { font-size:14px; color:var(--text); }
-    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+/* ── LEADERBOARD TABLE ── */
+.lb-table{width:100%;border-collapse:collapse}
+.lb-table th{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)}
+.lb-table th.r{text-align:right}
+.lb-row{border-bottom:1px solid var(--border);transition:background .15s;cursor:pointer;animation:rowIn .3s ease backwards}
+.lb-row:hover{background:rgba(255,255,255,.02)}
+@keyframes rowIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.lb-row td{padding:12px 14px}
+.lb-row td.r{text-align:right}
+.rank-cell{font-family:var(--font-display);font-size:22px;color:var(--muted);width:48px}
+.rank-1{color:var(--gold)!important}.rank-2{color:var(--silver)!important}.rank-3{color:var(--bronze)!important}
+.player-name{font-size:14px;font-weight:500;color:var(--text)}
+.player-meta{font-size:11px;color:var(--text2);margin-top:2px;font-family:var(--font-mono)}
+.rating-val{font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--text)}
+.rd-val{font-family:var(--font-mono);font-size:11px;color:var(--text2)}
+.wl-cell .w{color:var(--green);font-weight:600}.wl-cell .l{color:var(--red)}
+.trend-badge{display:inline-flex;align-items:center;gap:3px;font-family:var(--font-mono);font-size:11px;padding:3px 7px;border-radius:4px}
+.trend-badge.up{background:rgba(63,214,138,.12);color:var(--green)}
+.trend-badge.dn{background:rgba(232,80,106,.12);color:var(--red)}
+.trend-badge.eq{background:var(--card);color:var(--text2)}
+.rd-bar{width:50px;height:4px;background:var(--border2);border-radius:2px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:5px}
+.rd-fill{height:100%;border-radius:2px;background:var(--blue)}
 
-    /* Calculator */
-    .calc-key { background:var(--surface2); border:1px solid var(--border); color:var(--text);
-                font-size:20px; font-weight:600; padding:18px 0; border-radius:10px;
-                cursor:pointer; font-family:'Inter',sans-serif; transition:.12s;
-                -webkit-tap-highlight-color:transparent; }
-    .calc-key:active { transform:scale(.94); opacity:.8; }
-    .calc-fn  { background:var(--surface); color:var(--text2); }
-    .calc-op  { color:var(--orange); border-color:rgba(255,149,0,.35); }
-    .calc-eq  { background:var(--accent); color:#000; border:none; }
-  </style>
-  <link rel="stylesheet" href="styles.css?v=8">
+/* ── STAT CARDS ── */
+.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+@media(min-width:600px){.stats-row{grid-template-columns:repeat(4,1fr)}}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:13px 15px}
+.stat-card .lbl{font-size:10px;color:var(--text2);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.stat-card .val{font-family:var(--font-display);font-size:30px;line-height:1;color:var(--text)}
+.stat-card .sub{font-size:11px;color:var(--text2);margin-top:3px}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:26px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;animation:modalIn .18s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:none}}
+.modal-title{font-family:var(--font-display);font-size:21px;letter-spacing:2px;color:var(--gold);margin-bottom:18px}
+/* match detail */
+.md-vs{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.md-player{flex:1;min-width:0}
+.md-player-name{font-size:15px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.md-player-sub{font-size:11px;color:var(--text2);font-family:var(--font-mono);margin-top:2px}
+.md-score-box{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0}
+.md-score{font-family:var(--font-display);font-size:36px;letter-spacing:3px;line-height:1;display:flex;gap:8px;align-items:center}
+.md-sep{color:var(--border2);font-size:28px}
+.md-outcome{font-size:10px;letter-spacing:2px;color:var(--text2)}
+.md-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.md-stat{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.md-stat-label{font-size:10px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+.md-stat-val{font-size:13px;color:var(--text);font-family:var(--font-mono);word-break:break-word}
+.md-stat.full{grid-column:1/-1}
+.md-board{width:100%;border-radius:8px;margin-bottom:16px;cursor:zoom-in;display:block}
+.md-rating-change{font-size:12px;font-family:var(--font-mono)}
+.md-rating-change.pos{color:var(--green)}
+.md-rating-change.neg{color:var(--red)}
+.md-rating-change.neu{color:var(--text2)}
+.form-row{margin-bottom:13px}
+.form-row label{display:block;font-size:11px;color:var(--text2);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.form-row input,.form-row select{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:var(--font-body);font-size:14px;padding:9px 12px;outline:none;transition:border-color .2s}
+.form-row input:focus,.form-row select:focus{border-color:var(--gold)}
+.form-row select option{background:var(--card)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.modal-actions{display:flex;gap:9px;margin-top:18px;justify-content:flex-end}
+
+/* ── GAME LOG ── */
+.game-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:8px;display:flex;align-items:center;gap:12px;animation:rowIn .25s ease backwards;cursor:pointer;transition:border-color .15s,background .15s}
+.game-item:hover{border-color:var(--border2);background:var(--surface)}
+.game-vs{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.game-player{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.game-score{font-family:var(--font-mono);font-size:15px;font-weight:600;text-align:center;min-width:80px;flex-shrink:0}
+.game-score .sc-w{color:var(--green)}.game-score .sc-l{color:var(--red)}.game-score .sep{color:var(--muted);padding:0 3px}
+.game-meta{font-size:11px;color:var(--text2);font-family:var(--font-mono);margin-top:2px}
+.outcome-badge{width:30px;height:30px;border-radius:50%;font-family:var(--font-display);font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.outcome-badge.W{background:rgba(63,214,138,.15);color:var(--green);border:1px solid rgba(63,214,138,.3)}
+.outcome-badge.L{background:rgba(232,80,106,.15);color:var(--red);border:1px solid rgba(232,80,106,.3)}
+.outcome-badge.D{background:var(--card);color:var(--text2);border:1px solid var(--border2)}
+
+/* ── PROFILE ── */
+.profile-header{display:flex;align-items:center;gap:16px;margin-bottom:22px}
+.avatar{width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:24px;border:2px solid var(--border2);flex-shrink:0}
+.profile-name{font-family:var(--font-display);font-size:26px;letter-spacing:2px;line-height:1;color:var(--text)}
+.profile-sub{font-size:11px;color:var(--text2);font-family:var(--font-mono);margin-top:3px}
+.chart-wrap{position:relative;width:100%;height:150px;margin:12px 0}
+
+/* ── SEARCH ── */
+.search-wrap{position:relative;margin-bottom:14px}
+.search-wrap input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:14px;padding:9px 13px 9px 36px;outline:none;transition:border-color .2s}
+.search-wrap input:focus{border-color:var(--gold)}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;pointer-events:none}
+
+/* ── TOUR CARD ── */
+.tour-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .15s}
+.tour-card:hover{border-color:var(--border2)}
+.tour-icon{width:42px;height:42px;border-radius:8px;background:rgba(232,200,74,.1);border:1px solid rgba(232,200,74,.2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.tour-name{font-size:14px;font-weight:500}
+.tour-meta{font-size:11px;color:var(--text2);font-family:var(--font-mono);margin-top:2px}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:56px 20px;color:var(--text2)}
+.empty .icon{font-size:44px;margin-bottom:10px;opacity:.3}
+.empty h3{font-size:15px;font-weight:500;color:var(--text);margin-bottom:5px}
+.empty p{font-size:13px}
+
+/* ── ADMIN PANEL PAGE ── */
+.admin-section{background:rgba(176,108,255,.05);border:1px solid rgba(176,108,255,.2);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+.admin-section-title{font-size:11px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:1px;color:var(--admin-accent);margin-bottom:12px}
+.danger-zone{background:rgba(232,80,106,.05);border:1px solid rgba(232,80,106,.2);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+.danger-zone-title{font-size:11px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:1px;color:var(--red);margin-bottom:12px}
+.admin-action-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.admin-action-row:last-child{border-bottom:none;padding-bottom:0}
+.admin-action-row .desc{font-size:13px;color:var(--text2)}
+.admin-action-row strong{color:var(--text);font-weight:500;display:block;font-size:14px;margin-bottom:2px}
+.pwd-change-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+
+/* ── PENDING GAMES ── */
+.pending-banner{background:rgba(232,200,74,.07);border:1px solid rgba(232,200,74,.25);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .15s}
+.pending-banner:hover{background:rgba(232,200,74,.12)}
+.pending-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);flex-shrink:0;animation:pulse 2s infinite}
+.pending-banner .pb-text{flex:1;font-size:13px;color:var(--gold)}
+.pending-banner .pb-count{font-family:var(--font-display);font-size:20px;color:var(--gold);line-height:1}
+.pending-item{background:var(--card);border:1px solid rgba(232,200,74,.3);border-radius:10px;padding:13px 15px;margin-bottom:8px;animation:rowIn .25s ease backwards}
+.pending-item .pi-players{font-size:14px;font-weight:500;margin-bottom:4px}
+.pending-item .pi-meta{font-size:11px;color:var(--text2);font-family:var(--font-mono)}
+.pending-actions{display:flex;gap:7px;margin-top:10px}
+.btn.approve{background:rgba(63,214,138,.12);color:var(--green);border-color:rgba(63,214,138,.3)}
+.btn.approve:hover{background:rgba(63,214,138,.22)}
+
+/* ── SCROLL ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ── REALTIME SYNC PILL – LIVE STATE ── */
+.sync-pill.idle{
+  background:rgba(63,214,138,.13);
+  border-color:rgba(63,214,138,.35);
+  color:var(--green);
+  box-shadow:0 0 8px rgba(63,214,138,.18);
+}
+/* pulse ring on LIVE button */
+.sync-pill.idle::after{
+  content:'';
+  position:absolute;
+  inset:-3px;
+  border-radius:20px;
+  border:1.5px solid rgba(63,214,138,.35);
+  animation:liveRing 2.4s ease-out infinite;
+  pointer-events:none;
+}
+@keyframes liveRing{
+  0%{opacity:.7;transform:scale(1)}
+  70%{opacity:0;transform:scale(1.18)}
+  100%{opacity:0;transform:scale(1.18)}
+}
+/* refresh spin on click */
+.sync-pill.refreshing .sync-dot{
+  animation:spin .7s linear infinite!important;
+  border-radius:0;
+  background:none;
+  border:1.5px solid currentColor;
+  border-top-color:transparent;
+  width:8px;height:8px;
+}
+
+/* ── HAMBURGER BUTTON ── */
+.hamburger-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:none;border:1px solid var(--border2);border-radius:8px;cursor:pointer;color:var(--text2);flex-shrink:0;transition:background .15s,color .15s}
+.hamburger-btn:hover{background:var(--card);color:var(--text)}
+.hamburger-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+
+/* ── MOBILE DRAWER ── */
+.drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:400}
+.drawer-overlay.open{display:block}
+.drawer{position:fixed;top:0;left:0;bottom:0;width:280px;background:var(--surface);border-right:1px solid var(--border2);z-index:401;transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;padding:0}
+.drawer.open{transform:translateX(0)}
+.drawer-header{display:flex;align-items:center;gap:10px;padding:16px;border-bottom:1px solid var(--border)}
+.drawer-logo-tiles{display:flex;gap:3px}
+.drawer-logo-text{font-family:var(--font-display);font-size:16px;letter-spacing:2px;color:#fff}
+.drawer-close{margin-left:auto;width:32px;height:32px;background:none;border:1px solid var(--border2);border-radius:7px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:16px;transition:background .15s}
+.drawer-close:hover{background:var(--card);color:var(--text)}
+.drawer-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:4px;overflow-y:auto}
+.drawer-nav-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:9px;background:none;border:none;color:var(--text2);font-family:var(--font-body);font-size:14px;cursor:pointer;width:100%;text-align:left;text-decoration:none;transition:background .15s,color .15s}
+.drawer-nav-item:hover{background:var(--card);color:var(--text)}
+.drawer-nav-item.act{background:var(--card);color:var(--gold)}
+.drawer-nav-item svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;overflow:visible}
+.drawer-nav-item.cwbs{color:var(--gold);background:rgba(232,200,74,.07);border:1px solid rgba(232,200,74,.15)}
+.drawer-nav-item.cwbs:hover{background:rgba(232,200,74,.14)}
+.drawer-nav-item.admin-item{color:var(--admin-accent);background:rgba(176,108,255,.07);border:1px solid rgba(176,108,255,.15)}
+.drawer-nav-item.admin-item:hover{background:rgba(176,108,255,.14)}
+.drawer-divider{height:1px;background:var(--border);margin:6px 0}
+.drawer-footer{padding:12px 10px;border-top:1px solid var(--border)}
+
+/* ── MOBILE ── */
+.tab-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(9,9,15,.96);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:8px 0 env(safe-area-inset-bottom)}
+@media(max-width:600px){
+  .topbar{padding:8px 12px;gap:8px}
+  .logo-sub{display:none}
+  .logo-text{display:none}
+  .page{padding:14px 12px;padding-bottom:84px}
+  .admin-badge span.label{display:none}
+  .tab-bar{display:flex}
+  /* leaderboard: hide RD & W-L columns */
+  .lb-table th:nth-child(4),.lb-row td:nth-child(4),
+  .lb-table th:nth-child(5),.lb-row td:nth-child(5){display:none}
+  .hide-mobile{display:none}
+  .login-trigger-btn span{display:none}
+  .login-trigger-btn{padding:6px 8px}
+  .rank-cell{font-size:17px;width:36px}
+  .lb-row td{padding:10px 8px}
+  .lb-table th{padding:8px}
+  .player-name{font-size:13px}
+  .rating-val{font-size:14px}
+  .trend-badge{font-size:10px;padding:2px 5px}
+  .stat-card .val{font-size:24px}
+  .sync-pill span.sync-label{display:inline!important}
+  .sync-pill{font-size:9px;padding:3px 7px}
+  /* active tab indicator */
+  .tab-item.act::after{content:'';position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);width:18px;height:2px;background:var(--gold);border-radius:1px}
+}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;background:none;border:none;color:var(--text2);font-size:10px;font-family:var(--font-body);cursor:pointer;transition:color .15s;position:relative}
+.tab-item.act{color:var(--gold)}
+.tab-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── IMAGE UPLOAD ── */
+.img-dropzone{border:2px dashed var(--border2);border-radius:10px;padding:24px 16px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:var(--surface);position:relative;overflow:hidden}
+.img-dropzone:hover,.img-dropzone.dragover{border-color:var(--gold);background:rgba(232,200,74,.04)}
+.img-dropzone .dz-icon{font-size:28px;margin-bottom:6px;opacity:.5}
+.img-dropzone .dz-text{font-size:12px;color:var(--text2)}
+.img-dropzone .dz-sub{font-size:10px;color:var(--muted);margin-top:3px;font-family:var(--font-mono)}
+.img-dropzone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.img-preview-wrap{position:relative;margin-top:10px;display:none}
+.img-preview-wrap.has-img{display:block}
+.img-preview{width:100%;max-height:200px;object-fit:contain;border-radius:8px;border:1px solid var(--border)}
+.img-preview-remove{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(232,80,106,.9);color:#fff;border:none;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:transform .1s}
+.img-preview-remove:hover{transform:scale(1.1)}
+.upload-progress{margin-top:8px;display:none;align-items:center;gap:8px}
+.upload-progress.show{display:flex}
+.upload-spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.upload-progress .up-text{font-size:11px;color:var(--gold);font-family:var(--font-mono)}
+
+/* ── LIGHTBOX ── */
+.lightbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);backdrop-filter:blur(8px);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.lightbox-overlay img{max-width:95vw;max-height:90vh;object-fit:contain;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:lbIn .25s ease;cursor:default}
+@keyframes lbIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+.lightbox-close{position:fixed;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);color:#fff;border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;z-index:501;transition:background .15s}
+.lightbox-close:hover{background:rgba(255,255,255,.25)}
+
+/* ── BOARD THUMBNAIL ── */
+.board-thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;border:1px solid var(--border2);cursor:pointer;transition:transform .15s,border-color .15s;flex-shrink:0}
+.board-thumb:hover{transform:scale(1.15);border-color:var(--gold)}
+.board-thumb-sm{width:32px;height:32px;border-radius:5px;object-fit:cover;border:1px solid var(--border2);cursor:pointer;transition:transform .15s;flex-shrink:0}
+.board-thumb-sm:hover{transform:scale(1.1)}
+
+/* ── CLOUD SETTINGS ── */
+.cloud-section{background:rgba(80,152,232,.05);border:1px solid rgba(80,152,232,.2);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+.cloud-section-title{font-size:11px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:1px;color:var(--blue);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.cloud-status{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:var(--font-mono);padding:3px 8px;border-radius:4px;margin-left:auto}
+.cloud-status.ok{background:rgba(63,214,138,.1);color:var(--green)}
+.cloud-status.err{background:rgba(232,80,106,.1);color:var(--red)}
+.cloud-status.loading{background:rgba(232,200,74,.1);color:var(--gold)}
+.cloud-status-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.api-key-input{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:12px;padding:8px 11px;outline:none;transition:border-color .2s}
+.api-key-input:focus{border-color:var(--blue)}
+.api-key-input::placeholder{color:var(--muted)}
+.cloud-btn-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+
+/* ── REALTIME SYNC INDICATOR ── */
+.sync-pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10px;padding:4px 9px;border-radius:20px;border:1px solid transparent;transition:all .3s;flex-shrink:0;white-space:nowrap;cursor:pointer;position:relative}
+.sync-pill.syncing{background:rgba(232,200,74,.08);border-color:rgba(232,200,74,.2);color:var(--gold)}
+.sync-pill.err{background:rgba(232,80,106,.08);border-color:rgba(232,80,106,.2);color:var(--red)}
+.sync-pill.offline{background:var(--card);border-color:var(--border);color:var(--muted)}
+.sync-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.sync-pill.idle .sync-dot{animation:pulse 3s infinite}
+.sync-pill.syncing .sync-dot{animation:spin .8s linear infinite;border-radius:0;clip-path:none;background:none;border:1.5px solid currentColor;border-top-color:transparent;width:7px;height:7px}
+</style>
 </head>
 <body>
 
-  <a class="skip-link" href="#mainContent">Skip to main content</a>
-
-  <div id="loadingScreen" role="status" aria-live="polite">
-    <div class="spinner"></div>
-    <!-- id="loadingStatus" is used by core.js to show download progress -->
-    <div class="mono" id="loadingStatus">Preparing the dictionary…</div>
+<!-- ══ TOPBAR ══ -->
+<header class="topbar">
+  <!-- hamburger (mobile only) -->
+  <button class="hamburger-btn" onclick="openDrawer()" aria-label="เมนู">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <div class="logo">
+    <div class="logo-tiles">
+      <div class="ltile" style="--i:0">U<span>1</span></div>
+      <div class="ltile" style="--i:1">T<span>1</span></div>
+      <div class="ltile" style="--i:2">H<span>4</span></div>
+      <div class="ltile" style="--i:3">A<span>1</span></div>
+      <div class="ltile" style="--i:4">I<span>1</span></div>
+    </div>
+    <div>
+      <div class="logo-text">CROSSWORD TEAM</div>
+      <div class="logo-sub">LEADERBOARD · GLICKO-2</div>
+    </div>
   </div>
-
-  <header class="dictionary-status" aria-live="polite">
-    <span class="status-dot" aria-hidden="true"></span>
-    <span class="status-copy">
-      <span class="status-label">Dictionary</span>
-      <span class="mono" id="wCnt">0 words</span>
-    </span>
-  </header>
-
-  <nav class="bottom-nav" aria-label="Primary">
-    <button type="button" class="nav-item active" id="nb-0" aria-controls="t0" aria-current="page" onclick="tab(0, this)"><span class="nav-glyph" aria-hidden="true">Aa</span><span>Search</span></button>
-    <button type="button" class="nav-item" id="nb-1" aria-controls="t1" aria-current="false" onclick="tab(1, this)"><span class="nav-glyph" aria-hidden="true">?</span><span>Quiz</span></button>
-    <button type="button" class="nav-item" id="nb-2" aria-controls="t2" aria-current="false" onclick="tab(2, this)"><span class="nav-glyph" aria-hidden="true">✓</span><span>Judge</span></button>
-    <button type="button" class="nav-item" id="nb-3" aria-controls="t3" aria-current="false" onclick="tab(3, this)"><span class="nav-glyph" aria-hidden="true">☆</span><span>Saved</span></button>
-    <button type="button" class="nav-item" id="nb-4" aria-controls="t4" aria-current="false" onclick="tab(4, this)"><span class="nav-glyph" aria-hidden="true">±</span><span>Calc</span></button>
+  <nav class="topbar-nav">
+    <button class="tnav act" onclick="nav('leaderboard',this)">อันดับ</button>
+    <button class="tnav" onclick="nav('players',this)">ผู้เล่น</button>
+    <button class="tnav" onclick="nav('games',this)">เกม</button>
+    <button class="tnav" onclick="nav('tournaments',this)" style="display:none">ทัวร์นาเมนต์</button>
+    <button class="tnav admin-only" onclick="nav('admin',this)" style="color:var(--admin-accent);border-color:transparent">⚙ Admin</button>
+    <a href="https://kata113.github.io/CWBS/" target="_blank" class="tnav cwbs-link" title="เปิด Crossword Bonus Summary">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      CWBS
+      <svg viewBox="0 0 24 24" style="width:9px;height:9px;opacity:.6"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a href="https://kata113.github.io/Zyzzylu" target="_blank" class="tnav cwbs-link" title="เปิด Zyzzylu" style="background:rgba(63,214,138,.07);border-color:rgba(63,214,138,.18);color:var(--green)">
+      <svg viewBox="0 0 24 24" style="stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      ZZZ
+      <svg viewBox="0 0 24 24" style="width:9px;height:9px;opacity:.6"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
   </nav>
+</header>
 
-  <main id="mainContent" tabindex="-1">
-    <!-- ── SEARCH ─────────────────────────────────────────────────── -->
-    <section class="section active" id="t0" aria-labelledby="searchTitle" aria-hidden="false">
-      <div class="section-heading">
-        <p class="eyebrow">Word search</p>
-        <h1 id="searchTitle">Find your next word.</h1>
-        <p>Start with the letters you have. Refine the results only when you need to.</p>
-      </div>
-      <div class="capsule-wrapper mono" role="group" aria-label="Search mode">
-        <button type="button" class="capsule-btn active" id="sm-subanagram" aria-pressed="true" onclick="setSearchMode('subanagram')">Subanagram</button>
-        <button type="button" class="capsule-btn" id="sm-anagram" aria-pressed="false" onclick="setSearchMode('anagram')">Anagram</button>
-        <button type="button" class="capsule-btn" id="sm-pattern" aria-pressed="false" onclick="setSearchMode('pattern')">Pattern</button>
-      </div>
-      <label class="field-label" for="sInp">Rack or pattern</label>
-      <div class="search-box">
-        <input class="mono" id="sInp" type="text" autocomplete="off" aria-describedby="searchHint" placeholder="Enter letters (use . for blanks)…" onkeydown="if(event.key==='Enter')search()">
-        <button type="button" class="search-btn" id="sBtn" aria-label="Search words" title="Search words" onclick="search()">→</button>
-      </div>
-      <p class="field-hint" id="searchHint">Use a full stop for a blank tile. Pattern mode also accepts * for any number of letters.</p>
-      <button type="button" class="btn filter-toggle" aria-expanded="false" aria-controls="sDrw" onclick="toggleSearchFilters(this)">
-        <span>Advanced filters</span><span class="toggle-mark" aria-hidden="true">+</span>
-      </button>
-      <div class="drawer" id="sDrw" aria-hidden="true">
-        <div class="f-row">
-          <label class="sr-only" for="sFType">Filter type</label>
-          <select class="input-field" id="sFType">
-            <option value="length">Length Range</option>
-            <option value="point_value">Point Value Range</option>
-            <option value="num_vowels">Number of Vowels</option>
-            <option value="begins">Begins With</option>
-            <option value="ends">Ends With</option>
-            <option value="probability_order">Probability Order</option>
-            <option value="limit_probability_order">Limit by Probability Order</option>
-          </select>
-          <button type="button" class="btn btn-p" onclick="addFilter('S')">Add filter</button>
-        </div>
-        <div class="f-stack" id="sStack"></div>
-      </div>
-      <div id="sRes"></div>
-    </section>
+<!-- ══ MOBILE DRAWER ══ -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<nav class="drawer" id="mobileDrawer">
+  <div class="drawer-header">
+    <div class="drawer-logo-tiles">
+      <div class="ltile" style="--i:0;width:22px;height:22px;font-size:12px">U<span>1</span></div>
+      <div class="ltile" style="--i:1;width:22px;height:22px;font-size:12px">T<span>1</span></div>
+      <div class="ltile" style="--i:2;width:22px;height:22px;font-size:12px">H<span>4</span></div>
+    </div>
+    <div class="drawer-logo-text">CROSSWORD TEAM</div>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-nav">
+    <button class="drawer-nav-item act" id="drawerNav-leaderboard" onclick="navDrawer('leaderboard')">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>อันดับ
+    </button>
+    <button class="drawer-nav-item" id="drawerNav-players" onclick="navDrawer('players')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>ผู้เล่น
+    </button>
+    <button class="drawer-nav-item" id="drawerNav-games" onclick="navDrawer('games')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>ประวัติเกม
+    </button>
+    <button class="drawer-nav-item" id="drawerNav-tournaments" onclick="navDrawer('tournaments')">
+      <svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M5 3h14l-1 9a6 6 0 01-12 0L5 3z"/><path d="M5 3a2 2 0 00-2 2v1a2 2 0 002 2h.5M19 3a2 2 0 012 2v1a2 2 0 01-2 2h-.5"/></svg>ทัวร์นาเมนต์
+    </button>
+    <div class="drawer-divider"></div>
+    <button class="drawer-nav-item cwbs" onclick="window.open('https://kata113.github.io/CWBS/','_blank');closeDrawer()">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      CWBS
+      <svg viewBox="0 0 24 24" style="width:11px;height:11px;margin-left:auto;opacity:.6;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </button>
+    <button class="drawer-nav-item cwbs" onclick="window.open('https://kata113.github.io/Zyzzylu','_blank');closeDrawer()" style="color:var(--green);background:rgba(63,214,138,.07);border-color:rgba(63,214,138,.15)">
+      <svg viewBox="0 0 24 24" style="stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      ZZZ
+      <svg viewBox="0 0 24 24" style="width:11px;height:11px;margin-left:auto;opacity:.6;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </button>
+    <button class="drawer-nav-item admin-item" id="drawerNav-admin" onclick="navDrawer('admin')" style="display:none">
+      <svg viewBox="0 0 24 24" style="stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      Admin Panel
+    </button>
+  </div>
+  <div class="drawer-footer" id="drawerFooter">
+    <!-- login button in drawer (shown when NOT logged in) -->
+    <!-- sync indicator in drawer -->
+    <div class="sync-pill offline" id="syncPill" title="สถานะการซิงค์ข้อมูล" onclick="manualRefresh()" style="cursor:pointer;width:100%;justify-content:flex-start;padding:9px 14px;border-radius:9px;margin-bottom:8px">
+      <span class="sync-dot"></span>
+      <span class="sync-label" id="syncLabel">—</span>
+    </div>
+    <!-- admin badge in drawer (shown when logged in) -->
+    <div class="admin-badge" id="adminBadge" style="display:none;width:100%;border-radius:9px;padding:9px 14px;margin-bottom:8px;justify-content:flex-start">
+      <span class="admin-dot"></span>
+      <span class="label">ADMIN MODE</span>
+      <button onclick="logout();closeDrawer()" style="background:none;border:none;color:var(--admin-accent);cursor:pointer;font-size:12px;padding:0;margin-left:auto;opacity:.7" title="ออกจากระบบ">✕</button>
+    </div>
+    <button class="drawer-nav-item" id="drawerLoginBtn" onclick="openDrawerLogin()" style="border:1px solid rgba(176,108,255,.25);color:var(--admin-accent);background:rgba(176,108,255,.07)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><path d="M18 11v6M21 14h-6" stroke-linecap="round"/></svg>
+      Admin Login
+    </button>
+    <!-- logout button (shown when logged in) -->
+    <button class="drawer-nav-item" id="drawerLogoutBtn" onclick="logout();closeDrawer()" style="display:none;color:var(--red);border:1px solid rgba(232,80,106,.25);background:rgba(232,80,106,.07)">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      ออกจากระบบ Admin
+    </button>
+  </div>
+</nav>
 
-    <!-- ── QUIZ ──────────────────────────────────────────────────── -->
-    <section class="section" id="t1" aria-labelledby="quizTitle" aria-hidden="true">
-      <div class="section-heading">
-        <p class="eyebrow">Practice</p>
-        <h1 id="quizTitle">Study at your pace.</h1>
-        <p>Choose a format that feels useful. The timer can stay off.</p>
-      </div>
-      <div class="card" id="qBox">
-        <div id="qSettingsPane">
-          <div class="settings-heading">
-            <div>
-              <h2>Quiz settings</h2>
-              <p>Build a focused set or use the whole dictionary.</p>
-            </div>
-            <button type="button" class="btn quiet-action" onclick="document.getElementById('fInp').click()">Load .zzq</button>
-          </div>
-          <div class="f-row filter-builder">
-            <label class="sr-only" for="qFType">Quiz filter type</label>
-            <select class="input-field" id="qFType">
-              <option value="length">Length Range</option>
-              <option value="point_value">Point Value Range</option>
-              <option value="num_vowels">Number of Vowels</option>
-              <option value="includes">Includes Letters</option>
-              <option value="begins">Begins With</option>
-              <option value="ends">Ends With</option>
-              <option value="anagram_match">Anagram Match</option>
-              <option value="subanagram_match">Subanagram Match</option>
-              <option value="pattern_match">Pattern Match</option>
-              <option value="probability_order">Probability Order</option>
-              <option value="limit_probability_order">Limit by Probability Order</option>
-            </select>
-            <button type="button" class="btn" onclick="addFilter('Q')">Add filter</button>
-          </div>
-          <div class="f-stack quiz-filter-stack" id="qStack"></div>
-          <div class="parameter-grid">
-            <div class="field-group">
-              <label class="field-label" for="qTypeSelect">Quiz type</label>
-              <select class="input-field" id="qTypeSelect">
-                <option value="0">Anagrams</option>
-                <option value="1">Anagrams with Hooks</option>
-                <option value="2">Build Quiz</option>
-              </select>
-            </div>
-            <div class="field-group">
-              <label class="field-label" for="qOrderSelect">Question order</label>
-              <select class="input-field" id="qOrderSelect">
-                <option value="1">Random</option>
-                <option value="0">Alphabetical</option>
-                <option value="2">Probability</option>
-              </select>
-            </div>
-          </div>
-          <div class="field-group timer-field">
-            <label class="field-label" for="qTimerSelect">Timer</label>
-            <select class="input-field" id="qTimerSelect">
-              <option value="0">No timer (Unlimited)</option>
-              <option value="15">15 seconds per question</option>
-              <option value="30">30 seconds per question</option>
-              <option value="60">60 seconds per question</option>
-              <option value="120">120 seconds per question</option>
-            </select>
-          </div>
-          <button type="button" class="btn btn-p primary-action" id="qStartBtn" aria-describedby="qReadyHint" disabled onclick="startQuiz()">Start quiz</button>
-          <p class="field-hint" id="qReadyHint">The quiz engine becomes available as soon as the dictionary is ready.</p>
-        </div>
-        <div id="qEnginePane" style="display:none;"></div>
-      </div>
-    </section>
 
-    <!-- ── JUDGE ─────────────────────────────────────────────────── -->
-    <section class="section" id="t2" aria-labelledby="judgeTitle" aria-hidden="true">
-      <div class="section-heading">
-        <p class="eyebrow">Word judge</p>
-        <h1 id="judgeTitle">Check without the guesswork.</h1>
-        <p>Enter one word or a short list. Your text stays in this browser.</p>
-      </div>
-      <div class="card judge-card">
-        <label class="field-label" for="cInp">Words to check</label>
-        <div class="judge-entry">
-          <input type="text" id="cInp" class="input-field mono" autocomplete="off"
-            placeholder="Enter words…"
-            onkeydown="if(event.key==='Enter')chkChal()">
-          <button type="button" class="btn btn-p" onclick="chkChal()">Check words</button>
-        </div>
-      </div>
-    </section>
 
-    <!-- ── SAVED ─────────────────────────────────────────────────── -->
-    <section class="section" id="t3" aria-labelledby="savedTitle" aria-hidden="true">
-      <div class="section-heading">
-        <p class="eyebrow">Saved words</p>
-        <h1 id="savedTitle">Words worth returning to.</h1>
-        <p>Keep a small study list here. It remains on this device.</p>
-      </div>
-      <div class="section-toolbar">
-        <h2>Bookmarks</h2>
-        <button type="button" class="btn destructive-action" onclick="clearSaved()">Clear all</button>
-      </div>
-      <div id="bList"></div>
-    </section>
-    <!-- ── CALCULATOR ──────────────────────────────────────────────────── -->
-    <section class="section" id="t4" aria-labelledby="calcTitle" aria-hidden="true">
-      <div class="section-heading">
-        <p class="eyebrow">Calculator</p>
-        <h1 id="calcTitle">Keep the score close by.</h1>
-        <p>A quiet scratchpad for quick totals during play.</p>
-      </div>
-      <!-- Display -->
-      <div class="card calc-display-card">
-        <div id="calcExpr" style="min-height:28px;padding:12px 16px 4px;font-family:'JetBrains Mono',monospace;
-             font-size:13px;color:var(--text2);text-align:right;word-break:break-all;"></div>
-        <div id="calcDisplay" style="padding:4px 16px 16px;font-family:'JetBrains Mono',monospace;
-             font-size:36px;font-weight:700;text-align:right;color:var(--text);word-break:break-all;">0</div>
-      </div>
+<!-- ══ MAIN ══ -->
+<main>
 
-      <!-- Keypad -->
-      <div class="calc-grid" aria-label="Calculator keypad">
-        <button class="calc-key calc-fn" onclick="calcFn('C')">C</button>
-        <button class="calc-key calc-fn" onclick="calcFn('⌫')" style="font-size:20px;">⌫</button>
-        <button class="calc-key calc-fn" onclick="calcFn('%')">%</button>
-        <button class="calc-key calc-op" onclick="calcFn('/')">÷</button>
+<!-- ── LEADERBOARD ── -->
+<div id="page-leaderboard" class="page active">
+  <div class="sec-head">
+    <div><div class="sec-title">อันดับ<span>ปัจจุบัน</span></div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary sm" onclick="openSubmitGame()">+ บันทึกเกม</button>
+      <button class="btn sm admin-only" onclick="openAddGame()">⚙ Admin เกม</button>
+    </div>
+  </div>
+  <div id="pendingBanner" style="display:none"></div>
+  <div class="stats-row" id="globalStats"></div>
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="lbSearch" placeholder="ค้นหาผู้เล่น..." oninput="renderLeaderboard()">
+  </div>
+  <div style="overflow-x:auto">
+    <table class="lb-table">
+      <thead><tr>
+        <th>#</th><th>ผู้เล่น</th><th class="r">Rating</th>
+        <th class="r hide-mobile">RD</th><th class="r hide-mobile">W–L</th><th class="r">เปลี่ยน</th>
+      </tr></thead>
+      <tbody id="lbBody"></tbody>
+    </table>
+  </div>
+  <div id="lbEmpty" style="display:none"><div class="empty"><div class="icon">🏆</div><h3>ยังไม่มีผู้เล่น</h3><p>Admin เพิ่มผู้เล่นในหน้า "ผู้เล่น"</p></div></div>
+</div>
 
-        <button class="calc-key" onclick="calcFn('7')">7</button>
-        <button class="calc-key" onclick="calcFn('8')">8</button>
-        <button class="calc-key" onclick="calcFn('9')">9</button>
-        <button class="calc-key calc-op" onclick="calcFn('*')">×</button>
+<!-- ── PLAYERS ── -->
+<div id="page-players" class="page">
+  <div class="sec-head">
+    <div class="sec-title">ผู้เล่น<span>ทั้งหมด</span></div>
+    <button class="btn primary sm admin-only" onclick="openAddPlayer()">+ เพิ่มผู้เล่น</button>
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="playerSearch" placeholder="ค้นหา..." oninput="renderPlayers()">
+  </div>
+  <div id="playersList"></div>
+</div>
 
-        <button class="calc-key" onclick="calcFn('4')">4</button>
-        <button class="calc-key" onclick="calcFn('5')">5</button>
-        <button class="calc-key" onclick="calcFn('6')">6</button>
-        <button class="calc-key calc-op" onclick="calcFn('-')">−</button>
+<!-- ── GAMES ── -->
+<div id="page-games" class="page">
+  <div class="sec-head">
+    <div class="sec-title">ประวัติ<span>เกม</span></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary sm" onclick="openSubmitGame()">+ บันทึกเกม</button>
+      <button class="btn sm admin-only" onclick="openAddGame()">⚙ Admin เกม</button>
+    </div>
+  </div>
+  <div id="pendingSection" style="display:none">
+    <div style="font-size:10px;color:var(--gold);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">⏳ รอการอนุมัติจาก Admin</div>
+    <div id="pendingList"></div>
+    <div style="height:8px"></div>
+    <div style="font-size:10px;color:var(--text2);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:8px">เกมที่อนุมัติแล้ว</div>
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="gameSearch" placeholder="ค้นหาผู้เล่น..." oninput="renderGames()">
+  </div>
+  <div id="gamesList"></div>
+  <div id="gamesEmpty" style="display:none"><div class="empty"><div class="icon">🎯</div><h3>ยังไม่มีเกม</h3><p>Admin บันทึกเกมแรกได้เลย</p></div></div>
+</div>
 
-        <button class="calc-key" onclick="calcFn('1')">1</button>
-        <button class="calc-key" onclick="calcFn('2')">2</button>
-        <button class="calc-key" onclick="calcFn('3')">3</button>
-        <button class="calc-key calc-op" onclick="calcFn('+')">+</button>
+<!-- ── TOURNAMENTS ── -->
+<div id="page-tournaments" class="page">
+  <div class="sec-head">
+    <div class="sec-title">ทัวร์นาเมนต์ <span>ทั้งหมด</span></div>
+    <button class="btn primary sm admin-only" onclick="openAddTournament()">+ เพิ่ม</button>
+  </div>
+  <div id="tourList"></div>
+  <div id="tourEmpty" style="display:none"><div class="empty"><div class="icon">🏅</div><h3>ยังไม่มีทัวร์นาเมนต์</h3><p>Admin เพิ่มทัวร์นาเมนต์เพื่อจัดกลุ่มเกม</p></div></div>
+</div>
 
-        <button class="calc-key" onclick="calcFn('+/-')" style="font-size:16px;">+/−</button>
-        <button class="calc-key" onclick="calcFn('0')">0</button>
-        <button class="calc-key" onclick="calcFn('.')">.</button>
-        <button class="calc-key calc-eq" onclick="calcFn('=')">=</button>
-      </div>
+<!-- ── PROFILE ── -->
+<div id="page-profile" class="page">
+  <button class="btn sm" id="profileBackBtn" style="margin-bottom:14px">← กลับ</button>
+  <div id="profileContent"></div>
+</div>
 
-      <!-- History -->
-      <div class="section-toolbar compact-toolbar">
-        <h2>History</h2>
-        <button type="button" class="btn destructive-action"
-                onclick="calcClearHistory()">Clear</button>
-      </div>
-      <div id="calcHistory" class="calc-history"></div>
-    </section>
-  </main>
+<!-- ── ADMIN PANEL ── -->
+<div id="page-admin" class="page">
+  <div class="sec-head">
+    <div class="sec-title">⚙ <span>Admin Panel</span></div>
+  </div>
 
-  <!-- Judge overlay -->
-  <div class="judge-overlay" id="jOverlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="jStatus" tabindex="-1" onclick="closeJudgeOverlay(event)">
-    <div class="judge-result-card">
-      <div class="judge-symbol" id="jSymbol" aria-hidden="true">✓</div>
-      <div class="judge-status-text" id="jStatus">Valid</div>
-      <div class="mono judge-sub-list" id="jSubList"></div>
-      <button type="button" class="btn" onclick="closeJudgeOverlay()">Close</button>
+  <div class="admin-section">
+    <div class="admin-section-title">จัดการข้อมูล</div>
+    <div class="admin-action-row">
+      <div><strong>Export ข้อมูลทั้งหมด</strong><div class="desc">ดาวน์โหลด JSON สำรองข้อมูล</div></div>
+      <button class="btn admin-only sm" onclick="exportData()">⬇ Export JSON</button>
+    </div>
+    <div class="admin-action-row">
+      <div><strong>Import ข้อมูล</strong><div class="desc">กู้คืนข้อมูลจาก JSON</div></div>
+      <label class="btn admin-only sm" style="cursor:pointer">⬆ Import JSON<input type="file" accept=".json" onchange="importData(this)" style="display:none"></label>
     </div>
   </div>
 
-  <!-- Word detail modal -->
-  <div class="modal-overlay" id="uluModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="mWord" tabindex="-1" onclick="handleModalBackdrop(event)">
-    <div class="modal-card" role="document">
-      <div class="modal-header">
-        <div>
-          <h2 class="mono" id="mWord" style="font-size:32px; font-weight:700;">WORD</h2>
-          <span class="mono" id="mPos" style="font-size:13px; color:var(--accent);">n.</span>
-        </div>
-        <div style="text-align:right;">
-          <div class="mono" id="mScore" style="font-size:28px; font-weight:700; color:var(--orange)">00</div>
-          <span style="font-size:10px; color:var(--text2);">BASE SCORE</span>
-        </div>
-      </div>
-      <div class="modal-body">
-        <div class="definition-block"><div class="info-label">Definition</div><div class="info-val" id="mDef"></div></div>
+  <div class="admin-section">
+    <div class="admin-section-title">เปลี่ยนรหัสผ่าน Admin</div>
+    <div class="pwd-change-row">
+      <div class="form-row" style="margin-bottom:0"><label>รหัสผ่านเก่า</label><input type="password" id="oldPwd" placeholder="••••••••"></div>
+      <div class="form-row" style="margin-bottom:0"><label>รหัสผ่านใหม่</label><input type="password" id="newPwd" placeholder="••••••••"></div>
+    </div>
+    <div class="form-row" style="margin-bottom:10px"><label>ยืนยันรหัสผ่านใหม่</label><input type="password" id="confirmPwd" placeholder="••••••••"></div>
+    <button class="btn admin-only sm" onclick="changePassword()">เปลี่ยนรหัสผ่าน</button>
+    <div id="pwdMsg" style="font-size:12px;margin-top:8px;display:none"></div>
+  </div>
 
-        <!-- Hook letters row -->
-        <div class="hook-detail">
-          <div class="hook-detail-grid">
-            <div>
-              <div class="info-label" style="text-align:right;">Front Hook Letters</div>
-              <div class="mono" id="mFHooks" style="color:var(--accent);font-size:14px;font-weight:700;letter-spacing:4px;text-align:right;"></div>
-            </div>
-            <div class="mono" id="mWordCenter" style="font-size:22px;font-weight:800;color:var(--text);padding:0 8px;white-space:nowrap;"></div>
-            <div>
-              <div class="info-label" style="text-align:left;">Back Hook Letters</div>
-              <div class="mono" id="mBHooks" style="color:var(--accent);font-size:14px;font-weight:700;letter-spacing:4px;text-align:left;"></div>
-            </div>
-          </div>
-        </div>
+  <div class="cloud-section">
+    <div class="cloud-section-title">
+      ☁ Cloud Storage (ImgBB + GitHub Gist)
+      <span class="cloud-status" id="cloudStatus"><span class="cloud-status-dot"></span> ไม่ได้เชื่อมต่อ</span>
+    </div>
+    <div class="admin-action-row">
+      <div style="flex:1"><strong>ImgBB API Key</strong><div class="desc">สำหรับอัปโหลดรูปกระดาน</div></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <input type="password" class="api-key-input" id="imgbbKeyInput" placeholder="ใส่ ImgBB API Key...">
+    </div>
+    <div class="admin-action-row">
+      <div style="flex:1"><strong>GitHub Personal Access Token</strong><div class="desc">ต้องมี scope: gist (สร้างที่ github.com/settings/tokens)</div></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <input type="password" class="api-key-input" id="githubPatInput" placeholder="ghp_xxxxxxxxxxxx">
+    </div>
+    <div class="admin-action-row">
+      <div style="flex:1"><strong>Gist ID</strong><div class="desc">ID ของ Public Gist ที่ใช้เก็บข้อมูล</div></div>
+    </div>
+    <div style="margin-bottom:4px">
+      <input type="text" class="api-key-input" id="gistIdInput" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+    </div>
+    <div class="cloud-btn-row">
+      <button class="btn sm" style="background:rgba(80,152,232,.1);color:var(--blue);border-color:rgba(80,152,232,.3)" onclick="saveCloudSettings()">💾 บันทึกการตั้งค่า</button>
+      <button class="btn sm" onclick="createNewGist()">+ สร้าง Gist ใหม่</button>
+      <button class="btn sm" onclick="syncLocalToGist()">⬆ Sync Local → Gist</button>
+      <button class="btn sm" onclick="loadFromGist()">⬇ โหลดจาก Gist</button>
+    </div>
+    <div id="cloudMsg" style="font-size:11px;margin-top:8px;display:none;font-family:var(--font-mono)"></div>
+  </div>
 
-        <!-- Full hook words -->
-        <div>
-          <div class="info-label">Front Hook Words</div>
-          <div class="mono" id="mFHookWords" style="color:var(--accent);font-size:13px;line-height:1.9;word-break:break-word;"></div>
-        </div>
-        <div>
-          <div class="info-label">Back Hook Words</div>
-          <div class="mono" id="mBHookWords" style="color:var(--accent);font-size:13px;line-height:1.9;word-break:break-word;"></div>
-        </div>
-
-        <!-- Multi-letter extensions -->
-        <div>
-          <div class="info-label">Prefix Extensions <span style="color:var(--border);font-weight:400;">___+WORD</span></div>
-          <div class="mono" id="mPrefixExt" style="font-size:13px;line-height:2;word-break:break-word;"></div>
-        </div>
-        <div>
-          <div class="info-label">Suffix Extensions <span style="color:var(--border);font-weight:400;">WORD+___</span></div>
-          <div class="mono" id="mSuffixExt" style="font-size:13px;line-height:2;word-break:break-word;"></div>
-        </div>
-
-        <!-- Anagrams & Inflections -->
-        <div><div class="info-label">Anagrams</div><div class="info-val mono" id="mAnagrams" style="color:var(--text2)">None</div></div>
-        <div><div class="info-label">Inflections</div><div class="info-val mono" id="mInflections" style="color:var(--orange)">None</div></div>
-      </div>
-      <div class="modal-footer">
-        <div style="display:flex; gap:6px;">
-          <button type="button" class="btn" aria-label="Previous word" title="Previous word" onclick="navWord(-1)">←</button>
-          <button type="button" class="btn" aria-label="Next word" title="Next word" onclick="navWord(1)">→</button>
-        </div>
-        <div style="display:flex; gap:6px;">
-          <button type="button" class="btn" id="mFavBtn" aria-label="Save word" title="Save word" onclick="favWord()">☆</button>
-          <button type="button" class="btn quiet-action" onclick="closeUlu()">Close</button>
-        </div>
-      </div>
+  <div class="danger-zone">
+    <div class="danger-zone-title">⚠ Danger Zone</div>
+    <div class="admin-action-row">
+      <div><strong>ล้างข้อมูลเกมทั้งหมด</strong><div class="desc">ลบประวัติเกมทั้งหมด (rating ไม่ถูกย้อนกลับ)</div></div>
+      <button class="btn danger sm" onclick="clearAllGames()">ล้างเกม</button>
+    </div>
+    <div class="admin-action-row">
+      <div><strong>รีเซ็ต Rating ทั้งหมด</strong><div class="desc">ตั้ง Rating=1500, RD=350 ทุกคน</div></div>
+      <button class="btn danger sm" onclick="resetAllRatings()">รีเซ็ต Rating</button>
+    </div>
+    <div class="admin-action-row">
+      <div><strong>ล้างข้อมูลทั้งหมด</strong><div class="desc">ลบผู้เล่น เกม ทัวร์นาเมนต์ทั้งหมด</div></div>
+      <button class="btn danger sm" onclick="clearAllData()">ล้างทั้งหมด</button>
     </div>
   </div>
 
-  <div class="toast" id="tst" role="status" aria-live="polite" aria-atomic="true"></div>
-  <input type="file" id="fInp" style="display:none" accept=".zzq,.txt,text/plain,application/xml,text/xml,*/*" onchange="loadZzq(event)">
+  <button class="btn sm" onclick="logout()" style="width:100%;justify-content:center;margin-top:8px">ออกจากระบบ Admin</button>
+</div>
 
-  <script src="core.js?v=7"></script>
-  <script src="search.js?v=7"></script>
-  <script src="zyzzylu_cpp_engine.js"></script>
-  <script src="quiz_bridge.js?v=4"></script>
-  <script src="judge.js?v=4"></script>
-  <script>
-    // ── CALCULATOR ─────────────────────────────────────────────────────
-    let calcExpr     = '';   // full expression string
-    let calcCurrent  = '0';  // display number
-    let calcOperator = '';   // pending operator
-    let calcPrev     = null; // previous value
-    let calcNewNum   = true; // next digit starts a fresh number
-    let calcResult   = false;// last action was =
-    let calcHistory  = JSON.parse(localStorage.getItem('zyz_calc_hist') || '[]');
+</main>
 
-    function calcSaveHistory() {
-      localStorage.setItem('zyz_calc_hist', JSON.stringify(calcHistory.slice(-50)));
+<!-- MOBILE TAB BAR -->
+<nav class="tab-bar">
+  <button class="tab-item act" onclick="nav('leaderboard',this)" data-tab="leaderboard">
+    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>อันดับ
+  </button>
+  <button class="tab-item" onclick="nav('players',this)" data-tab="players">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>ผู้เล่น
+  </button>
+  <button class="tab-item" onclick="mobileGameBtn()" data-tab="">
+    <svg viewBox="0 0 24 24" style="width:26px;height:26px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>เกม
+  </button>
+  <button class="tab-item" onclick="nav('games',this)" data-tab="games">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>ประวัติ
+  </button>
+  <button class="tab-item" onclick="nav('tournaments',this)" data-tab="tournaments">
+    <svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M5 3h14l-1 9a6 6 0 01-12 0L5 3z"/><path d="M5 3a2 2 0 00-2 2v1a2 2 0 002 2h.5M19 3a2 2 0 012 2v1a2 2 0 01-2 2h-.5"/></svg>รายการ
+  </button>
+</nav>
+
+<!-- ══ MODALS ══ -->
+
+<!-- User Submit Game -->
+<div class="modal-overlay" id="modalSubmitGame" style="display:none" onclick="if(event.target===this)closeModal('modalSubmitGame')">
+  <div class="modal">
+    <div class="modal-title" style="color:var(--gold)">บันทึกเกมที่เล่น</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">เกมจะรอการยืนยันจาก Admin ก่อน rating จึงจะอัปเดต</p>
+    <div class="form-row"><label>ผู้เล่น 1 *</label><select id="sgP1"></select></div>
+    <div class="form-row"><label>ผู้เล่น 2 *</label><select id="sgP2"></select></div>
+    <div class="form-grid">
+      <div class="form-row"><label>คะแนน ผู้เล่น 1</label><input type="number" id="sgS1" value="0" min="0"></div>
+      <div class="form-row"><label>คะแนน ผู้เล่น 2</label><input type="number" id="sgS2" value="0" min="0"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Big Point ผู้เล่น 1</label><input type="text" id="sgBp1" placeholder="เช่น OXAZINE"></div>
+      <div class="form-row"><label>Big Point ผู้เล่น 2</label><input type="text" id="sgBp2" placeholder="เช่น MUZJIKS"></div>
+    </div>
+    <div class="form-row"><label>Phony (รวม)</label><input type="text" id="sgPh1" placeholder="เช่น DET, DAT"></div>
+    <div class="form-row"><label>วันที่</label><input type="date" id="sgDate"></div>
+    <div class="form-row"><label>หมายเหตุ</label><input type="text" id="sgNote" placeholder="เช่น รอบที่ 1 หรือชื่อทัวร์นาเมนต์"></div>
+    <div class="form-row">
+      <label>📸 รูปกระดาน (ถ้ามี)</label>
+      <div class="img-dropzone" id="sgDropzone">
+        <div class="dz-icon">📷</div>
+        <div class="dz-text">ลากรูปมาวาง หรือคลิกเพื่อเลือก</div>
+        <div class="dz-sub">JPG, PNG · สูงสุด 32MB</div>
+        <input type="file" accept="image/*" onchange="previewImage(this,'sg')">
+      </div>
+      <div class="img-preview-wrap" id="sgPreviewWrap">
+        <img class="img-preview" id="sgPreview" src="">
+        <button class="img-preview-remove" onclick="removePreview('sg')">✕</button>
+      </div>
+      <div class="upload-progress" id="sgUploadProgress">
+        <div class="upload-spinner"></div>
+        <span class="up-text">กำลังอัปโหลดรูป...</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalSubmitGame')">ยกเลิก</button>
+      <button class="btn primary" onclick="submitUserGame()">ส่งเพื่อรอยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pending Games Admin Modal -->
+<div class="modal-overlay" id="modalPending" style="display:none" onclick="if(event.target===this)closeModal('modalPending')">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">⏳ เกมรอการอนุมัติ</div>
+    <div id="pendingModalList"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalPending')">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Player (admin only) -->
+<div class="modal-overlay" id="modalPlayer" style="display:none" onclick="if(event.target===this)closeModal('modalPlayer')">
+  <div class="modal">
+    <div class="modal-title" id="playerModalTitle">เพิ่มผู้เล่น</div>
+    <div class="form-row"><label>ชื่อ-นามสกุล *</label><input type="text" id="pName" placeholder="ชื่อ นามสกุล"></div>
+    <div class="form-row"><label>ชื่อเล่น</label><input type="text" id="pNick" placeholder="ชื่อเล่น"></div>
+    <div class="form-grid">
+      <div class="form-row"><label>Rating เริ่มต้น</label><input type="number" id="pRating" value="1500"></div>
+      <div class="form-row"><label>RD เริ่มต้น</label><input type="number" id="pRD" value="350"></div>
+    </div>
+    <div class="form-row"><label>Division / กลุ่ม</label><input type="text" id="pDiv" placeholder="เช่น Youth, Open, Senior"></div>
+    <input type="hidden" id="pEditId">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalPlayer')">ยกเลิก</button>
+      <button class="btn primary" onclick="savePlayer()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Game (admin only) -->
+<div class="modal-overlay" id="modalGame" style="display:none" onclick="if(event.target===this)closeModal('modalGame')">
+  <div class="modal">
+    <div class="modal-title">บันทึกเกม</div>
+    <div class="form-row"><label>ผู้เล่น 1 *</label><select id="gP1"></select></div>
+    <div class="form-row"><label>ผู้เล่น 2 *</label><select id="gP2"></select></div>
+    <div class="form-grid">
+      <div class="form-row"><label>คะแนน ผู้เล่น 1</label><input type="number" id="gS1" value="0" min="0"></div>
+      <div class="form-row"><label>คะแนน ผู้เล่น 2</label><input type="number" id="gS2" value="0" min="0"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Big Point ผู้เล่น 1</label><input type="text" id="gBp1" placeholder="เช่น OXAZINE"></div>
+      <div class="form-row"><label>Big Point ผู้เล่น 2</label><input type="text" id="gBp2" placeholder="เช่น MUZJIKS"></div>
+    </div>
+    <div class="form-row"><label>Phony (รวม)</label><input type="text" id="gPh1" placeholder="เช่น DET, DAT"></div>
+    <div class="form-row"><label>วันที่</label><input type="date" id="gDate"></div>
+    <div class="form-row"><label>หมายเหตุ</label><input type="text" id="gNote" placeholder="เช่น รอบที่ 1"></div>
+    <div class="form-row">
+      <label>📸 รูปกระดาน (ถ้ามี)</label>
+      <div class="img-dropzone" id="agDropzone">
+        <div class="dz-icon">📷</div>
+        <div class="dz-text">ลากรูปมาวาง หรือคลิกเพื่อเลือก</div>
+        <div class="dz-sub">JPG, PNG · สูงสุด 32MB</div>
+        <input type="file" accept="image/*" onchange="previewImage(this,'ag')">
+      </div>
+      <div class="img-preview-wrap" id="agPreviewWrap">
+        <img class="img-preview" id="agPreview" src="">
+        <button class="img-preview-remove" onclick="removePreview('ag')">✕</button>
+      </div>
+      <div class="upload-progress" id="agUploadProgress">
+        <div class="upload-spinner"></div>
+        <span class="up-text">กำลังอัปโหลดรูป...</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalGame')">ยกเลิก</button>
+      <button class="btn primary" onclick="saveGame()">บันทึก + คำนวณ Rating</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Tournament (admin only) -->
+<div class="modal-overlay" id="modalTour" style="display:none" onclick="if(event.target===this)closeModal('modalTour')">
+  <div class="modal">
+    <div class="modal-title">เพิ่มทัวร์นาเมนต์</div>
+    <div class="form-row"><label>ชื่อทัวร์นาเมนต์ *</label><input type="text" id="tName" placeholder="เช่น Thailand Open 2026"></div>
+    <div class="form-grid">
+      <div class="form-row"><label>วันเริ่ม</label><input type="date" id="tStart"></div>
+      <div class="form-row"><label>วันสิ้นสุด</label><input type="date" id="tEnd"></div>
+    </div>
+    <div class="form-row"><label>สถานที่</label><input type="text" id="tVenue" placeholder="เช่น กรุงเทพมหานคร"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalTour')">ยกเลิก</button>
+      <button class="btn primary" onclick="saveTournament()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm -->
+<div class="modal-overlay" id="modalConfirm" style="display:none" onclick="if(event.target===this)closeModal('modalConfirm')">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-title" style="color:var(--red)">ยืนยันการดำเนินการ</div>
+    <p id="confirmMsg" style="font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.6"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalConfirm')">ยกเลิก</button>
+      <button class="btn danger" id="confirmBtn">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LIGHTBOX ══ -->
+<div class="lightbox-overlay" id="lightboxOverlay" style="display:none" onclick="if(event.target===this)closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightboxImg" src="" alt="Board">
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ══ CONSTANTS ══
+const STORE = { 
+  players:'cbs_players', 
+  games:'cbs_games', 
+  tournaments:'cbs_tours', 
+  pwd:'cbs_admin_pwd', 
+  pending:'cbs_pending',
+  imgbbKey:'cbs_imgbb_key',
+  githubPat:'cbs_github_pat',
+  gistId:'cbs_gist_id',
+  rememberAdmin:'cbs_remember_admin'
+};
+const DEFAULT_PWD = 'admin';
+const TAU = 0.5, SCALE = 173.7478;
+
+let uploadedFiles = { sg: null, ag: null };
+let gistWriteToken = '';
+
+function obfuscateToken(token) {
+  return btoa(token.split('').reverse().join(''));
+}
+function deobfuscateToken(obfuscated) {
+  try {
+    return atob(obfuscated).split('').reverse().join('');
+  } catch (e) {
+    return '';
+  }
+}
+
+// ── CLOUD & IMAGE UTILS ──
+function getGistHeaders() {
+  const headers = {
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  };
+  const pat = localStorage.getItem(STORE.githubPat) || gistWriteToken;
+  if (pat) {
+    headers['Authorization'] = `Bearer ${pat}`;
+  }
+  return headers;
+}
+
+async function fetchGist(gistId) {
+  const headers = getGistHeaders();
+  const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers });
+  if (!res.ok) throw new Error(`โหลด Gist ไม่สำเร็จ (HTTP ${res.status})`);
+  return await res.json();
+}
+
+async function updateGist(gistId, files) {
+  const pat = localStorage.getItem(STORE.githubPat) || gistWriteToken;
+  if (!pat) throw new Error('กรุณากรอก GitHub PAT ก่อนทำการเขียนข้อมูล');
+  const headers = getGistHeaders();
+  
+  const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+    method: 'PATCH',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ files })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `อัปเดต Gist ล้มเหลว (HTTP ${res.status})`);
+  }
+  return await res.json();
+}
+
+async function createGist(files) {
+  const pat = localStorage.getItem(STORE.githubPat) || gistWriteToken;
+  if (!pat) throw new Error('กรุณากรอก GitHub PAT ก่อนทำการสร้าง Gist');
+  const headers = getGistHeaders();
+  const res = await fetch('https://api.github.com/gists', {
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      description: 'Uthai Crossword Leaderboard Data',
+      public: true,
+      files
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `สร้าง Gist ล้มเหลว (HTTP ${res.status})`);
+  }
+  return await res.json();
+}
+
+let syncTimeout = null;
+// ── GIST FILE BUILDER (shared by sync functions) ──
+function buildGistFiles(pat) {
+  return {
+    'players.json':     { content: JSON.stringify(players, null, 2) },
+    'games.json':       { content: JSON.stringify(games, null, 2) },
+    'tournaments.json': { content: JSON.stringify(tournaments, null, 2) },
+    'pending.json':     { content: JSON.stringify(pendingGames, null, 2) },
+    'meta.json':        { content: JSON.stringify({
+      lastUpdated: new Date().toISOString(),
+      imgbbKey: localStorage.getItem(STORE.imgbbKey) || '',
+      secToken: pat ? obfuscateToken(pat) : ''
+    }, null, 2) }
+  };
+}
+
+function autoSyncToGist() {
+  const gistId = localStorage.getItem(STORE.gistId);
+  const pat = localStorage.getItem(STORE.githubPat) || gistWriteToken;
+  if (!gistId || !pat) return;
+
+  if (syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(async () => {
+    try {
+      const nowISO = new Date().toISOString();
+      await updateGist(gistId, buildGistFiles(pat));
+      lastGistUpdatedAt = nowISO;
+      console.log('Gist auto-synced successfully');
+    } catch (e) {
+      console.error('Gist auto-sync failed:', e);
     }
-    function calcRenderHistory() {
-      const el = document.getElementById('calcHistory');
-      if (!el) return;
-      el.innerHTML = [...calcHistory].reverse().map(h =>
-        `<div class="card" style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
-          <div style="font-size:12px;color:var(--text2);font-family:'JetBrains Mono',monospace;
-                      flex:1;word-break:break-all;">${h.expr}</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;
-                      color:var(--orange);white-space:nowrap;">${h.result}</div>
-         </div>`
-      ).join('') || '<p style="text-align:center;color:var(--text2);font-size:13px;padding:12px;">No history yet</p>';
+  }, 1000);
+}
+
+async function uploadToImgBB(file) {
+  const apiKey = localStorage.getItem(STORE.imgbbKey);
+  if (!apiKey) {
+    throw new Error('กรุณาตั้งค่า ImgBB API Key ในหน้า Admin ก่อนอัปโหลดรูปภาพ');
+  }
+  const formData = new FormData();
+  formData.append('image', file);
+  
+  const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+    method: 'POST',
+    body: formData
+  });
+  
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error?.message || `อัปโหลดล้มเหลว (HTTP ${response.status})`);
+  }
+  
+  const res = await response.json();
+  if (res.success) {
+    return {
+      url: res.data.url,
+      thumb: res.data.thumb.url
+    };
+  } else {
+    throw new Error('ImgBB อัปโหลดไม่สำเร็จ');
+  }
+}
+
+// ── IMAGE PREVIEW ──
+function previewImage(input, prefix) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 32 * 1024 * 1024) {
+    alert('ขนาดไฟล์ต้องไม่เกิน 32MB');
+    input.value = '';
+    return;
+  }
+  uploadedFiles[prefix] = file;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById(prefix + 'Preview').src = e.target.result;
+    document.getElementById(prefix + 'PreviewWrap').classList.add('has-img');
+    document.getElementById(prefix + 'Dropzone').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePreview(prefix) {
+  uploadedFiles[prefix] = null;
+  const input = document.querySelector(`#${prefix}Dropzone input[type="file"]`);
+  if (input) input.value = '';
+  document.getElementById(prefix + 'PreviewWrap').classList.remove('has-img');
+  document.getElementById(prefix + 'Preview').src = '';
+  document.getElementById(prefix + 'Dropzone').style.display = 'block';
+}
+
+// ── LIGHTBOX ──
+function openLightbox(src) {
+  const overlay = document.getElementById('lightboxOverlay');
+  const img = document.getElementById('lightboxImg');
+  img.src = src;
+  overlay.style.display = 'flex';
+}
+function closeLightbox() {
+  document.getElementById('lightboxOverlay').style.display = 'none';
+  document.getElementById('lightboxImg').src = '';
+}
+
+// ── CLOUD SETTINGS MANAGEMENT ──
+function updateCloudStatus(status, text) {
+  const el = document.getElementById('cloudStatus');
+  if (!el) return;
+  el.className = 'cloud-status ' + status;
+  el.innerHTML = `<span class="cloud-status-dot"></span> ${text}`;
+}
+
+function loadCloudInputs() {
+  document.getElementById('imgbbKeyInput').value = localStorage.getItem(STORE.imgbbKey) || '';
+  document.getElementById('githubPatInput').value = localStorage.getItem(STORE.githubPat) || '';
+  document.getElementById('gistIdInput').value = localStorage.getItem(STORE.gistId) || '';
+  checkCloudConnection();
+}
+
+async function checkCloudConnection() {
+  const gistId = localStorage.getItem(STORE.gistId);
+  if (!gistId) {
+    updateCloudStatus('', 'ไม่ได้เชื่อมต่อ');
+    return;
+  }
+  updateCloudStatus('loading', 'กำลังเชื่อมต่อ...');
+  try {
+    const headers = getGistHeaders();
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers });
+    if (res.ok) {
+      const hasWrite = localStorage.getItem(STORE.githubPat) ? ' (Read/Write)' : ' (Read Only)';
+      updateCloudStatus('ok', 'เชื่อมต่อแล้ว' + hasWrite);
+    } else {
+      updateCloudStatus('err', 'เชื่อมต่อล้มเหลว (Gist ID ไม่ถูกต้อง)');
     }
-    function calcUpdate() {
-      document.getElementById('calcDisplay').innerText = calcCurrent;
-      document.getElementById('calcExpr').innerText    = calcExpr;
+  } catch (e) {
+    updateCloudStatus('err', 'ข้อผิดพลาดเครือข่าย');
+  }
+}
+
+function saveCloudSettings() {
+  const imgbb = document.getElementById('imgbbKeyInput').value.trim();
+  const pat = document.getElementById('githubPatInput').value.trim();
+  const gistId = document.getElementById('gistIdInput').value.trim();
+  
+  if (imgbb) localStorage.setItem(STORE.imgbbKey, imgbb);
+  else localStorage.removeItem(STORE.imgbbKey);
+  
+  if (pat) {
+    localStorage.setItem(STORE.githubPat, pat);
+    gistWriteToken = pat;
+  } else {
+    localStorage.removeItem(STORE.githubPat);
+    gistWriteToken = '';
+  }
+  
+  if (gistId) localStorage.setItem(STORE.gistId, gistId);
+  else localStorage.removeItem(STORE.gistId);
+  
+  showCloudMsg('บันทึกการตั้งค่าเรียบร้อยแล้ว', 'var(--green)');
+  checkCloudConnection();
+}
+
+function showCloudMsg(txt, color) {
+  const el = document.getElementById('cloudMsg');
+  if (!el) return;
+  el.textContent = txt; el.style.color = color; el.style.display = 'block';
+  setTimeout(() => el.style.display='none', 4000);
+}
+
+async function createNewGist() {
+  const pat = document.getElementById('githubPatInput').value.trim();
+  if (!pat) {
+    alert('กรุณากรอก GitHub PAT ก่อนสร้าง Gist ใหม่');
+    return;
+  }
+  localStorage.setItem(STORE.githubPat, pat);
+  gistWriteToken = pat;
+  showCloudMsg('กำลังสร้าง Gist บน GitHub...', 'var(--gold)');
+  try {
+    const gist = await createGist(buildGistFiles(pat));
+    localStorage.setItem(STORE.gistId, gist.id);
+    document.getElementById('gistIdInput').value = gist.id;
+    showCloudMsg(`สร้าง Gist สำเร็จ! ID: ${gist.id}`, 'var(--green)');
+    checkCloudConnection();
+  } catch (e) {
+    showCloudMsg('สร้าง Gist ล้มเหลว: ' + e.message, 'var(--red)');
+  }
+}
+
+async function syncLocalToGist() {
+  const gistId = document.getElementById('gistIdInput').value.trim() || localStorage.getItem(STORE.gistId);
+  if (!gistId) {
+    alert('กรุณาระบุ Gist ID ก่อนทำการ Sync');
+    return;
+  }
+  const pat = document.getElementById('githubPatInput').value.trim() || localStorage.getItem(STORE.githubPat) || gistWriteToken;
+  if (!pat) {
+    alert('กรุณากรอก GitHub PAT ก่อนทำการ Sync');
+    return;
+  }
+  showCloudMsg('กำลังอัปโหลดข้อมูลไปยัง Gist...', 'var(--gold)');
+  try {
+    await updateGist(gistId, buildGistFiles(pat));
+    showCloudMsg('Sync Local → Gist สำเร็จ!', 'var(--green)');
+    checkCloudConnection();
+  } catch (e) {
+    showCloudMsg('Sync ล้มเหลว: ' + e.message, 'var(--red)');
+  }
+}
+
+async function loadFromGist() {
+  const gistId = document.getElementById('gistIdInput').value.trim() || localStorage.getItem(STORE.gistId);
+  if (!gistId) {
+    alert('กรุณาระบุ Gist ID ก่อนโหลด');
+    return;
+  }
+  showCloudMsg('กำลังโหลดข้อมูลจาก Gist...', 'var(--gold)');
+  try {
+    const gistFiles = await fetchGist(gistId);
+    let updated = false;
+    if (gistFiles.files['players.json']?.content) {
+      players = JSON.parse(gistFiles.files['players.json'].content);
+      localStorage.setItem(STORE.players, JSON.stringify(players));
+      updated = true;
     }
-    function calcFn(key) {
-      const digits = '0123456789';
-      if (digits.includes(key)) {
-        if (calcResult) { calcExpr = ''; calcResult = false; }
-        if (calcNewNum || calcCurrent === '0') {
-          calcCurrent = key;
-          calcNewNum  = false;
-        } else {
-          if (calcCurrent.replace('-','').replace('.','').length < 15)
-            calcCurrent += key;
-        }
-      } else if (key === '.') {
-        if (calcResult) { calcCurrent = '0'; calcExpr = ''; calcResult = false; }
-        if (calcNewNum) { calcCurrent = '0.'; calcNewNum = false; }
-        else if (!calcCurrent.includes('.')) calcCurrent += '.';
-      } else if (key === '+/-') {
-        if (calcCurrent !== '0')
-          calcCurrent = calcCurrent.startsWith('-') ? calcCurrent.slice(1) : '-' + calcCurrent;
-      } else if (key === 'CE') {
-        calcCurrent = '0';
-        calcNewNum  = true;
-      } else if (key === '⌫') {
-        if (!calcNewNum && calcCurrent !== '0') {
-          calcCurrent = calcCurrent.length > 1 ? calcCurrent.slice(0, -1) : '0';
-          if (calcCurrent === '-') calcCurrent = '0';
-          calcNewNum = calcCurrent === '0';
-        }
-      } else if (key === 'C') {
-        calcCurrent = '0'; calcExpr = ''; calcOperator = ''; calcPrev = null;
-        calcNewNum = true; calcResult = false;
-      } else if (key === '%') {
-        const v = parseFloat(calcCurrent);
-        calcCurrent = String(calcPrev !== null ? calcPrev * v / 100 : v / 100);
-        calcNewNum  = true;
-      } else if (['+', '-', '*', '/'].includes(key)) {
-        if (calcOperator && !calcNewNum) {
-          const a = calcPrev, b = parseFloat(calcCurrent);
-          calcPrev    = calcCompute(a, b, calcOperator);
-          calcCurrent = calcFormat(calcPrev);
-          calcExpr    = calcCurrent + ' ' + calcOpSym(key) + ' ';
-        } else {
-          calcPrev = parseFloat(calcCurrent);
-          calcExpr = calcCurrent + ' ' + calcOpSym(key) + ' ';
-        }
-        calcOperator = key;
-        calcNewNum   = true;
-        calcResult   = false;
-      } else if (key === '=') {
-        if (calcOperator && calcPrev !== null) {
-          const a = calcPrev, b = parseFloat(calcCurrent);
-          const expr = calcExpr + calcCurrent;
-          const res  = calcCompute(a, b, calcOperator);
-          calcCurrent  = calcFormat(res);
-          calcHistory.push({ expr, result: calcCurrent });
-          calcSaveHistory();
-          calcRenderHistory();
-          calcExpr     = '';
-          calcOperator = '';
-          calcPrev     = null;
-          calcNewNum   = true;
-          calcResult   = true;
+    if (gistFiles.files['games.json']?.content) {
+      games = JSON.parse(gistFiles.files['games.json'].content);
+      localStorage.setItem(STORE.games, JSON.stringify(games));
+      updated = true;
+    }
+    if (gistFiles.files['tournaments.json']?.content) {
+      tournaments = JSON.parse(gistFiles.files['tournaments.json'].content);
+      localStorage.setItem(STORE.tournaments, JSON.stringify(tournaments));
+      updated = true;
+    }
+    if (gistFiles.files['pending.json']?.content) {
+      pendingGames = JSON.parse(gistFiles.files['pending.json'].content);
+      localStorage.setItem(STORE.pending, JSON.stringify(pendingGames));
+      updated = true;
+    }
+    if (gistFiles.files['meta.json']?.content) {
+      const meta = JSON.parse(gistFiles.files['meta.json'].content);
+      if (meta.secToken) {
+        gistWriteToken = deobfuscateToken(meta.secToken);
+      }
+      if (meta.imgbbKey && !localStorage.getItem(STORE.imgbbKey)) {
+        localStorage.setItem(STORE.imgbbKey, meta.imgbbKey);
+        if (document.getElementById('imgbbKeyInput')) {
+          document.getElementById('imgbbKeyInput').value = meta.imgbbKey;
         }
       }
-      calcUpdate();
     }
-    function calcCompute(a, b, op) {
-      switch(op) {
-        case '+': return a + b;
-        case '-': return a - b;
-        case '*': return a * b;
-        case '/': return b !== 0 ? a / b : (b === 0 ? Infinity : NaN);
-      }
-      return b;
+    if (updated) {
+      renderAll();
+      if (currentPage === 'players') renderPlayers();
+      if (currentPage === 'games') renderGames();
+      if (currentPage === 'tournaments') renderTournaments();
+      showCloudMsg('โหลดข้อมูลสำเร็จ!', 'var(--green)');
+    } else {
+      showCloudMsg('ไม่พบไฟล์ข้อมูลใน Gist', 'var(--gold)');
     }
-    function calcFormat(n) {
-      if (!isFinite(n)) return isNaN(n) ? 'Error' : '∞';
-      // Avoid floating point garbage: round to 12 sig figs
-      const s = parseFloat(n.toPrecision(12));
-      return String(s);
-    }
-    function calcOpSym(op) {
-      return {'+':'+','-':'−','*':'×','/':'÷'}[op] || op;
-    }
-    function calcClearHistory() {
-      if (confirm('ล้างประวัติเครื่องคิดเลขทั้งหมด?')) {
-        calcHistory = [];
-        calcSaveHistory();
-        calcRenderHistory();
-      }
-    }
-    // Keyboard support for calculator tab
-    document.addEventListener('keydown', e => {
-      const calcSection = document.getElementById('t4');
-      if (!calcSection?.classList.contains('active')) return;
-      if (e.key >= '0' && e.key <= '9') calcFn(e.key);
-      else if (e.key === '+') calcFn('+');
-      else if (e.key === '-') calcFn('-');
-      else if (e.key === '*') calcFn('*');
-      else if (e.key === '/') { e.preventDefault(); calcFn('/'); }
-      else if (e.key === '.' || e.key === ',') calcFn('.');
-      else if (e.key === 'Enter' || e.key === '=') calcFn('=');
-      else if (e.key === 'Backspace') { e.preventDefault(); calcFn('⌫'); } else if (e.key === 'Escape') calcFn('C');
+    checkCloudConnection();
+  } catch (e) {
+    showCloudMsg('โหลดล้มเหลว: ' + e.message, 'var(--red)');
+  }
+}
+
+// ══ AUTH ══
+let isAdmin = false;
+
+function getAdminPwd() { return localStorage.getItem(STORE.pwd) || DEFAULT_PWD; }
+
+// ── Dropdown toggle ──
+function toggleDropdown() {
+  const dd = document.getElementById('loginDropdown');
+  const isHidden = dd.classList.contains('hidden');
+  if (isHidden) {
+    dd.classList.remove('hidden');
+    setTimeout(() => document.getElementById('ddPwd').focus(), 80);
+  } else {
+    closeDropdown();
+  }
+}
+function closeDropdown() {
+  document.getElementById('loginDropdown').classList.add('hidden');
+  document.getElementById('ddPwd').value = '';
+  document.getElementById('ddError').style.display = 'none';
+}
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('loginWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    closeDropdown();
+  }
+});
+
+function setAdminLoggedIn(remember) {
+  isAdmin = true;
+  if (remember) localStorage.setItem(STORE.rememberAdmin, '1');
+  document.body.classList.add('is-admin');
+  document.getElementById('adminBadge').style.display='flex';
+  
+  updateDrawerAdminState(true);
+  renderAll();
+}
+
+function doLogin() {
+  const v = document.getElementById('ddPwd').value;
+  const remember = document.getElementById('ddRemember').checked;
+  const err = document.getElementById('ddError');
+  if (v === getAdminPwd()) {
+    closeDropdown();
+    setAdminLoggedIn(remember);
+  } else {
+    err.style.display = 'block';
+    document.getElementById('ddPwd').value = '';
+    setTimeout(() => err.style.display = 'none', 3000);
+  }
+}
+
+function logout() {
+  isAdmin = false;
+  localStorage.removeItem(STORE.rememberAdmin);
+  document.body.classList.remove('is-admin');
+  document.getElementById('adminBadge').style.display='none';
+  
+  updateDrawerAdminState(false);
+  nav('leaderboard', null);
+  renderAll();
+}
+
+function changePassword() {
+  const oldP = document.getElementById('oldPwd').value;
+  const newP = document.getElementById('newPwd').value;
+  const conP = document.getElementById('confirmPwd').value;
+  if (oldP !== getAdminPwd()) { showPwdMsg('รหัสผ่านเก่าไม่ถูกต้อง', 'var(--red)'); return; }
+  if (newP.length < 4) { showPwdMsg('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร', 'var(--red)'); return; }
+  if (newP !== conP) { showPwdMsg('รหัสผ่านใหม่ไม่ตรงกัน', 'var(--red)'); return; }
+  localStorage.setItem(STORE.pwd, newP);
+  document.getElementById('oldPwd').value = '';
+  document.getElementById('newPwd').value = '';
+  document.getElementById('confirmPwd').value = '';
+  showPwdMsg('เปลี่ยนรหัสผ่านสำเร็จ', 'var(--green)');
+}
+function showPwdMsg(txt, color) {
+  const el = document.getElementById('pwdMsg');
+  el.textContent = txt; el.style.color = color; el.style.display = 'block';
+  setTimeout(() => el.style.display='none', 3500);
+}
+
+// ══ DATA ══
+function load(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; } }
+function save(key, val) {
+  localStorage.setItem(key, JSON.stringify(val));
+  autoSyncToGist();
+}
+
+let players = load(STORE.players);
+let games = load(STORE.games);
+let tournaments = load(STORE.tournaments);
+let pendingGames = load(STORE.pending);
+
+function renderAll() { renderLeaderboard(); renderPendingBanner(); }
+
+// ══ GLICKO-2 ══
+function gFn(phi) { return 1/Math.sqrt(1+3*phi*phi/(Math.PI*Math.PI)); }
+function EFn(mu,mj,phij) { return 1/(1+Math.exp(-gFn(phij)*(mu-mj))); }
+
+function glicko2Update(player, opponents) {
+  const mu=(player.rating-1500)/SCALE, phi=player.rd/SCALE, sigma=player.sigma||0.06;
+  if (!opponents.length) {
+    const ps=Math.sqrt(phi*phi+sigma*sigma);
+    return {rating:Math.round(mu*SCALE+1500),rd:Math.min(350,Math.round(ps*SCALE)),sigma};
+  }
+  let v=0,delta=0;
+  opponents.forEach(({mj,phij,sj})=>{const gj=gFn(phij),ej=EFn(mu,mj,phij);v+=gj*gj*ej*(1-ej);delta+=gj*(sj-ej);});
+  v=1/v;delta*=v;
+  let a=Math.log(sigma*sigma);
+  const A=a,phiSq=phi*phi,dSq=delta*delta;
+  const f=x=>{const ex=Math.exp(x);return ex*(dSq-phiSq-v-ex)/(2*Math.pow(phiSq+v+ex,2))-(x-A)/(TAU*TAU);};
+  let B=dSq>phiSq+v?Math.log(dSq-phiSq-v):(()=>{let k=1;while(f(a-k*TAU)<0)k++;return a-k*TAU;})();
+  let fA=f(a),fB=f(B);
+  for(let i=0;i<100;i++){const C=a+(a-B)*fA/(fB-fA),fC=f(C);if(fC*fB<0){a=B;fA=fB;}else fA/=2;B=C;fB=fC;if(Math.abs(B-a)<1e-6)break;}
+  const sp=Math.exp(a/2),ps=Math.sqrt(phiSq+sp*sp),pp=1/Math.sqrt(1/(ps*ps)+1/v);
+  let muP=mu;
+  opponents.forEach(({mj,phij,sj})=>{muP+=pp*pp*gFn(phij)*(sj-EFn(mu,mj,phij));});
+  return {rating:Math.round(muP*SCALE+1500),rd:Math.min(350,Math.round(pp*SCALE)),sigma:parseFloat(sp.toFixed(6))};
+}
+
+function applyGameToRatings(game) {
+  const p1=players.find(p=>p.id===game.p1id), p2=players.find(p=>p.id===game.p2id);
+  if(!p1||!p2) return;
+  const s1=game.score1>game.score2?1:game.score1<game.score2?0:0.5, s2=1-s1;
+  const prev1={rating:p1.rating,rd:p1.rd}, prev2={rating:p2.rating,rd:p2.rd};
+  const r1=glicko2Update(p1,[{mj:(p2.rating-1500)/SCALE,phij:p2.rd/SCALE,sj:s1}]);
+  const r2=glicko2Update(p2,[{mj:(p1.rating-1500)/SCALE,phij:p1.rd/SCALE,sj:s2}]);
+  p1.ratingBefore=prev1.rating;p1.rating=r1.rating;p1.rd=r1.rd;p1.sigma=r1.sigma;
+  p1.wins=(p1.wins||0)+(s1===1?1:0);p1.losses=(p1.losses||0)+(s1===0?1:0);p1.draws=(p1.draws||0)+(s1===.5?1:0);p1.games=(p1.games||0)+1;
+  if(!p1.history)p1.history=[];p1.history.push({date:game.date,rating:r1.rating,rd:r1.rd,gameId:game.id});
+  p2.ratingBefore=prev2.rating;p2.rating=r2.rating;p2.rd=r2.rd;p2.sigma=r2.sigma;
+  p2.wins=(p2.wins||0)+(s2===1?1:0);p2.losses=(p2.losses||0)+(s2===0?1:0);p2.draws=(p2.draws||0)+(s2===.5?1:0);p2.games=(p2.games||0)+1;
+  if(!p2.history)p2.history=[];p2.history.push({date:game.date,rating:r2.rating,rd:r2.rd,gameId:game.id});
+  game.r1before=prev1.rating;game.r1after=r1.rating;game.r2before=prev2.rating;game.r2after=r2.rating;
+  save(STORE.players,players);save(STORE.games,games);
+}
+
+// ══ NAV ══
+let currentPage='leaderboard';
+function nav(page,btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.tnav').forEach(b=>b.classList.remove('act'));
+  document.querySelectorAll('.tab-item').forEach(b=>b.classList.remove('act'));
+  if(btn){btn.classList.add('act');}
+  const tb=document.querySelector(`.tab-item[data-tab="${page}"]`);
+  if(tb)tb.classList.add('act');
+  currentPage=page;
+  if(page==='leaderboard')renderLeaderboard();
+  if(page==='players')renderPlayers();
+  if(page==='games')renderGames();
+  if(page==='tournaments')renderTournaments();
+  if(page==='admin')loadCloudInputs();
+}
+
+function mobileGameBtn() {
+  if(isAdmin) openAddGame();
+  else nav('games', document.querySelector('.tab-item[data-tab="games"]'));
+}
+
+// ══ COLORS ══
+const AVC=[['rgba(232,200,74,.15)','#a07c10'],['rgba(80,152,232,.15)','#1c5c9e'],['rgba(63,214,138,.15)','#0d7045'],['rgba(232,80,106,.15)','#941028'],['rgba(160,100,200,.15)','#6020a0']];
+function getAVC(id){return AVC[id.charCodeAt(0)%AVC.length];}
+function initials(name){return name.split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2);}
+
+// ══ LEADERBOARD ══
+function renderLeaderboard() {
+  const q=(document.getElementById('lbSearch')||{value:''}).value.toLowerCase();
+  let sorted=[...players].sort((a,b)=>b.rating-a.rating);
+  const filtered=q?sorted.filter(p=>(p.name+(p.nick||'')).toLowerCase().includes(q)):sorted;
+  const tbody=document.getElementById('lbBody');
+  const empty=document.getElementById('lbEmpty');
+  tbody.innerHTML='';
+  if(!sorted.length){tbody.parentElement.style.display='none';empty.style.display='block';}
+  else{tbody.parentElement.style.display='';empty.style.display='none';}
+  filtered.forEach((p,i)=>{
+    const rank=sorted.indexOf(p)+1;
+    const dr=p.rating-(p.ratingBefore||p.rating);
+    const [ac,tc]=getAVC(p.id);
+    const rdPct=Math.max(5,100-(p.rd/350*100));
+    const tr=document.createElement('tr');
+    tr.className='lb-row';tr.style.animationDelay=`${i*.03}s`;
+    tr.onclick=()=>showProfile(p.id);
+    tr.innerHTML=`
+      <td><div class="rank-cell rank-${rank}">${rank}</div></td>
+      <td><div style="display:flex;align-items:center;gap:10px">
+        <div class="avatar" style="width:34px;height:34px;font-size:13px;background:${ac};color:${tc}">${initials(p.name)}</div>
+        <div>
+          <div class="player-name">${p.name}${p.nick?` <span style="color:var(--text2);font-size:11px;font-weight:400">(${p.nick})</span>`:''}</div>
+          <div class="player-meta">${p.games||0} เกม${p.division?' · '+p.division:''}</div>
+        </div>
+      </div></td>
+      <td class="r"><div class="rating-val">${p.rating}</div><div class="rd-val">±${p.rd}</div></td>
+      <td class="r hide-mobile"><div style="display:flex;align-items:center;justify-content:flex-end">
+        <span class="rd-val">${p.rd}</span><span class="rd-bar"><span class="rd-fill" style="width:${rdPct}%"></span></span>
+      </div></td>
+      <td class="r hide-mobile wl-cell"><span class="w">${p.wins||0}W</span> <span class="l">${p.losses||0}L</span>${p.draws?` <span style="color:var(--text2)">${p.draws}D</span>`:''}</td>
+      <td class="r">${dr===0?`<span class="trend-badge eq">—</span>`:dr>0?`<span class="trend-badge up">+${dr}</span>`:`<span class="trend-badge dn">${dr}</span>`}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  const gs=document.getElementById('globalStats');
+  const tot=players.length,totG=games.length;
+  const topR=sorted[0]?.rating||'—';
+  const avgR=tot?Math.round(players.reduce((s,p)=>s+p.rating,0)/tot):'—';
+  gs.innerHTML=`
+    <div class="stat-card"><div class="lbl">ผู้เล่น</div><div class="val">${tot}</div><div class="sub">คนทั้งหมด</div></div>
+    <div class="stat-card"><div class="lbl">เกม</div><div class="val">${totG}</div><div class="sub">ที่บันทึกแล้ว</div></div>
+    <div class="stat-card"><div class="lbl">Rating สูงสุด</div><div class="val" style="color:var(--gold)">${topR}</div><div class="sub">${sorted[0]?.name||''}</div></div>
+    <div class="stat-card"><div class="lbl">ค่าเฉลี่ย</div><div class="val">${avgR}</div><div class="sub">Rating กลุ่ม</div></div>
+  `;
+}
+
+// ══ PLAYERS ══
+function renderPlayers() {
+  const q=(document.getElementById('playerSearch')||{value:''}).value.toLowerCase();
+  const c=document.getElementById('playersList');
+  const filtered=q?players.filter(p=>(p.name+(p.nick||'')).toLowerCase().includes(q)):players;
+  if(!filtered.length){c.innerHTML=`<div class="empty"><div class="icon">👤</div><h3>ไม่พบผู้เล่น</h3><p>${isAdmin?'กด "+ เพิ่มผู้เล่น" เพื่อเริ่มต้น':'ยังไม่มีผู้เล่นในระบบ'}</p></div>`;return;}
+  c.innerHTML=filtered.map((p,i)=>{
+    const [ac,tc]=getAVC(p.id);
+    const dr=p.rating-(p.ratingBefore||p.rating);
+    return `<div class="tour-card" style="animation-delay:${i*.03}s" onclick="showProfile('${p.id}')">
+      <div class="avatar" style="background:${ac};color:${tc}">${initials(p.name)}</div>
+      <div style="flex:1;min-width:0">
+        <div class="tour-name">${p.name}${p.nick?` <span style="color:var(--text2);font-size:11px">(${p.nick})</span>`:''}</div>
+        <div class="tour-meta">Rating ${p.rating} · RD ${p.rd} · ${p.games||0} เกม${p.division?' · '+p.division:''}</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+        ${dr>0?`<span class="trend-badge up">+${dr}</span>`:dr<0?`<span class="trend-badge dn">${dr}</span>`:''}
+        ${isAdmin?`<button class="btn sm icon" onclick="event.stopPropagation();editPlayer('${p.id}')">✏️</button>
+        <button class="btn sm icon danger" onclick="event.stopPropagation();confirmDelete('player','${p.id}','${p.name}')">🗑</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══ GAMES ══
+function renderGames() {
+  renderPendingSection();
+  const q=(document.getElementById('gameSearch')||{value:''}).value.toLowerCase();
+  const c=document.getElementById('gamesList');
+  const empty=document.getElementById('gamesEmpty');
+  let gs=[...games].reverse();
+  if(q)gs=gs.filter(g=>{const p1=players.find(p=>p.id===g.p1id),p2=players.find(p=>p.id===g.p2id);return((p1?.name||'')+(p2?.name||'')).toLowerCase().includes(q);});
+  if(!gs.length){c.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  c.innerHTML=gs.map((g,i)=>{
+    const p1=players.find(p=>p.id===g.p1id)||{name:'?'};
+    const p2=players.find(p=>p.id===g.p2id)||{name:'?'};
+    const tour=tournaments.find(t=>t.id===g.tourid);
+    const o1=g.score1>g.score2?'W':g.score1<g.score2?'L':'D';
+    const dr1=g.r1after!==undefined?g.r1after-g.r1before:null;
+    const dr2=g.r2after!==undefined?g.r2after-g.r2before:null;
+    const hasImg = g.boardThumb || g.boardImage;
+    const imgHtml = hasImg ? `<img class="board-thumb" src="${g.boardThumb || g.boardImage}" onclick="openLightbox('${g.boardImage}')" alt="Board">` : '';
+    return `<div class="game-item" style="animation-delay:${i*.02}s" onclick="openMatchDetail('${g.id}')">
+      <div class="outcome-badge ${o1}">${o1}</div>
+      ${imgHtml}
+      <div class="game-vs">
+        <div style="flex:1;min-width:0">
+          <div class="game-player">${p1.name}</div>
+          <div class="game-meta">${dr1!==null?(dr1>=0?'+':'')+dr1+' pts':''}${tour?' · '+tour.name:''}</div>
+        </div>
+        <div class="game-score">
+          <span class="${o1==='W'?'sc-w':'sc-l'}">${g.score1}</span><span class="sep">:</span><span class="${o1==='L'?'sc-w':'sc-l'}">${g.score2}</span>
+        </div>
+        <div style="flex:1;text-align:right;min-width:0">
+          <div class="game-player">${p2.name}</div>
+          <div class="game-meta" style="text-align:right">${dr2!==null?(dr2>=0?'+':'')+dr2+' pts':''}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        <span style="font-size:10px;color:var(--text2);font-family:var(--font-mono)">${g.date||''}</span>
+        <button class="btn sm" style="font-size:10px;padding:3px 7px;opacity:.7" onclick="event.stopPropagation();openEditStats('${g.id}')">✏ Phony/BP</button>
+        ${isAdmin?`<button class="btn sm icon danger" onclick="event.stopPropagation();confirmDeleteGame('${g.id}')">🗑</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══ TOURNAMENTS ══
+function renderTournaments() {
+  const c=document.getElementById('tourList');
+  const empty=document.getElementById('tourEmpty');
+  if(!tournaments.length){c.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  c.innerHTML=tournaments.map((t,i)=>{
+    const cnt=games.filter(g=>g.tourid===t.id).length;
+    return `<div class="tour-card" style="animation-delay:${i*.04}s">
+      <div class="tour-icon">🏆</div>
+      <div style="flex:1">
+        <div class="tour-name">${t.name}</div>
+        <div class="tour-meta">${t.start||''}${t.end?' → '+t.end:''} ${t.venue?'· '+t.venue:''} · ${cnt} เกม</div>
+      </div>
+      ${isAdmin?`<button class="btn sm icon danger" onclick="event.stopPropagation();confirmDelete('tour','${t.id}','${t.name}')">🗑</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ══ PROFILE ══
+let profileChart=null;
+function showProfile(id) {
+  const p=players.find(x=>x.id===id);
+  if(!p)return;
+  const prevPage=currentPage;
+  nav('profile',null);
+  document.getElementById('profileBackBtn').onclick=()=>nav(prevPage,document.querySelector(`.tnav[onclick*="${prevPage}"]`)||document.querySelector('.tnav'));
+  const [ac,tc]=getAVC(p.id);
+  const pg=games.filter(g=>g.p1id===id||g.p2id===id).reverse();
+  const wr=(p.games||0)>0?Math.round((p.wins||0)/p.games*100):0;
+  const hd=p.history||[];
+  const c=document.getElementById('profileContent');
+  c.innerHTML=`
+    <div class="profile-header">
+      <div class="avatar" style="background:${ac};color:${tc}">${initials(p.name)}</div>
+      <div style="flex:1">
+        <div class="profile-name">${p.name}</div>
+        <div class="profile-sub">${p.nick||''}${p.division?' · '+p.division:''}</div>
+      </div>
+      ${isAdmin?`<button class="btn sm admin-only" onclick="editPlayer('${p.id}')">✏️ แก้ไข</button>`:''}
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="lbl">Rating</div><div class="val" style="color:var(--gold)">${p.rating}</div><div class="sub">±${p.rd} RD</div></div>
+      <div class="stat-card"><div class="lbl">Win Rate</div><div class="val">${wr}%</div><div class="sub">${p.wins||0}W ${p.losses||0}L ${p.draws||0}D</div></div>
+      <div class="stat-card"><div class="lbl">เกมทั้งหมด</div><div class="val">${p.games||0}</div><div class="sub">ที่บันทึกแล้ว</div></div>
+      <div class="stat-card"><div class="lbl">Volatility σ</div><div class="val" style="font-size:20px">${(p.sigma||0.06).toFixed(4)}</div><div class="sub">ความสม่ำเสมอ</div></div>
+    </div>
+    ${hd.length>1?`<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:14px">
+      <div style="font-size:10px;color:var(--text2);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Rating History</div>
+      <div class="chart-wrap"><canvas id="profileChart"></canvas></div>
+    </div>`:''}
+    <div style="font-size:10px;color:var(--text2);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">เกมล่าสุด</div>
+    ${pg.slice(0,10).map(g=>{
+      const isP1=g.p1id===id;
+      const opp=players.find(x=>x.id===(isP1?g.p2id:g.p1id))||{name:'?'};
+      const myS=isP1?g.score1:g.score2,oppS=isP1?g.score2:g.score1;
+      const outcome=myS>oppS?'W':myS<oppS?'L':'D';
+      const myR=isP1?g.r1after:g.r2after,myRb=isP1?g.r1before:g.r2before;
+      const dr=myR!==undefined?myR-myRb:null;
+      const hasImg = g.boardThumb || g.boardImage;
+      const imgHtml = hasImg ? `<img class="board-thumb" src="${g.boardThumb || g.boardImage}" onclick="openLightbox('${g.boardImage}')" alt="Board">` : '';
+      return `<div class="game-item">
+        <div class="outcome-badge ${outcome}">${outcome}</div>
+        ${imgHtml}
+        <div class="game-vs">
+          <div style="flex:1"><div class="game-player">vs ${opp.name}</div><div class="game-meta">${g.date||''}</div></div>
+          <div class="game-score"><span class="${outcome==='W'?'sc-w':'sc-l'}">${myS}</span><span class="sep">:</span><span class="${outcome==='L'?'sc-w':'sc-l'}">${oppS}</span></div>
+          ${dr!==null?`<span class="trend-badge ${dr>=0?'up':'dn'}">${dr>=0?'+':''}${dr}</span>`:''}
+        </div>
+      </div>`;
+    }).join('')}
+  `;
+  if(hd.length>1&&window.Chart){
+    if(profileChart)profileChart.destroy();
+    profileChart=new Chart(document.getElementById('profileChart'),{
+      type:'line',
+      data:{labels:hd.map(h=>h.date||''),datasets:[{data:hd.map(h=>h.rating),borderColor:'#e8c84a',borderWidth:2,pointRadius:3,pointBackgroundColor:'#e8c84a',fill:true,backgroundColor:'rgba(232,200,74,.06)',tension:.3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#4a5070',font:{size:10},maxTicksLimit:6},grid:{color:'#1e2130'}},y:{ticks:{color:'#4a5070',font:{size:10}},grid:{color:'#1e2130'}}}}
     });
-    // Init history display
-    calcRenderHistory();
-  </script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('SW registered:', reg.scope))
-          .catch(err => console.error('SW failed:', err));
-      });
+  }
+}
+
+// ══ USER SUBMIT GAME ══
+function openSubmitGame() {
+  if(!players.length){alert('ยังไม่มีผู้เล่นในระบบ');return;}
+  const opts=players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  document.getElementById('sgP1').innerHTML=opts;
+  document.getElementById('sgP2').innerHTML=opts;
+  if(players.length>1)document.getElementById('sgP2').selectedIndex=1;
+  document.getElementById('sgS1').value=0;
+  document.getElementById('sgS2').value=0;
+  document.getElementById('sgPh1').value='';
+  document.getElementById('sgBp1').value='';
+  document.getElementById('sgBp2').value='';
+  document.getElementById('sgDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('sgNote').value='';
+  document.getElementById('modalSubmitGame').style.display='flex';
+}
+
+async function submitUserGame() {
+  const p1id = document.getElementById('sgP1').value;
+  const p2id = document.getElementById('sgP2').value;
+  if (!p1id || !p2id || p1id === p2id) { alert('กรุณาเลือกผู้เล่นสองคนที่แตกต่างกัน'); return; }
+  
+  const submitBtn = document.querySelector('#modalSubmitGame .modal-actions .btn.primary');
+  const progressEl = document.getElementById('sgUploadProgress');
+  
+  let boardImage = '';
+  let boardThumb = '';
+  
+  if (uploadedFiles.sg) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'กำลังอัปโหลดรูป...';
+    progressEl.classList.add('show');
+    
+    try {
+      const imgData = await uploadToImgBB(uploadedFiles.sg);
+      boardImage = imgData.url;
+      boardThumb = imgData.thumb;
+    } catch (err) {
+      alert('อัปโหลดรูปล้มเหลว: ' + err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'ส่งเพื่อรอยืนยัน';
+      progressEl.classList.remove('show');
+      return;
     }
-  </script>
+  }
+  
+  const pg = {
+    id: 'pg' + Date.now(),
+    p1id, p2id,
+    score1: +document.getElementById('sgS1').value,
+    score2: +document.getElementById('sgS2').value,
+    phony: document.getElementById('sgPh1').value.trim(),
+    bigpoint1: document.getElementById('sgBp1').value.trim(),
+    bigpoint2: document.getElementById('sgBp2').value.trim(),
+    date: document.getElementById('sgDate').value,
+    note: document.getElementById('sgNote').value.trim(),
+    boardImage,
+    boardThumb,
+    submittedAt: new Date().toISOString()
+  };
+  
+  pendingGames.push(pg);
+  save(STORE.pending, pendingGames);
+  
+  // Clean up
+  removePreview('sg');
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'ส่งเพื่อรอยืนยัน';
+  progressEl.classList.remove('show');
+  
+  closeModal('modalSubmitGame');
+  renderPendingBanner();
+  renderGames();
+  alert('ส่งข้อมูลเรียบร้อย! รอ Admin ยืนยันเพื่ออัปเดต Rating');
+}
+
+// ══ PENDING BANNER & LIST ══
+function renderPendingBanner() {
+  const banner=document.getElementById('pendingBanner');
+  if(!banner)return;
+  const cnt=pendingGames.length;
+  if(cnt===0){banner.style.display='none';return;}
+  banner.style.display='block';
+  if(isAdmin){
+    banner.innerHTML=`<div class="pending-banner" onclick="openPendingModal()">
+      <span class="pending-dot"></span>
+      <span class="pb-text">มีเกมรอการอนุมัติ — กดเพื่อจัดการ</span>
+      <span class="pb-count">${cnt}</span>
+      <span style="font-size:18px">›</span>
+    </div>`;
+  } else {
+    banner.innerHTML=`<div class="pending-banner" style="cursor:default">
+      <span class="pending-dot"></span>
+      <span class="pb-text">มีเกมรอการยืนยันจาก Admin อยู่ ${cnt} รายการ</span>
+    </div>`;
+  }
+}
+
+function renderPendingSection() {
+  const sec=document.getElementById('pendingSection');
+  const list=document.getElementById('pendingList');
+  if(!sec||!list)return;
+  if(!pendingGames.length){sec.style.display='none';return;}
+  sec.style.display='block';
+  list.innerHTML=pendingGames.map((pg,i)=>{
+    const p1=players.find(p=>p.id===pg.p1id)||{name:'?'};
+    const p2=players.find(p=>p.id===pg.p2id)||{name:'?'};
+    const hasImg = pg.boardThumb || pg.boardImage;
+    const imgHtml = hasImg ? `<div style="margin-top:6px"><img class="board-thumb-sm" src="${pg.boardThumb || pg.boardImage}" onclick="openLightbox('${pg.boardImage}')" alt="Board"></div>` : '';
+    return `<div class="pending-item" style="animation-delay:${i*.04}s">
+      <div class="pi-players">${p1.name} <span style="color:var(--muted)">vs</span> ${p2.name}</div>
+      <div class="pi-meta">${pg.score1} : ${pg.score2} · ${pg.date||''}${pg.note?' · '+pg.note:''}</div>
+      ${imgHtml}
+      ${isAdmin?`<div class="pending-actions">
+        <button class="btn sm approve" onclick="approveGame('${pg.id}')">✓ อนุมัติ</button>
+        <button class="btn sm danger" onclick="rejectGame('${pg.id}')">✕ ปฏิเสธ</button>
+      </div>`:'<div style="margin-top:6px;font-size:11px;color:var(--gold);font-family:var(--font-mono)">⏳ รอ Admin ยืนยัน</div>'}
+    </div>`;
+  }).join('');
+}
+
+function openPendingModal() {
+  if(!isAdmin)return;
+  const list=document.getElementById('pendingModalList');
+  if(!pendingGames.length){list.innerHTML=`<div class="empty"><div class="icon">✅</div><h3>ไม่มีเกมรอการอนุมัติ</h3></div>`;
+  } else {
+    list.innerHTML=pendingGames.map((pg,i)=>{
+      const p1=players.find(p=>p.id===pg.p1id)||{name:'?'};
+      const p2=players.find(p=>p.id===pg.p2id)||{name:'?'};
+      const hasImg = pg.boardThumb || pg.boardImage;
+      const imgHtml = hasImg ? `<div style="margin-top:6px"><img class="board-thumb-sm" src="${pg.boardThumb || pg.boardImage}" onclick="openLightbox('${pg.boardImage}')" alt="Board"></div>` : '';
+      return `<div class="pending-item" style="animation-delay:${i*.04}s">
+        <div class="pi-players">${p1.name} <span style="color:var(--muted)">vs</span> ${p2.name}</div>
+        <div class="pi-meta">${pg.score1} : ${pg.score2} · ${pg.date||''}${pg.note?' · '+pg.note:''}</div>
+        ${imgHtml}
+        <div class="pending-actions">
+          <button class="btn sm approve" onclick="approveGame('${pg.id}');rerenderPendingModal()">✓ อนุมัติ + คำนวณ Rating</button>
+          <button class="btn sm danger" onclick="rejectGame('${pg.id}');rerenderPendingModal()">✕ ปฏิเสธ</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('modalPending').style.display='flex';
+}
+
+function rerenderPendingModal() {
+  setTimeout(()=>{
+    if(document.getElementById('modalPending').style.display!=='none') openPendingModal();
+  },50);
+}
+
+function approveGame(pgId) {
+  const pg=pendingGames.find(x=>x.id===pgId);
+  if(!pg)return;
+  const game={
+    id:'g'+Date.now(),
+    p1id:pg.p1id,
+    p2id:pg.p2id,
+    score1:pg.score1,
+    score2:pg.score2,
+    phony:pg.phony||0,
+    bigpoint1:pg.bigpoint1||0,
+    bigpoint2:pg.bigpoint2||0,
+    tourid:'',
+    date:pg.date,
+    note:pg.note,
+    boardImage:pg.boardImage||'',
+    boardThumb:pg.boardThumb||''
+  };
+  games.push(game);
+  save(STORE.games,games);
+  applyGameToRatings(game);
+  pendingGames=pendingGames.filter(x=>x.id!==pgId);
+  save(STORE.pending,pendingGames);
+  renderPendingBanner();
+  renderPendingSection();
+  renderLeaderboard();
+  renderGames();
+}
+
+function rejectGame(pgId) {
+  pendingGames=pendingGames.filter(x=>x.id!==pgId);
+  save(STORE.pending,pendingGames);
+  renderPendingBanner();
+  renderPendingSection();
+}
+
+// ══ ADMIN ACTIONS ══
+function exportData() {
+  const data={players,games,tournaments,exported:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`crossword_backup_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+}
+
+function importData(input) {
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.players||!data.games)throw new Error('ไฟล์ไม่ถูกต้อง');
+      if(!confirm(`นำเข้าข้อมูล: ${data.players.length} ผู้เล่น, ${data.games.length} เกม?\nข้อมูลปัจจุบันจะถูกแทนที่`))return;
+      players=data.players;games=data.games;tournaments=data.tournaments||[];
+      save(STORE.players,players);save(STORE.games,games);save(STORE.tournaments,tournaments);
+      renderAll();alert('นำเข้าข้อมูลสำเร็จ');
+    }catch(err){alert('ไฟล์ไม่ถูกต้อง: '+err.message);}
+    input.value='';
+  };
+  reader.readAsText(file);
+}
+
+function clearAllGames() {
+  showConfirm('ลบประวัติเกมทั้งหมด? Rating ของผู้เล่นจะไม่ถูกย้อนกลับ',()=>{
+    games=[];save(STORE.games,games);renderGames();renderLeaderboard();
+  });
+}
+
+function resetAllRatings() {
+  showConfirm('รีเซ็ต Rating ทุกคนเป็น 1500 / RD 350? ไม่สามารถย้อนกลับได้',()=>{
+    players.forEach(p=>{p.rating=1500;p.rd=350;p.sigma=0.06;p.wins=0;p.losses=0;p.draws=0;p.games=0;p.history=[];delete p.ratingBefore;});
+    save(STORE.players,players);renderLeaderboard();renderPlayers();
+  });
+}
+
+function clearAllData() {
+  showConfirm('ลบข้อมูลทั้งหมด? ผู้เล่น เกม และทัวร์นาเมนต์ทั้งหมดจะหายไป ไม่สามารถย้อนกลับได้',()=>{
+    players=[];games=[];tournaments=[];pendingGames=[];
+    save(STORE.players,players);save(STORE.games,games);save(STORE.tournaments,tournaments);save(STORE.pending,pendingGames);
+    renderAll();renderPlayers();renderGames();renderTournaments();
+  });
+}
+
+// ══ MODALS ══
+function openAddPlayer() {
+  if(!isAdmin)return;
+  document.getElementById('playerModalTitle').textContent='เพิ่มผู้เล่น';
+  ['pName','pNick','pDiv'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pRating').value=1500;document.getElementById('pRD').value=350;
+  document.getElementById('pEditId').value='';
+  document.getElementById('modalPlayer').style.display='flex';
+}
+function editPlayer(id) {
+  if(!isAdmin)return;
+  const p=players.find(x=>x.id===id);if(!p)return;
+  document.getElementById('playerModalTitle').textContent='แก้ไขผู้เล่น';
+  document.getElementById('pName').value=p.name;
+  document.getElementById('pNick').value=p.nick||'';
+  document.getElementById('pRating').value=p.rating;
+  document.getElementById('pRD').value=p.rd;
+  document.getElementById('pDiv').value=p.division||'';
+  document.getElementById('pEditId').value=id;
+  document.getElementById('modalPlayer').style.display='flex';
+}
+function savePlayer() {
+  if(!isAdmin)return;
+  const name=document.getElementById('pName').value.trim();
+  if(!name){alert('กรุณากรอกชื่อ');return;}
+  const eid=document.getElementById('pEditId').value;
+  if(eid){
+    const p=players.find(x=>x.id===eid);
+    if(p){p.name=name;p.nick=document.getElementById('pNick').value.trim();p.rating=+document.getElementById('pRating').value||1500;p.rd=+document.getElementById('pRD').value||350;p.division=document.getElementById('pDiv').value.trim();}
+  }else{
+    players.push({id:'p'+Date.now(),name,nick:document.getElementById('pNick').value.trim(),rating:+document.getElementById('pRating').value||1500,rd:+document.getElementById('pRD').value||350,sigma:0.06,division:document.getElementById('pDiv').value.trim(),wins:0,losses:0,draws:0,games:0,history:[]});
+  }
+  save(STORE.players,players);closeModal('modalPlayer');renderPlayers();renderLeaderboard();
+}
+
+function openAddGame() {
+  if(!isAdmin)return;
+  const s1=document.getElementById('gP1'),s2=document.getElementById('gP2');
+  const opts=players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  s1.innerHTML=opts;s2.innerHTML=opts;
+  if(players.length>1)s2.selectedIndex=1;
+  document.getElementById('gS1').value=0;document.getElementById('gS2').value=0;
+  document.getElementById('gDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('gNote').value='';
+  document.getElementById('modalGame').style.display='flex';
+}
+async function saveGame() {
+  if (!isAdmin) return;
+  const p1id = document.getElementById('gP1').value;
+  const p2id = document.getElementById('gP2').value;
+  if (!p1id || !p2id || p1id === p2id) { alert('เลือกผู้เล่นสองคนที่แตกต่างกัน'); return; }
+  
+  const submitBtn = document.querySelector('#modalGame .modal-actions .btn.primary');
+  const progressEl = document.getElementById('agUploadProgress');
+  
+  let boardImage = '';
+  let boardThumb = '';
+  
+  if (uploadedFiles.ag) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'กำลังอัปโหลดรูป...';
+    progressEl.classList.add('show');
+    
+    try {
+      const imgData = await uploadToImgBB(uploadedFiles.ag);
+      boardImage = imgData.url;
+      boardThumb = imgData.thumb;
+    } catch (err) {
+      alert('อัปโหลดรูปล้มเหลว: ' + err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'บันทึก + คำนวณ Rating';
+      progressEl.classList.remove('show');
+      return;
+    }
+  }
+  
+  const game = {
+    id: 'g' + Date.now(),
+    p1id, p2id,
+    score1: +document.getElementById('gS1').value,
+    score2: +document.getElementById('gS2').value,
+    phony: document.getElementById('gPh1').value.trim(),
+    bigpoint1: document.getElementById('gBp1').value.trim(),
+    bigpoint2: document.getElementById('gBp2').value.trim(),
+    tourid: '',
+    date: document.getElementById('gDate').value,
+    note: document.getElementById('gNote').value.trim(),
+    boardImage,
+    boardThumb
+  };
+  
+  games.push(game);
+  save(STORE.games, games);
+  applyGameToRatings(game);
+  
+  // Clean up
+  removePreview('ag');
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'บันทึก + คำนวณ Rating';
+  progressEl.classList.remove('show');
+  
+  closeModal('modalGame');
+  renderLeaderboard();
+  renderGames();
+}
+
+function openAddTournament() {
+  if(!isAdmin)return;
+  ['tName','tVenue'].forEach(id=>document.getElementById(id).value='');
+  ['tStart','tEnd'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('modalTour').style.display='flex';
+}
+function saveTournament() {
+  if(!isAdmin)return;
+  const name=document.getElementById('tName').value.trim();
+  if(!name){alert('กรุณากรอกชื่อทัวร์นาเมนต์');return;}
+  tournaments.push({id:'t'+Date.now(),name,start:document.getElementById('tStart').value,end:document.getElementById('tEnd').value,venue:document.getElementById('tVenue').value.trim()});
+  save(STORE.tournaments,tournaments);closeModal('modalTour');renderTournaments();
+}
+
+function closeModal(id){document.getElementById(id).style.display='none';}
+
+function showConfirm(msg,cb){
+  document.getElementById('confirmMsg').textContent=msg;
+  document.getElementById('confirmBtn').onclick=()=>{cb();closeModal('modalConfirm');};
+  document.getElementById('modalConfirm').style.display='flex';
+}
+function confirmDelete(type,id,name){
+  showConfirm(`ต้องการลบ "${name}" ออกจากระบบ? การดำเนินการนี้ไม่สามารถย้อนกลับได้`,()=>{
+    if(type==='player'){players=players.filter(p=>p.id!==id);save(STORE.players,players);renderPlayers();renderLeaderboard();}
+    else if(type==='tour'){tournaments=tournaments.filter(t=>t.id!==id);save(STORE.tournaments,tournaments);renderTournaments();}
+  });
+}
+function confirmDeleteGame(id){
+  showConfirm('ต้องการลบเกมนี้? Rating จะไม่ถูกย้อนกลับอัตโนมัติ',()=>{
+    games=games.filter(g=>g.id!==id);save(STORE.games,games);renderGames();renderLeaderboard();
+  });
+}
+
+// ══ INIT ══
+const DEFAULT_GIST_ID = 'f0d77dc82c462869e487a304418c01fd'; // แอดมินสามารถใส่ Gist ID เริ่มต้นตรงนี้
+
+// ── URL param override ──
+const urlParams = new URLSearchParams(window.location.search);
+const queryGistId = urlParams.get('gist') || urlParams.get('gistId');
+if (queryGistId) localStorage.setItem(STORE.gistId, queryGistId);
+if (!localStorage.getItem(STORE.gistId) && DEFAULT_GIST_ID) localStorage.setItem(STORE.gistId, DEFAULT_GIST_ID);
+
+// Reset old default password
+if (localStorage.getItem(STORE.pwd) === 'admin1234') localStorage.removeItem(STORE.pwd);
+
+// ══ REALTIME SYNC ENGINE ══
+const POLL_INTERVAL = 30000; // poll ทุก 30 วิ
+let pollTimer = null;
+let lastGistUpdatedAt = null; // ISO string จาก meta.json
+let isSyncing = false;
+
+function setSyncPill(state, label) {
+  const pill = document.getElementById('syncPill');
+  const lbl  = document.getElementById('syncLabel');
+  if (!pill) return;
+  pill.className = 'sync-pill ' + state;
+  if (lbl) lbl.textContent = label;
+}
+
+// โหลดข้อมูลจาก Gist แล้ว update ถ้ามีการเปลี่ยนแปลง
+async function pollGist(isInitial = false) {
+  const gistId = localStorage.getItem(STORE.gistId);
+  if (!gistId) {
+    setSyncPill('offline', 'ออฟไลน์');
+    if (isInitial) { renderLeaderboard(); renderPendingBanner(); if(currentPage==='admin')loadCloudInputs(); }
+    return;
+  }
+  if (isSyncing) return;
+  isSyncing = true;
+  setSyncPill('syncing', 'กำลังโหลด...');
+
+  try {
+    const gistData = await fetchGist(gistId);
+
+    // ── ตรวจสอบ meta ก่อน เพื่อดูว่ามีการเปลี่ยนแปลงหรือยัง ──
+    let newUpdatedAt = null;
+    if (gistData.files['meta.json']?.content) {
+      const meta = JSON.parse(gistData.files['meta.json'].content);
+      newUpdatedAt = meta.lastUpdated || null;
+      if (meta.secToken) gistWriteToken = deobfuscateToken(meta.secToken);
+      if (meta.imgbbKey && !localStorage.getItem(STORE.imgbbKey)) {
+        localStorage.setItem(STORE.imgbbKey, meta.imgbbKey);
+      }
+    }
+
+    // ถ้าไม่ใช่ครั้งแรก และ timestamp ไม่เปลี่ยน → ข้ามการ render
+    const hasChanged = isInitial || (newUpdatedAt !== lastGistUpdatedAt);
+    lastGistUpdatedAt = newUpdatedAt;
+
+    if (hasChanged) {
+      let updated = false;
+      if (gistData.files['players.json']?.content) {
+        players = JSON.parse(gistData.files['players.json'].content);
+        localStorage.setItem(STORE.players, JSON.stringify(players));
+        updated = true;
+      }
+      if (gistData.files['games.json']?.content) {
+        games = JSON.parse(gistData.files['games.json'].content);
+        localStorage.setItem(STORE.games, JSON.stringify(games));
+        updated = true;
+      }
+      if (gistData.files['tournaments.json']?.content) {
+        tournaments = JSON.parse(gistData.files['tournaments.json'].content);
+        localStorage.setItem(STORE.tournaments, JSON.stringify(tournaments));
+        updated = true;
+      }
+      if (gistData.files['pending.json']?.content) {
+        pendingGames = JSON.parse(gistData.files['pending.json'].content);
+        localStorage.setItem(STORE.pending, JSON.stringify(pendingGames));
+        updated = true;
+      }
+
+      if (updated || isInitial) {
+        renderAll();
+        if (currentPage === 'players') renderPlayers();
+        if (currentPage === 'games') renderGames();
+        if (currentPage === 'tournaments') renderTournaments();
+        if (currentPage === 'admin') loadCloudInputs();
+      }
+
+      if (!isInitial && hasChanged) {
+        // flash สั้นๆ แจ้งว่ามีข้อมูลใหม่
+        setSyncPill('syncing', '✦ อัปเดตแล้ว');
+        setTimeout(() => setIdlePill(), 1500);
+      } else {
+        setIdlePill();
+      }
+    } else {
+      setIdlePill();
+    }
+
+    // อัปเดต admin cloud status ด้วยถ้าอยู่หน้า admin
+    checkCloudConnection();
+
+  } catch (err) {
+    console.error('Poll Gist failed:', err);
+    setSyncPill('err', 'โหลดล้มเหลว');
+  } finally {
+    isSyncing = false;
+  }
+}
+
+function setIdlePill() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+  setSyncPill('idle', `LIVE · ${hh}:${mm}:${ss}`);
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => pollGist(false), POLL_INTERVAL);
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+// กด sync indicator เพื่อ refresh ทันที
+function manualRefresh() {
+  const pill = document.getElementById('syncPill');
+  if (pill) {
+    pill.classList.add('refreshing');
+    setTimeout(() => pill.classList.remove('refreshing'), 900);
+  }
+  pollGist(false);
+}
+
+// ── visibility API: หยุด poll เมื่อ tab ซ่อน, เริ่มใหม่เมื่อกลับมา ──
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopPolling();
+  } else {
+    pollGist(false); // โหลดทันทีเมื่อกลับมา
+    startPolling();
+  }
+});
+
+// ── MOBILE DRAWER ──
+function openDrawer() {
+  document.getElementById('drawerOverlay').classList.add('open');
+  document.getElementById('mobileDrawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.getElementById('mobileDrawer').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function navDrawer(page) {
+  closeDrawer();
+  const pages = ['leaderboard','players','games','tournaments','admin'];
+  pages.forEach(p => {
+    const el = document.getElementById('drawerNav-' + p);
+    if (el) el.classList.toggle('act', p === page);
+  });
+  // also update topbar nav buttons
+  document.querySelectorAll('.tnav').forEach(b => {
+    const match = b.getAttribute('onclick') && b.getAttribute('onclick').includes("'"+page+"'");
+    b.classList.toggle('act', match);
+  });
+  nav(page, null);
+}
+function openDrawerLogin() {
+  closeDrawer();
+  // เปิด mobile login modal แทน dropdown ที่ติด topbar
+  setTimeout(() => {
+    document.getElementById('mobileLoginModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('mlPwd').focus(), 80);
+  }, 250);
+}
+// sync admin state with drawer
+function updateDrawerAdminState(isAdmin) {
+  const adminNavBtn = document.getElementById('drawerNav-admin');
+  const loginBtn = document.getElementById('drawerLoginBtn');
+  const logoutBtn = document.getElementById('drawerLogoutBtn');
+  if (adminNavBtn) adminNavBtn.style.display = isAdmin ? 'flex' : 'none';
+  if (loginBtn) loginBtn.style.display = isAdmin ? 'none' : 'flex';
+  if (logoutBtn) logoutBtn.style.display = isAdmin ? 'flex' : 'none';
+}
+
+function closeMobileLogin() {
+  document.getElementById('mobileLoginModal').style.display = 'none';
+  document.getElementById('mlPwd').value = '';
+  document.getElementById('mlError').style.display = 'none';
+}
+function doMobileLogin() {
+  const v = document.getElementById('mlPwd').value;
+  const remember = document.getElementById('mlRemember').checked;
+  const err = document.getElementById('mlError');
+  if (v === getAdminPwd()) {
+    closeMobileLogin();
+    setAdminLoggedIn(remember);
+  } else {
+    err.style.display = 'block';
+    document.getElementById('mlPwd').value = '';
+    setTimeout(() => err.style.display = 'none', 3000);
+  }
+}
+
+// ══ MATCH DETAIL ══
+function openMatchDetail(gameId) {
+  const g = games.find(x => x.id === gameId);
+  if (!g) return;
+  const p1 = players.find(p => p.id === g.p1id) || {name:'?'};
+  const p2 = players.find(p => p.id === g.p2id) || {name:'?'};
+  const tour = g.tourid ? tournaments.find(t => t.id === g.tourid) : null;
+  const o1 = g.score1 > g.score2 ? 'W' : g.score1 < g.score2 ? 'L' : 'D';
+  const o2 = o1==='W'?'L':o1==='L'?'W':'D';
+  const dr1 = g.r1after!==undefined ? g.r1after - g.r1before : null;
+  const dr2 = g.r2after!==undefined ? g.r2after - g.r2before : null;
+
+  const ratingHtml = (dr, after) => {
+    if (dr === null) return '<span style="color:var(--text2)">—</span>';
+    const cls = dr > 0 ? 'pos' : dr < 0 ? 'neg' : 'neu';
+    const sign = dr >= 0 ? '+' : '';
+    return `<span class="md-rating-change ${cls}">${sign}${dr} (→ ${Math.round(after)})</span>`;
+  };
+
+  const imgHtml = g.boardImage ? `<img class="md-board" src="${g.boardImage}" onclick="openLightbox('${g.boardImage}')" alt="Board">` : '';
+
+  const statsHtml = `
+    ${(g.phony) ? `<div class="md-stat full"><div class="md-stat-label">Phony</div><div class="md-stat-val">${g.phony}</div></div>` : ''}
+    ${(g.bigpoint1) ? `<div class="md-stat"><div class="md-stat-label">Big Point · ${p1.name.split(' ')[0]}</div><div class="md-stat-val">${g.bigpoint1}</div></div>` : ''}
+    ${(g.bigpoint2) ? `<div class="md-stat${!g.bigpoint1?' full':''}"><div class="md-stat-label">Big Point · ${p2.name.split(' ')[0]}</div><div class="md-stat-val">${g.bigpoint2}</div></div>` : ''}
+    ${(g.note) ? `<div class="md-stat full"><div class="md-stat-label">หมายเหตุ</div><div class="md-stat-val">${g.note}</div></div>` : ''}
+    ${(tour) ? `<div class="md-stat full"><div class="md-stat-label">ทัวร์นาเมนต์</div><div class="md-stat-val">${tour.name}</div></div>` : ''}
+  `;
+
+  document.getElementById('matchDetailContent').innerHTML = `
+    <div class="modal-title" style="font-size:16px;margin-bottom:6px">รายละเอียดแมตช์</div>
+    <div style="font-size:10px;color:var(--text2);font-family:var(--font-mono);margin-bottom:18px">${g.date||'ไม่ระบุวันที่'}</div>
+    <div class="md-vs">
+      <div class="md-player">
+        <div class="md-player-name">${p1.name}</div>
+        <div class="md-player-sub">${ratingHtml(dr1, g.r1after)}</div>
+      </div>
+      <div class="md-score-box">
+        <div class="md-score">
+          <span style="color:${o1==='W'?'var(--green)':o1==='L'?'var(--red)':'var(--text2)'}">${g.score1}</span>
+          <span class="md-sep">:</span>
+          <span style="color:${o2==='W'?'var(--green)':o2==='L'?'var(--red)':'var(--text2)'}">${g.score2}</span>
+        </div>
+        <div class="md-outcome">${o1==='W'?'ชนะ':o1==='L'?'แพ้':'เสมอ'}</div>
+      </div>
+      <div class="md-player" style="text-align:right">
+        <div class="md-player-name" style="text-align:right">${p2.name}</div>
+        <div class="md-player-sub" style="text-align:right">${ratingHtml(dr2, g.r2after)}</div>
+      </div>
+    </div>
+    ${imgHtml}
+    <div class="md-stats">${statsHtml}</div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalMatchDetail')">ปิด</button>
+      <button class="btn" style="opacity:.7;font-size:12px" onclick="closeModal('modalMatchDetail');openEditStats('${g.id}')">✏ แก้ไข Phony/BP</button>
+      ${isAdmin?`<button class="btn danger" style="font-size:12px" onclick="closeModal('modalMatchDetail');confirmDeleteGame('${g.id}')">🗑 ลบ</button>`:''}
+    </div>
+  `;
+  document.getElementById('modalMatchDetail').style.display = 'flex';
+}
+
+// ══ EDIT PHONY / BIG POINT (ทุกคนใช้ได้ บันทึกทันที) ══
+function openEditStats(gameId) {
+  const g = games.find(x => x.id === gameId);
+  if (!g) return;
+  const p1 = players.find(p => p.id === g.p1id);
+  const p2 = players.find(p => p.id === g.p2id);
+  document.getElementById('esGameId').value = gameId;
+  document.getElementById('esPhony').value = g.phony || '';
+  document.getElementById('esBp1').value = g.bigpoint1 || '';
+  document.getElementById('esBp2').value = g.bigpoint2 || '';
+  document.getElementById('editStatsInfo').innerHTML =
+    `<b>${p1?p1.name:'?'}</b> ${g.score1} : ${g.score2} <b>${p2?p2.name:'?'}</b><br>${g.date||''}${g.note?' · '+g.note:''}`;
+  document.getElementById('modalEditStats').style.display = 'flex';
+}
+function saveEditStats() {
+  const id = document.getElementById('esGameId').value;
+  const g = games.find(x => x.id === id);
+  if (!g) return;
+  g.phony = document.getElementById('esPhony').value.trim();
+  g.bigpoint1 = document.getElementById('esBp1').value.trim();
+  g.bigpoint2 = document.getElementById('esBp2').value.trim();
+  save(STORE.games, games);
+  closeModal('modalEditStats');
+  renderGames();
+}
+
+// ── เริ่ม ──
+// auto-login ถ้า remember me
+if (localStorage.getItem(STORE.rememberAdmin) === '1') {
+  setAdminLoggedIn(true);
+}
+// render จาก localStorage ก่อน (เร็ว) แล้ว Gist จะ override ทันที
+renderLeaderboard();
+renderPendingBanner();
+if (currentPage === 'admin') loadCloudInputs();
+
+// โหลด Gist ครั้งแรก แล้วเริ่ม polling
+pollGist(true).then(() => startPolling());
+</script>
+<!-- ══ MOBILE LOGIN MODAL ══ -->
+<div class="modal-overlay" id="mobileLoginModal" style="display:none" onclick="if(event.target===this)closeMobileLogin()">
+  <div class="modal" style="max-width:320px">
+    <div class="dropdown-tiles" style="margin-bottom:12px">
+      <div class="dtile">A</div><div class="dtile">D</div><div class="dtile">M</div><div class="dtile">I</div><div class="dtile">N</div>
+    </div>
+    <div class="modal-title" style="color:var(--admin-accent);font-size:18px;margin-bottom:4px">Admin Login</div>
+    <div style="font-size:10px;color:var(--text2);font-family:var(--font-mono);margin-bottom:16px">CROSSWORD CLUB · LEADERBOARD</div>
+    <div class="dd-error" id="mlError">รหัสผ่านไม่ถูกต้อง</div>
+    <div class="form-row">
+      <label>รหัสผ่าน Admin</label>
+      <input type="password" id="mlPwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')doMobileLogin()">
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <input type="checkbox" id="mlRemember" style="width:14px;height:14px;accent-color:var(--admin-accent);cursor:pointer">
+      <label for="mlRemember" style="font-size:11px;color:var(--text2);cursor:pointer;user-select:none">จดจำการเข้าสู่ระบบ</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeMobileLogin()">ยกเลิก</button>
+      <button class="btn" style="background:var(--admin-accent);color:#fff;border-color:var(--admin-accent)" onclick="doMobileLogin()">เข้าสู่ระบบ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MATCH DETAIL MODAL ══ -->
+<div class="modal-overlay" id="modalMatchDetail" style="display:none" onclick="if(event.target===this)closeModal('modalMatchDetail')">
+  <div class="modal" style="max-width:420px" id="matchDetailContent"></div>
+</div>
+
+<!-- ══ EDIT PHONY / BIG POINT MODAL ══ -->
+<div class="modal-overlay" id="modalEditStats" style="display:none" onclick="if(event.target===this)closeModal('modalEditStats')">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-title" style="font-size:16px">✏ แก้ไข Phony / Big Point</div>
+    <div id="editStatsInfo" style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6"></div>
+    <div class="form-row"><label>Phony (รวม)</label><input type="text" id="esPhony" placeholder="เช่น DET, DAT"></div>
+    <div class="form-grid">
+      <div class="form-row"><label>Big Point ผู้เล่น 1</label><input type="text" id="esBp1" placeholder="เช่น OXAZINE"></div>
+      <div class="form-row"><label>Big Point ผู้เล่น 2</label><input type="text" id="esBp2" placeholder="เช่น MUZJIKS"></div>
+    </div>
+    <input type="hidden" id="esGameId">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalEditStats')">ยกเลิก</button>
+      <button class="btn primary" onclick="saveEditStats()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

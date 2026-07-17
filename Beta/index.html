@@ -94,7 +94,7 @@
     .calc-op  { color:var(--orange); border-color:rgba(255,149,0,.35); }
     .calc-eq  { background:var(--accent); color:#000; border:none; }
   </style>
-  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
 
@@ -138,7 +138,7 @@
       <label class="field-label" for="sInp">Rack or pattern</label>
       <div class="search-box">
         <input class="mono" id="sInp" type="text" autocomplete="off" aria-describedby="searchHint" placeholder="Enter letters (use . for blanks)…" onkeydown="if(event.key==='Enter')search()">
-        <button type="button" class="search-btn" aria-label="Search words" title="Search words" onclick="search()">→</button>
+        <button type="button" class="search-btn" id="sBtn" aria-label="Search words" title="Search words" onclick="search()">→</button>
       </div>
       <p class="field-hint" id="searchHint">Use a full stop for a blank tile. Pattern mode also accepts * for any number of letters.</p>
       <button type="button" class="btn filter-toggle" aria-expanded="false" aria-controls="sDrw" onclick="toggleSearchFilters(this)">
@@ -160,7 +160,7 @@
         </div>
         <div class="f-stack" id="sStack"></div>
       </div>
-      <div id="sRes" aria-live="polite"></div>
+      <div id="sRes"></div>
     </section>
 
     <!-- ── QUIZ ──────────────────────────────────────────────────── -->
@@ -397,8 +397,8 @@
   <div class="toast" id="tst" role="status" aria-live="polite" aria-atomic="true"></div>
   <input type="file" id="fInp" style="display:none" accept=".zzq,.txt,text/plain,application/xml,text/xml,*/*" onchange="loadZzq(event)">
 
-  <script src="core.js?v=6"></script>
-  <script src="search.js?v=4"></script>
+  <script src="core.js?v=7"></script>
+  <script src="search.js?v=7"></script>
   <script src="zyzzylu_cpp_engine.js"></script>
   <script src="quiz_bridge.js?v=4"></script>
   <script src="judge.js?v=4"></script>

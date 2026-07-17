@@ -1,6 +1,6 @@
-const CACHE_NAME = 'zyzzylu-v9';
+const CACHE_NAME = 'zyzzylu-v12';
 const ASSETS = [
-  './', './index.html', './styles.css?v=6', './core.js?v=6', './search.js?v=4',
+  './', './index.html', './styles.css?v=8', './core.js?v=7', './search.js?v=7',
   './quiz_bridge.js?v=4', './judge.js?v=4', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png',
   './zyzzylu_cpp_engine.js', './zyzzylu_cpp_engine.wasm', './CSW24.txt'

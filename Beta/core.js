@@ -1,6 +1,7 @@
 // --- GLOBAL STATES ---
 const DICTIONARY_URL = './CSW24.txt';
 let dict = [], dictSet = new Set(), wordsByL = {}, wordMetadata = new Map();
+let lexiconMetadataCache = new Map(), anagramCache = new Map(), wordExtensionCache = new Map();
 let saved = JSON.parse(localStorage.getItem('zyz_sv') || '[]');
 let sFilters = [], qFilters = [], fId = 0;
 let currentResultsList = [], currentWordIndex = -1;
@@ -72,22 +73,27 @@ function getFullHookWords(w) {
 
 // Multi-letter extensions: words = (2-5 letters) + W  or  W + (2-5 letters)
 function getWordExtensions(w) {
+  if (wordExtensionCache.has(w)) return wordExtensionCache.get(w);
+
   const prefix = [], suffix = [];
-  for (const x of dict) {
-    if (x === w) continue;
-    const d = x.length - w.length;
-    if (d < 2 || d > 5) continue;
-    if (x.endsWith(w))   prefix.push(x);
-    if (x.startsWith(w)) suffix.push(x);
+  for (let length = w.length + 2; length <= w.length + 5; length++) {
+    for (const x of wordsByL[length] || []) {
+      if (x.endsWith(w))   prefix.push(x);
+      if (x.startsWith(w)) suffix.push(x);
+    }
   }
   const byLen = (a, b) => a.length !== b.length ? a.length - b.length : (a < b ? -1 : 1);
-  return {
+  const result = {
     prefix: prefix.sort(byLen).slice(0, 20),
     suffix: suffix.sort(byLen).slice(0, 20)
   };
+  wordExtensionCache.set(w, result);
+  return result;
 }
 
 function getLexiconMetadata(w) {
+  if (lexiconMetadataCache.has(w)) return lexiconMetadataCache.get(w);
+
   const raw = wordMetadata.get(w) || '';
   if (!raw) return { definition:'', pos:'' };
 
@@ -100,12 +106,20 @@ function getLexiconMetadata(w) {
     .replace(/\s{2,}/g, ' ')
     .trim();
 
-  return { definition, pos:partsOfSpeech.join(' · ') };
+  const result = { definition, pos:partsOfSpeech.join(' · ') };
+  lexiconMetadataCache.set(w, result);
+  return result;
 }
 
 function getWordMetadata(w) {
-  let ana = dict.filter(x=>x.length===w.length&&x!==w&&[...x].sort().join('')===[...w].sort().join(''));
-  let inf = ['S','ES','ED','ING'].filter(s=>dictSet.has(w+s)).map(s=>w+s);
+  const signature = [...w].sort().join('');
+  if (!anagramCache.has(signature)) {
+    anagramCache.set(signature, (wordsByL[w.length] || []).filter(
+      candidate => [...candidate].sort().join('') === signature
+    ));
+  }
+  const ana = anagramCache.get(signature).filter(candidate => candidate !== w);
+  const inf = ['S','ES','ED','ING'].filter(s=>dictSet.has(w+s)).map(s=>w+s);
   const lexicon = getLexiconMetadata(w);
   let p="n.";
   if(w.endsWith('ED')||w.endsWith('ING'))p="v.";
@@ -139,6 +153,9 @@ async function processDictText(text) {
 
   dict = nextDict;
   wordMetadata = nextMetadata;
+  lexiconMetadataCache = new Map();
+  anagramCache = new Map();
+  wordExtensionCache = new Map();
   dictSet = new Set(dict);
   wordsByL = {};
   dict.forEach(w => { (wordsByL[w.length]=wordsByL[w.length]||[]).push(w); });

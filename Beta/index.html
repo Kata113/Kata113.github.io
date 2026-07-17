@@ -6,11 +6,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Zyzzylu">
-  <meta name="theme-color" content="#30D158">
+  <meta name="theme-color" content="#0F1714">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <title>Zyzzylu</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #000000; --surface: #1C1C1E; --surface2: #2C2C2E;
@@ -95,43 +94,60 @@
     .calc-op  { color:var(--orange); border-color:rgba(255,149,0,.35); }
     .calc-eq  { background:var(--accent); color:#000; border:none; }
   </style>
+  <link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body>
 
-  <div id="loadingScreen">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+
+  <div id="loadingScreen" role="status" aria-live="polite">
     <div class="spinner"></div>
     <!-- id="loadingStatus" is used by core.js to show download progress -->
-    <div class="mono" id="loadingStatus" style="font-size:13px; color:var(--text2)">LOADING Zyzzylu CORE...</div>
+    <div class="mono" id="loadingStatus">Preparing the dictionary…</div>
   </div>
 
-  <header>
-    <div class="mono" id="wCnt" style="font-size:12px; color:var(--text2)">0 Words</div>
+  <header class="dictionary-status" aria-live="polite">
+    <span class="status-dot" aria-hidden="true"></span>
+    <span class="status-copy">
+      <span class="status-label">Dictionary</span>
+      <span class="mono" id="wCnt">0 words</span>
+    </span>
   </header>
 
-  <nav class="bottom-nav">
-    <button class="nav-item active" id="nb-0" onclick="tab(0, this)"><span style="font-size:18px;">🔍</span><span>Search</span></button>
-    <button class="nav-item" id="nb-1" onclick="tab(1, this)"><span style="font-size:18px;">🧠</span><span>Quiz</span></button>
-    <button class="nav-item" id="nb-2" onclick="tab(2, this)"><span style="font-size:18px;">⚖️</span><span>Judge</span></button>
-    <button class="nav-item" id="nb-3" onclick="tab(3, this)"><span style="font-size:18px;">📚</span><span>Saved</span></button>
-    <button class="nav-item" id="nb-4" onclick="tab(4, this)"><span style="font-size:18px;">🧮</span><span>Calc</span></button>
+  <nav class="bottom-nav" aria-label="Primary">
+    <button type="button" class="nav-item active" id="nb-0" aria-controls="t0" aria-current="page" onclick="tab(0, this)"><span class="nav-glyph" aria-hidden="true">Aa</span><span>Search</span></button>
+    <button type="button" class="nav-item" id="nb-1" aria-controls="t1" aria-current="false" onclick="tab(1, this)"><span class="nav-glyph" aria-hidden="true">?</span><span>Quiz</span></button>
+    <button type="button" class="nav-item" id="nb-2" aria-controls="t2" aria-current="false" onclick="tab(2, this)"><span class="nav-glyph" aria-hidden="true">✓</span><span>Judge</span></button>
+    <button type="button" class="nav-item" id="nb-3" aria-controls="t3" aria-current="false" onclick="tab(3, this)"><span class="nav-glyph" aria-hidden="true">☆</span><span>Saved</span></button>
+    <button type="button" class="nav-item" id="nb-4" aria-controls="t4" aria-current="false" onclick="tab(4, this)"><span class="nav-glyph" aria-hidden="true">±</span><span>Calc</span></button>
   </nav>
 
-  <main>
+  <main id="mainContent" tabindex="-1">
     <!-- ── SEARCH ─────────────────────────────────────────────────── -->
-    <div class="section active" id="t0">
-      <div class="capsule-wrapper mono">
-        <button class="capsule-btn active" id="sm-subanagram" onclick="setSearchMode('subanagram')">Subanagram</button>
-        <button class="capsule-btn" id="sm-anagram" onclick="setSearchMode('anagram')">Anagram</button>
-        <button class="capsule-btn" id="sm-pattern" onclick="setSearchMode('pattern')">Pattern</button>
+    <section class="section active" id="t0" aria-labelledby="searchTitle" aria-hidden="false">
+      <div class="section-heading">
+        <p class="eyebrow">Word search</p>
+        <h1 id="searchTitle">Find your next word.</h1>
+        <p>Start with the letters you have. Refine the results only when you need to.</p>
       </div>
+      <div class="capsule-wrapper mono" role="group" aria-label="Search mode">
+        <button type="button" class="capsule-btn active" id="sm-subanagram" aria-pressed="true" onclick="setSearchMode('subanagram')">Subanagram</button>
+        <button type="button" class="capsule-btn" id="sm-anagram" aria-pressed="false" onclick="setSearchMode('anagram')">Anagram</button>
+        <button type="button" class="capsule-btn" id="sm-pattern" aria-pressed="false" onclick="setSearchMode('pattern')">Pattern</button>
+      </div>
+      <label class="field-label" for="sInp">Rack or pattern</label>
       <div class="search-box">
-        <input class="mono" id="sInp" type="text" placeholder="Enter rack (use . for blank tiles)..." onkeydown="if(event.key==='Enter')search()">
-        <button class="search-btn" onclick="search()">→</button>
+        <input class="mono" id="sInp" type="text" autocomplete="off" aria-describedby="searchHint" placeholder="Enter letters (use . for blanks)…" onkeydown="if(event.key==='Enter')search()">
+        <button type="button" class="search-btn" aria-label="Search words" title="Search words" onclick="search()">→</button>
       </div>
-      <button class="btn mono" style="width:100%; padding:8px; margin-bottom:14px;" onclick="document.getElementById('sDrw').classList.toggle('open')">⚙️ ADVANCED FILTERS</button>
-      <div class="drawer" id="sDrw">
+      <p class="field-hint" id="searchHint">Use a full stop for a blank tile. Pattern mode also accepts * for any number of letters.</p>
+      <button type="button" class="btn filter-toggle" aria-expanded="false" aria-controls="sDrw" onclick="toggleSearchFilters(this)">
+        <span>Advanced filters</span><span class="toggle-mark" aria-hidden="true">+</span>
+      </button>
+      <div class="drawer" id="sDrw" aria-hidden="true">
         <div class="f-row">
-          <select class="input-field" id="sFType" style="padding:6px; flex:1; background:var(--bg);">
+          <label class="sr-only" for="sFType">Filter type</label>
+          <select class="input-field" id="sFType">
             <option value="length">Length Range</option>
             <option value="point_value">Point Value Range</option>
             <option value="num_vowels">Number of Vowels</option>
@@ -140,23 +156,32 @@
             <option value="probability_order">Probability Order</option>
             <option value="limit_probability_order">Limit by Probability Order</option>
           </select>
-          <button class="btn btn-p" onclick="addFilter('S')" style="padding:6px 12px;">+ Add</button>
+          <button type="button" class="btn btn-p" onclick="addFilter('S')">Add filter</button>
         </div>
         <div class="f-stack" id="sStack"></div>
       </div>
-      <div id="sRes"></div>
-    </div>
+      <div id="sRes" aria-live="polite"></div>
+    </section>
 
     <!-- ── QUIZ ──────────────────────────────────────────────────── -->
-    <div class="section" id="t1">
+    <section class="section" id="t1" aria-labelledby="quizTitle" aria-hidden="true">
+      <div class="section-heading">
+        <p class="eyebrow">Practice</p>
+        <h1 id="quizTitle">Study at your pace.</h1>
+        <p>Choose a format that feels useful. The timer can stay off.</p>
+      </div>
       <div class="card" id="qBox">
         <div id="qSettingsPane">
-          <div style="display:flex; justify-content:space-between; margin-bottom:14px; align-items:center;">
-            <span style="font-weight:700; font-size:16px;">Quiz Parameters</span>
-            <button class="btn mono" style="padding:4px 8px; font-size:11px;" onclick="document.getElementById('fInp').click()">📂 LOAD .zzq</button>
+          <div class="settings-heading">
+            <div>
+              <h2>Quiz settings</h2>
+              <p>Build a focused set or use the whole dictionary.</p>
+            </div>
+            <button type="button" class="btn quiet-action" onclick="document.getElementById('fInp').click()">Load .zzq</button>
           </div>
-          <div class="f-row">
-            <select class="input-field" id="qFType" style="padding:6px; flex:1; background:var(--bg);">
+          <div class="f-row filter-builder">
+            <label class="sr-only" for="qFType">Quiz filter type</label>
+            <select class="input-field" id="qFType">
               <option value="length">Length Range</option>
               <option value="point_value">Point Value Range</option>
               <option value="num_vowels">Number of Vowels</option>
@@ -169,30 +194,30 @@
               <option value="probability_order">Probability Order</option>
               <option value="limit_probability_order">Limit by Probability Order</option>
             </select>
-            <button class="btn" onclick="addFilter('Q')">+ Add</button>
+            <button type="button" class="btn" onclick="addFilter('Q')">Add filter</button>
           </div>
-          <div class="f-stack" id="qStack" style="margin-bottom:14px;"></div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
-            <div>
-              <div class="info-label">Quiz Type</div>
-              <select class="input-field" id="qTypeSelect" style="background:var(--bg); padding:8px;">
+          <div class="f-stack quiz-filter-stack" id="qStack"></div>
+          <div class="parameter-grid">
+            <div class="field-group">
+              <label class="field-label" for="qTypeSelect">Quiz type</label>
+              <select class="input-field" id="qTypeSelect">
                 <option value="0">Anagrams</option>
                 <option value="1">Anagrams with Hooks</option>
                 <option value="2">Build Quiz</option>
               </select>
             </div>
-            <div>
-              <div class="info-label">Question Order</div>
-              <select class="input-field" id="qOrderSelect" style="background:var(--bg); padding:8px;">
+            <div class="field-group">
+              <label class="field-label" for="qOrderSelect">Question order</label>
+              <select class="input-field" id="qOrderSelect">
                 <option value="1">Random</option>
                 <option value="0">Alphabetical</option>
                 <option value="2">Probability</option>
               </select>
             </div>
           </div>
-          <div style="margin-bottom:14px;">
-            <div class="info-label">Timer Limit</div>
-            <select class="input-field" id="qTimerSelect" style="background:var(--bg); padding:8px; width:100%;">
+          <div class="field-group timer-field">
+            <label class="field-label" for="qTimerSelect">Timer</label>
+            <select class="input-field" id="qTimerSelect">
               <option value="0">No timer (Unlimited)</option>
               <option value="15">15 seconds per question</option>
               <option value="30">30 seconds per question</option>
@@ -200,37 +225,53 @@
               <option value="120">120 seconds per question</option>
             </select>
           </div>
-          <button class="btn btn-p" style="width:100%" onclick="startQuiz()">START QUIZ</button>
+          <button type="button" class="btn btn-p primary-action" id="qStartBtn" aria-describedby="qReadyHint" disabled onclick="startQuiz()">Start quiz</button>
+          <p class="field-hint" id="qReadyHint">The quiz engine becomes available as soon as the dictionary is ready.</p>
         </div>
         <div id="qEnginePane" style="display:none;"></div>
       </div>
-    </div>
+    </section>
 
     <!-- ── JUDGE ─────────────────────────────────────────────────── -->
-    <div class="section" id="t2">
-      <div class="card" style="min-height:180px; padding-top:50px;">
-        <button class="btn btn-p" onclick="chkChal()" style="position:absolute; top:14px; right:14px; padding:6px 14px; font-size:12px;">JUDGE</button>
-        <div class="f-row" style="margin-top:10px;">
-          <input type="text" id="cInp" class="input-field mono"
-            style="background:transparent; border-color:transparent; border-bottom:2px solid var(--border); border-radius:0; font-size:20px; text-align:center;"
-            placeholder="Enter words..."
+    <section class="section" id="t2" aria-labelledby="judgeTitle" aria-hidden="true">
+      <div class="section-heading">
+        <p class="eyebrow">Word judge</p>
+        <h1 id="judgeTitle">Check without the guesswork.</h1>
+        <p>Enter one word or a short list. Your text stays in this browser.</p>
+      </div>
+      <div class="card judge-card">
+        <label class="field-label" for="cInp">Words to check</label>
+        <div class="judge-entry">
+          <input type="text" id="cInp" class="input-field mono" autocomplete="off"
+            placeholder="Enter words…"
             onkeydown="if(event.key==='Enter')chkChal()">
+          <button type="button" class="btn btn-p" onclick="chkChal()">Check words</button>
         </div>
       </div>
-    </div>
+    </section>
 
     <!-- ── SAVED ─────────────────────────────────────────────────── -->
-    <div class="section" id="t3">
-      <div style="display:flex; justify-content:space-between; margin-bottom:14px; align-items:center;">
-        <h3 style="font-size:16px;">Bookmarks</h3>
-        <button class="btn" style="color:var(--danger); padding:4px 10px; font-size:12px;" onclick="clearSaved()">Clear All</button>
+    <section class="section" id="t3" aria-labelledby="savedTitle" aria-hidden="true">
+      <div class="section-heading">
+        <p class="eyebrow">Saved words</p>
+        <h1 id="savedTitle">Words worth returning to.</h1>
+        <p>Keep a small study list here. It remains on this device.</p>
+      </div>
+      <div class="section-toolbar">
+        <h2>Bookmarks</h2>
+        <button type="button" class="btn destructive-action" onclick="clearSaved()">Clear all</button>
       </div>
       <div id="bList"></div>
-    </div>
+    </section>
     <!-- ── CALCULATOR ──────────────────────────────────────────────────── -->
-    <div class="section" id="t4">
+    <section class="section" id="t4" aria-labelledby="calcTitle" aria-hidden="true">
+      <div class="section-heading">
+        <p class="eyebrow">Calculator</p>
+        <h1 id="calcTitle">Keep the score close by.</h1>
+        <p>A quiet scratchpad for quick totals during play.</p>
+      </div>
       <!-- Display -->
-      <div class="card" style="margin-bottom:14px;padding:0;overflow:hidden;">
+      <div class="card calc-display-card">
         <div id="calcExpr" style="min-height:28px;padding:12px 16px 4px;font-family:'JetBrains Mono',monospace;
              font-size:13px;color:var(--text2);text-align:right;word-break:break-all;"></div>
         <div id="calcDisplay" style="padding:4px 16px 16px;font-family:'JetBrains Mono',monospace;
@@ -238,7 +279,7 @@
       </div>
 
       <!-- Keypad -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
+      <div class="calc-grid" aria-label="Calculator keypad">
         <button class="calc-key calc-fn" onclick="calcFn('C')">C</button>
         <button class="calc-key calc-fn" onclick="calcFn('⌫')" style="font-size:20px;">⌫</button>
         <button class="calc-key calc-fn" onclick="calcFn('%')">%</button>
@@ -266,25 +307,28 @@
       </div>
 
       <!-- History -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;">History</span>
-        <button class="btn" style="padding:3px 10px;font-size:11px;color:var(--danger);"
+      <div class="section-toolbar compact-toolbar">
+        <h2>History</h2>
+        <button type="button" class="btn destructive-action"
                 onclick="calcClearHistory()">Clear</button>
       </div>
-      <div id="calcHistory" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;"></div>
-    </div>
+      <div id="calcHistory" class="calc-history"></div>
+    </section>
   </main>
 
   <!-- Judge overlay -->
-  <div class="judge-overlay" id="jOverlay" onclick="this.classList.remove('open')">
-    <div class="judge-symbol" id="jSymbol">✓</div>
-    <div class="judge-status-text" id="jStatus">Valid</div>
-    <div class="mono judge-sub-list" id="jSubList"></div>
+  <div class="judge-overlay" id="jOverlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="jStatus" tabindex="-1" onclick="closeJudgeOverlay(event)">
+    <div class="judge-result-card">
+      <div class="judge-symbol" id="jSymbol" aria-hidden="true">✓</div>
+      <div class="judge-status-text" id="jStatus">Valid</div>
+      <div class="mono judge-sub-list" id="jSubList"></div>
+      <button type="button" class="btn" onclick="closeJudgeOverlay()">Close</button>
+    </div>
   </div>
 
   <!-- Word detail modal -->
-  <div class="modal-overlay" id="uluModal">
-    <div class="modal-card">
+  <div class="modal-overlay" id="uluModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="mWord" tabindex="-1" onclick="handleModalBackdrop(event)">
+    <div class="modal-card" role="document">
       <div class="modal-header">
         <div>
           <h2 class="mono" id="mWord" style="font-size:32px; font-weight:700;">WORD</h2>
@@ -296,11 +340,11 @@
         </div>
       </div>
       <div class="modal-body">
-        <div><div class="info-label">Part of Speech</div><div class="info-val" id="mDef" style="color:var(--text2);font-style:italic;"></div></div>
+        <div class="definition-block"><div class="info-label">Definition</div><div class="info-val" id="mDef"></div></div>
 
         <!-- Hook letters row -->
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;">
-          <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;text-align:center;">
+        <div class="hook-detail">
+          <div class="hook-detail-grid">
             <div>
               <div class="info-label" style="text-align:right;">Front Hook Letters</div>
               <div class="mono" id="mFHooks" style="color:var(--accent);font-size:14px;font-weight:700;letter-spacing:4px;text-align:right;"></div>
@@ -339,25 +383,25 @@
       </div>
       <div class="modal-footer">
         <div style="display:flex; gap:6px;">
-          <button class="btn" onclick="navWord(-1)">◀</button>
-          <button class="btn" onclick="navWord(1)">▶</button>
+          <button type="button" class="btn" aria-label="Previous word" title="Previous word" onclick="navWord(-1)">←</button>
+          <button type="button" class="btn" aria-label="Next word" title="Next word" onclick="navWord(1)">→</button>
         </div>
         <div style="display:flex; gap:6px;">
-          <button class="btn" id="mFavBtn" onclick="favWord()">⭐</button>
-          <button class="btn" onclick="closeUlu()" style="color:var(--danger);">CLOSE</button>
+          <button type="button" class="btn" id="mFavBtn" aria-label="Save word" title="Save word" onclick="favWord()">☆</button>
+          <button type="button" class="btn quiet-action" onclick="closeUlu()">Close</button>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="toast" id="tst"></div>
-  <input type="file" id="fInp" style="display:none" accept=".zzq,.txt" onchange="loadZzq(event)">
+  <div class="toast" id="tst" role="status" aria-live="polite" aria-atomic="true"></div>
+  <input type="file" id="fInp" style="display:none" accept=".zzq,.txt,text/plain,application/xml,text/xml,*/*" onchange="loadZzq(event)">
 
-  <script src="core.js"></script>
-  <script src="search.js"></script>
+  <script src="core.js?v=6"></script>
+  <script src="search.js?v=4"></script>
   <script src="zyzzylu_cpp_engine.js"></script>
-  <script src="quiz_bridge.js"></script>
-  <script src="judge.js"></script>
+  <script src="quiz_bridge.js?v=4"></script>
+  <script src="judge.js?v=4"></script>
   <script>
     // ── CALCULATOR ─────────────────────────────────────────────────────
     let calcExpr     = '';   // full expression string

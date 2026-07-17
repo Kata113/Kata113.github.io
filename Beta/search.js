@@ -1,9 +1,12 @@
 function setSearchMode(mode) {
   activeSearchMode = mode;
-  document.querySelectorAll('.capsule-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('sm-' + mode).classList.add('active');
+  document.querySelectorAll('.capsule-btn').forEach(button => {
+    const active = button.id === 'sm-' + mode;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
   document.getElementById('sInp').placeholder =
-    mode === 'pattern' ? 'Use . (1 char) or * (multi)...' : 'Enter letters (use . for blanks)...';
+    mode === 'pattern' ? 'Use . for one letter or * for many…' : 'Enter letters (use . for blanks)…';
 }
 
 function highlightPatternMatches(word, query) {
@@ -48,13 +51,13 @@ function search() {
 
   const count = currentResultsList.length;
   const countLine = count > 0
-    ? `<div class="mono" style="font-size:11px;color:var(--text2);text-align:right;padding:4px 6px 6px;">
+    ? `<div class="mono result-count">
         ${count} result${count !== 1 ? 's' : ''}
        </div>`
     : '';
 
   document.getElementById('sRes').innerHTML = count === 0
-    ? '<p style="text-align:center;color:var(--text2);padding-top:20px;">No results found</p>'
+    ? '<p class="empty-state">No matches this time. Try fewer letters, a blank tile, or a wider filter.</p>'
     : countLine + currentResultsList.map((w, idx) => {
         const hk = getHooksAndDots(w);
         const score = getWordScore(w);
@@ -73,67 +76,35 @@ function search() {
         // Front hooks: space-separated letters, or em-dash if none
         const fHooks = hk.f !== '-'
           ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.f.split('').join(' ')}</span>`
-          : `<span style="color:var(--border);">—</span>`;
+          : `<span style="color:var(--muted);">—</span>`;
         const bHooks = hk.b !== '-'
           ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.b.split('').join(' ')}</span>`
-          : `<span style="color:var(--border);">—</span>`;
+          : `<span style="color:var(--muted);">—</span>`;
 
         // Dot indicators: show only if front/back extension exists
         const dotF = hk.dotF.trim() === '•'
-          ? `<span style="color:var(--danger);font-size:10px;margin-right:3px;">●</span>` : '';
+          ? `<span class="word-dot">●</span>` : '';
         const dotB = hk.dotB.trim() === '•'
-          ? `<span style="color:var(--danger);font-size:10px;margin-left:3px;">●</span>` : '';
+          ? `<span class="word-dot">●</span>` : '';
 
         return `
-          <div style="
-            display:grid;
-            grid-template-columns:1fr auto 1fr;
-            align-items:center;
-            gap:6px;
-            padding:9px 6px;
-            border-bottom:1px solid rgba(58,58,60,.4);
-            cursor:pointer;
-          " onclick="openUlu(${idx})">
+          <button type="button" class="word-result" aria-label="Open details for ${w}" onclick="openUlu(${idx})">
 
             <!-- Front hooks (right-aligned) -->
-            <div class="mono" style="
-              text-align:right;
-              font-size:12px;
-              font-weight:700;
-              line-height:1.8;
-              word-break:break-all;
-              min-width:0;
-            ">${fHooks}</div>
+            <span class="mono hook-column front">${fHooks}</span>
 
             <!-- Word (center) -->
-            <div style="text-align:center; white-space:nowrap; padding:0 4px;">
-              ${dotF}<span class="mono word-core" style="
-                font-size:20px;
-                font-weight:700;
-                letter-spacing:.5px;
-                vertical-align:middle;
-              ">${showW}</span>${dotB}
-              <div style="
-                font-size:10px;
-                color:var(--text2);
-                margin-top:1px;
-                letter-spacing:.3px;
-              ">
-                <span style="color:var(--orange);font-weight:700;">${score}</span>pts
+            <span class="word-result-core">
+              ${dotF}<span class="mono word-core">${showW}</span>${dotB}
+              <span class="word-meta">
+                <span class="word-score">${score}</span> pts
                 ${prob ? `<span style="margin-left:5px;">#${prob}</span>` : ''}
-              </div>
-            </div>
+              </span>
+            </span>
 
             <!-- Back hooks (left-aligned) -->
-            <div class="mono" style="
-              text-align:left;
-              font-size:12px;
-              font-weight:700;
-              line-height:1.8;
-              word-break:break-all;
-              min-width:0;
-            ">${bHooks}</div>
+            <span class="mono hook-column back">${bHooks}</span>
 
-          </div>`;
+          </button>`;
       }).join('');
 }

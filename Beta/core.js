@@ -1,9 +1,12 @@
 // --- GLOBAL STATES ---
-let dict = [], dictSet = new Set(), wordsByL = {};
+const DICTIONARY_URL = './CSW24.txt';
+let dict = [], dictSet = new Set(), wordsByL = {}, wordMetadata = new Map();
 let saved = JSON.parse(localStorage.getItem('zyz_sv') || '[]');
 let sFilters = [], qFilters = [], fId = 0;
 let currentResultsList = [], currentWordIndex = -1;
 let activeSearchMode = 'subanagram';
+let modalReturnFocus = null;
+let toastTimer = null;
 
 const letterScores = { A:1,E:1,I:1,O:1,U:1,L:1,N:1,S:1,T:1,R:1, D:2,G:2, B:3,C:3,M:3,P:3, F:4,H:4,V:4,W:4,Y:4, K:5, J:8,X:8, Q:10,Z:10 };
 const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -84,23 +87,64 @@ function getWordExtensions(w) {
   };
 }
 
+function getLexiconMetadata(w) {
+  const raw = wordMetadata.get(w) || '';
+  if (!raw) return { definition:'', pos:'' };
+
+  const partsOfSpeech = [...raw.matchAll(/\[([^\]]+)\]/g)]
+    .map(match => match[1].trim())
+    .filter((value, index, values) => value && values.indexOf(value) === index);
+  const definition = raw
+    .replace(/\s*\[[^\]]+\]/g, '')
+    .replace(/\s+\/\s+/g, ' · ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  return { definition, pos:partsOfSpeech.join(' · ') };
+}
+
 function getWordMetadata(w) {
   let ana = dict.filter(x=>x.length===w.length&&x!==w&&[...x].sort().join('')===[...w].sort().join(''));
   let inf = ['S','ES','ED','ING'].filter(s=>dictSet.has(w+s)).map(s=>w+s);
+  const lexicon = getLexiconMetadata(w);
   let p="n.";
   if(w.endsWith('ED')||w.endsWith('ING'))p="v.";
   else if(w.endsWith('LY'))p="adv.";
   else if(w.endsWith('ABLE')||w.endsWith('FUL'))p="adj.";
-  return {pos:p,def:"",anagrams:ana.join(', ')||'None',inflections:inf.join(', ')||'None'};
+  return {
+    pos:lexicon.pos || p,
+    def:lexicon.definition,
+    anagrams:ana.join(', ')||'None',
+    inflections:inf.join(', ')||'None'
+  };
 }
 
 // ─── Dictionary loading ───────────────────────────────────────────────
 async function processDictText(text) {
-  dict    = text.split(/\r?\n/).map(w=>w.trim().toUpperCase()).filter(w=>w.length>0);
+  const nextDict = [];
+  const nextMetadata = new Map();
+
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const splitAt = line.search(/\s/);
+    const word = (splitAt === -1 ? line : line.slice(0, splitAt)).trim().toUpperCase();
+    const metadata = splitAt === -1 ? '' : line.slice(splitAt).trim();
+    if (!word) continue;
+
+    nextDict.push(word);
+    if (metadata) nextMetadata.set(word, metadata);
+  }
+
+  dict = nextDict;
+  wordMetadata = nextMetadata;
   dictSet = new Set(dict);
+  wordsByL = {};
   dict.forEach(w => { (wordsByL[w.length]=wordsByL[w.length]||[]).push(w); });
   initProbabilityCache();
-  document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " Words";
+  document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " words";
+  document.body.classList.add('is-ready');
   document.getElementById('loadingScreen').style.display = 'none';
   renderSaved();
   if (typeof tryInitCppEngine === 'function') tryInitCppEngine();
@@ -112,11 +156,11 @@ function showDictFallback(reason) {
     <div style="text-align:center; padding:24px; max-width:320px;">
       <div style="font-size:32px; margin-bottom:12px;">📖</div>
       <div class="mono" style="font-size:14px; color:var(--text); margin-bottom:8px; font-weight:700;">
-        ไม่พบ CSW24.txt
+        ไม่พบไฟล์พจนานุกรม
       </div>
       <div class="mono" style="font-size:12px; color:var(--text2); margin-bottom:20px; line-height:1.6;">
         ${reason}<br><br>
-        วางไฟล์ <strong style="color:var(--accent);">CSW24.txt</strong> ไว้ในโฟลเดอร์เดียวกับ index.html<br>
+        กรุณาตรวจว่า <strong style="color:var(--accent);">CSW24.txt</strong> อยู่ในโฟลเดอร์เดียวกับ index.html<br>
         แล้วเปิดผ่าน web server<br><br>
         <em>หรือโหลดไฟล์เองด้านล่าง:</em>
       </div>
@@ -141,7 +185,7 @@ async function loadDictFromFile(event) {
   const ls = document.getElementById('loadingScreen');
   ls.innerHTML = `
     <div class="spinner"></div>
-    <div class="mono" id="loadingStatus" style="font-size:13px; color:var(--text2)">กำลังโหลด...</div>`;
+    <div class="mono" id="loadingStatus">กำลังอ่านพจนานุกรม…</div>`;
   try {
     const text = await file.text();
     await processDictText(text);
@@ -152,7 +196,7 @@ async function loadDictFromFile(event) {
 
 window.onload = async () => {
   try {
-    const resp = await fetch('CSW24.txt');
+    const resp = await fetch(DICTIONARY_URL);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
     const total  = parseInt(resp.headers.get('content-length')||'0');
@@ -166,15 +210,15 @@ window.onload = async () => {
       loaded += value.length;
       const s = document.getElementById('loadingStatus');
       if (s) s.innerText = total > 0
-        ? `Downloading Dictionary (${Math.min(100,Math.round(loaded/total*100))}%)`
-        : `Downloading Dictionary (${Math.round(loaded/1024)} KB)`;
+        ? `Loading dictionary · ${Math.min(100,Math.round(loaded/total*100))}%`
+        : `Loading dictionary · ${Math.round(loaded/1024)} KB`;
     }
     const s = document.getElementById('loadingStatus');
-    if (s) s.innerText = "Processing Dictionary...";
+    if (s) s.innerText = "Preparing the word index…";
     await processDictText(await new Blob(chunks).text());
 
   } catch(e) {
-    console.warn("fetch('CSW24.txt') failed:", e.message);
+    console.warn(`fetch('${DICTIONARY_URL}') failed:`, e.message);
     // Could be file:// restriction, wrong path, or missing file
     showDictFallback(
       window.location.protocol === 'file:'
@@ -186,13 +230,31 @@ window.onload = async () => {
 
 // ─── COMMON UI ────────────────────────────────────────────────────────
 function tab(idx, b) {
-  document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  b.classList.add('active');
-  document.querySelectorAll('.section').forEach((s,i)=>s.classList.toggle('active',i===idx));
+  document.querySelectorAll('.nav-item').forEach((item, itemIdx) => {
+    const active = itemIdx === idx;
+    item.classList.toggle('active', active);
+    item.setAttribute('aria-current', active ? 'page' : 'false');
+  });
+  document.querySelectorAll('.section').forEach((section, sectionIdx) => {
+    const active = sectionIdx === idx;
+    section.classList.toggle('active', active);
+    section.setAttribute('aria-hidden', active ? 'false' : 'true');
+  });
+  if (b) b.blur();
+  window.scrollTo({ top:0, behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
+
+function toggleSearchFilters(button) {
+  const drawer = document.getElementById('sDrw');
+  const open = drawer.classList.toggle('open');
+  drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+  button.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 function toast(m, cls='') {
   let t=document.getElementById('tst'); t.innerText=m; t.className='toast show '+cls;
-  setTimeout(()=>t.classList.remove('show'),2000);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'),2600);
 }
 
 // ─── FILTER INFRASTRUCTURE ────────────────────────────────────────────
@@ -348,28 +410,34 @@ function renderFilters(mode) {
               style="${warn ? 'border-color:rgba(255,59,48,.5);' : ''}">
       <div style="display:flex;gap:6px;align-items:center;flex:1;min-width:0;">
         <button class="btn-not ${f.not?'active':''}"
+                type="button"
+                aria-pressed="${f.not ? 'true' : 'false'}"
                 onclick="toggleNot('${mode}',${f.id})">NOT</button>
         <span class="mono" style="color:var(--accent);font-size:11px;white-space:nowrap;">
           ${lbl[f.type]||f.type}</span>${badge}
         ${isR
           ? `<input type="number"
+               aria-label="Minimum ${lbl[f.type]||f.type}"
                style="width:52px;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px;"
                value="${f.v1}"
-               onchange="updateFilterVal('${mode}',${f.id},'v1',this.value)">
+               oninput="updateFilterVal('${mode}',${f.id},'v1',this.value)">
              <span style="color:var(--text2)">–</span>
              <input type="number"
+               aria-label="Maximum ${lbl[f.type]||f.type}"
                style="width:52px;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px;"
                value="${f.v2}"
-               onchange="updateFilterVal('${mode}',${f.id},'v2',this.value)">`
+               oninput="updateFilterVal('${mode}',${f.id},'v2',this.value)">`
           : `<input type="text" placeholder="${ph[f.type]||''}"
+               aria-label="${lbl[f.type]||f.type}"
                style="flex:1;min-width:0;background:var(--bg);color:#fff;
                       border:1px solid var(--border);padding:2px;"
                value="${f.v1}"
                oninput="updateFilterVal('${mode}',${f.id},'v1',this.value)">`
         }
       </div>
-      <span style="cursor:pointer;color:var(--danger);padding-left:6px;flex-shrink:0;"
-            onclick="deleteFilter('${mode}',${f.id})">✕</span>
+      <button type="button" class="filter-delete"
+              aria-label="Remove ${lbl[f.type]||f.type} filter"
+              onclick="deleteFilter('${mode}',${f.id})">×</button>
     </div>`;
   }).join('');
 }
@@ -432,6 +500,8 @@ function applyLimitFilters(res, filters) {
 function openUlu(idx) {
   if(idx<0||idx>=currentResultsList.length)return;
   currentWordIndex=idx;
+  const modal = document.getElementById('uluModal');
+  if (!modal.classList.contains('open')) modalReturnFocus = document.activeElement;
   const w   = currentResultsList[idx];
   const hk  = getHooksAndDots(w);
   const meta= getWordMetadata(w);
@@ -443,7 +513,11 @@ function openUlu(idx) {
   document.getElementById('mPos').innerText    = meta.pos;
   document.getElementById('mScore').innerText  = getWordScore(w);
   document.getElementById('mDef').innerText    = meta.def || '—';
-  document.getElementById('mFavBtn').innerText = saved.includes(w) ? '⭐' : '☆';
+  const favButton = document.getElementById('mFavBtn');
+  const isSaved = saved.includes(w);
+  favButton.innerText = isSaved ? '★' : '☆';
+  favButton.setAttribute('aria-label', isSaved ? 'Remove saved word' : 'Save word');
+  favButton.title = isSaved ? 'Remove saved word' : 'Save word';
 
   // Hook letters (single-letter, compact)
   document.getElementById('mFHooks').innerText = hk.f !== '-' ? hk.f.split('').join(' ') : '—';
@@ -468,9 +542,57 @@ function openUlu(idx) {
   document.getElementById('mAnagrams').innerText    = meta.anagrams;
   document.getElementById('mInflections').innerText = meta.inflections;
 
-  document.getElementById('uluModal').classList.add('open');
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  requestAnimationFrame(() => modal.focus());
 }
-const closeUlu = () => document.getElementById('uluModal').classList.remove('open');
+
+function closeUlu() {
+  const modal = document.getElementById('uluModal');
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  if (modalReturnFocus && typeof modalReturnFocus.focus === 'function') modalReturnFocus.focus();
+  modalReturnFocus = null;
+}
+
+function handleModalBackdrop(event) {
+  if (event.target === event.currentTarget) closeUlu();
+}
+
+function trapOverlayFocus(event, overlay) {
+  const focusable = [...overlay.querySelectorAll(
+    'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )].filter(element => element.offsetParent !== null);
+  if (!focusable.length) return;
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (document.activeElement === overlay) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  } else if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+document.addEventListener('keydown', event => {
+  const overlay = document.querySelector('.modal-overlay.open, .judge-overlay.open');
+  if (!overlay) return;
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (overlay.id === 'uluModal') closeUlu();
+    else if (typeof closeJudgeOverlay === 'function') closeJudgeOverlay();
+  } else if (event.key === 'Tab') {
+    trapOverlayFocus(event, overlay);
+  }
+});
+
 function navWord(dir){let n=currentWordIndex+dir;if(n>=0&&n<currentResultsList.length)openUlu(n);}
 function favWord(){
   let w=currentResultsList[currentWordIndex];
@@ -483,8 +605,8 @@ function renderSaved(){
   document.getElementById('bList').innerHTML=saved.map(w=>`
     <div class="item-row">
       <span class="mono" style="font-size:18px;font-weight:700;">${w}</span>
-      <button class="btn" style="padding:4px 8px;color:var(--danger);border-color:transparent;" onclick="toggleSave('${w}')">🗑️</button>
-    </div>`).join('')||'<p style="text-align:center;color:var(--text2);padding-top:16px;">No saved items</p>';
+      <button type="button" class="btn destructive-action" aria-label="Remove ${w} from saved words" onclick="toggleSave('${w}')">Remove</button>
+    </div>`).join('')||'<p class="empty-state">No saved words yet. Save one from a search result whenever it feels useful.</p>';
 }
 function toggleSave(w){
   saved=saved.includes(w)?saved.filter(x=>x!==w):[...saved,w];

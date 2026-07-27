@@ -1,10 +1,9 @@
-const CACHE_NAME = 'zyzzylu-v3';
+const CACHE_NAME = 'zyzzylu-v15';
 const ASSETS = [
-  './', './index.html', './core.js', './search.js',
-  './quiz_bridge.js', './judge.js', './manifest.json',
+  './', './index.html', './styles.css?v=11', './core.js?v=8', './search.js?v=8',
+  './quiz_bridge.js?v=5', './judge.js?v=4', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png',
-  './zyzzylu_cpp_engine.js', './zyzzylu_cpp_engine.wasm', './CSW24.txt',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap'
+  './zyzzylu_cpp_engine.js', './zyzzylu_cpp_engine.wasm', './CSW24.txt'
 ];
 
 self.addEventListener('install', e => {

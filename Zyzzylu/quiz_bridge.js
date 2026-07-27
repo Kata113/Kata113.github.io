@@ -26,11 +26,14 @@ window.onload = async () => { if (_coreOnload) await _coreOnload(); tryInitCppEn
 function tryInitCppEngine() {
   if (!cppInitialized && typeof Module !== 'undefined'
       && Module.loadDictionary && dict?.length) {
-    document.getElementById('wCnt').innerText = 'Loading WASM…';
+    document.getElementById('wCnt').innerText = 'preparing quiz…';
     Module.loadDictionary(dict.join('\n'));
     cppInitialized = true;
-    document.getElementById('wCnt').innerText =
-      dict.length.toLocaleString() + ' Words (WASM Active)';
+    document.getElementById('wCnt').innerText = dict.length.toLocaleString() + ' words';
+    const startButton = document.getElementById('qStartBtn');
+    if (startButton) startButton.disabled = false;
+    const readyHint = document.getElementById('qReadyHint');
+    if (readyHint) readyHint.innerText = 'Ready when you are. You can leave the timer off.';
   }
 }
 
@@ -206,12 +209,12 @@ function endQuiz() {
     const score = getWordScore(word);
     const ok    = status === 'correct';
     const col   = ok ? 'var(--accent)' : 'var(--danger)';
-    const fH    = hk.f !== '-'
+    const fH    = hk.f
       ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.f.split('').join(' ')}</span>`
-      : `<span style="color:var(--border);">—</span>`;
-    const bH    = hk.b !== '-'
+      : '';
+    const bH    = hk.b
       ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.b.split('').join(' ')}</span>`
-      : `<span style="color:var(--border);">—</span>`;
+      : '';
     return `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;
                         padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3);">
       <div class="mono" style="text-align:right;font-size:12px;font-weight:700;
@@ -349,12 +352,12 @@ function renderAnswersList(q) {
     const prob  = probRankMap[word];
     const score = getWordScore(word);
     const star  = saved.includes(word);
-    const fH = hk.f !== '-'
+    const fH = hk.f
       ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.f.split('').join(' ')}</span>`
-      : `<span style="color:var(--border);">—</span>`;
-    const bH = hk.b !== '-'
+      : '';
+    const bH = hk.b
       ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.b.split('').join(' ')}</span>`
-      : `<span style="color:var(--border);">—</span>`;
+      : '';
     const dotF = hk.dotF.trim() === '•'
       ? `<span style="color:var(--danger);font-size:9px;margin-right:2px;">●</span>` : '';
     const dotB = hk.dotB.trim() === '•'

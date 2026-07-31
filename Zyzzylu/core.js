@@ -67,26 +67,21 @@ function initProbabilityCache() {
   probCache = {}; probRankMap = {};
   const wordsByAlphagram = new Map();
   const alphagramsByLength = {};
-  const scores = new Map();
 
+  // CSW24.txt is the source of truth for probability order. Each length has
+  // its own rank, and an anagram set takes the position of the first line on
+  // which any word in that set appears.
   for (const word of dict) {
     const alphagram = [...word].sort().join('');
     if (!wordsByAlphagram.has(alphagram)) {
       wordsByAlphagram.set(alphagram, []);
       (alphagramsByLength[word.length] = alphagramsByLength[word.length] || []).push(alphagram);
-      scores.set(alphagram, getProbabilityScore(alphagram));
     }
     wordsByAlphagram.get(alphagram).push(word);
   }
 
   for (const length in alphagramsByLength) {
     const alphagrams = alphagramsByLength[length];
-    alphagrams.sort((a, b) => {
-      const scoreA = scores.get(a);
-      const scoreB = scores.get(b);
-      if (scoreA !== scoreB) return scoreA > scoreB ? -1 : 1;
-      return a < b ? -1 : a > b ? 1 : 0;
-    });
     probCache[length] = alphagrams;
     for (let index = 0; index < alphagrams.length; index++) {
       for (const word of wordsByAlphagram.get(alphagrams[index])) {

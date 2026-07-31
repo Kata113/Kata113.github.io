@@ -29,17 +29,22 @@
 - เมื่อข้อถูก check แล้ว จะบันทึก `<missed-responses>` ด้วย
   ทำให้ไฟล์ compatible กับ Zyzzyva อย่างสมบูรณ์
 
-## 6. Probability Order รวม blank 2 ตัวและจัดอันดับเป็น alphagram
+## 6. Probability รองรับ blank 2 ตัวและจัดอันดับเป็น alphagram
 - คำนวณจำนวนวิธีหยิบจากถุง 100 ตัว โดยรวมกรณีใช้ blank 0, 1 และ 2 ตัว
 - คำที่เป็น anagram กันใช้ Probability Order เดียวกัน
 - คำ 5 ตัวใน CSW24 ครบ 8,710 alphagram sets (เดิมสูตรไม่มี blank เหลือ 8,587 sets)
-- ใช้สูตรเดียวกันทั้ง JavaScript และ C++/WASM เพื่อให้ Search กับ Quiz เรียงตรงกัน
+- ใช้สูตร blank เดียวกันทั้ง JavaScript และ C++/WASM
 
 ## 7. เบี้ยคำถาม Quiz แบบลากเรียงได้
 - เปลี่ยน rack คำถามเป็นเบี้ยสีฟ้าพร้อมคะแนนตัวอักษร
 - ลากสลับตำแหน่งด้วย mouse, touch และ pen ผ่าน Pointer Events
 - ใช้ปุ่มลูกศรซ้าย/ขวา รวมถึง Home/End เพื่อเรียงด้วยคีย์บอร์ด
 - เก็บลำดับที่ผู้ใช้จัดไว้เมื่อ Quiz UI render ใหม่ในข้อเดิม
+
+## 8. Probability Order ยึดลำดับบรรทัดใน CSW24.txt
+- แยกอันดับตามความยาวคำ และให้แต่ละ alphagram set ยึดบรรทัดแรกที่ปรากฏ
+- คำที่เป็น anagram กันใช้เลข #Prob เดียวกัน
+- ส่ง Probability Order เข้า WASM แบบ PreserveOrder เพื่อไม่ให้ถูกเรียงทับด้วยสูตรเดิม
 
 ## ไฟล์ที่เปลี่ยน
 | ไฟล์ | สาเหตุ |

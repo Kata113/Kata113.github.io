@@ -241,7 +241,9 @@ function startQuiz() {
   quizTimeLimit   = sel('qTimerSelect');
 
   currentQuizPool = buildOrderedPool(pool, quizType, order, activeSeed1, activeSeed2);
-  Module.generateQuiz(quizType, currentQuizPool.join(' '), order === 1 ? 3 : order);
+  // Random and probability pools are already ordered in JavaScript. Preserve
+  // that order so the WASM engine cannot reshuffle or re-rank them.
+  Module.generateQuiz(quizType, currentQuizPool.join(' '), (order === 1 || order === 2) ? 3 : order);
   showQuizPane();
   loadCurrentQuestion();
 }
@@ -258,7 +260,7 @@ function startQuiz() {
 //  4. for i in 0..num-2: swap(i, i + rng.rand(num-i-1))
 function buildOrderedPool(pool, quizType, order, s1, s2) {
   if (order === 2) {
-    // Probability order: sort by probability rank (best/most common first)
+    // Probability order follows each alphagram set's first line in CSW24.txt.
     return [...pool].sort((a, b) => {
       const ra = probRankMap[a] || 9999999;
       const rb = probRankMap[b] || 9999999;
@@ -936,7 +938,7 @@ function loadXmlZzq(content) {
   // Reproduce Zyzzyva's exact question order using saved seeds
   currentQuizPool = buildOrderedPool(pool, typeVal, orderVal, activeSeed1, activeSeed2);
   quizTimeLimit   = sel('qTimerSelect');
-  Module.generateQuiz(typeVal, currentQuizPool.join(' '), orderVal === 1 ? 3 : orderVal);
+  Module.generateQuiz(typeVal, currentQuizPool.join(' '), (orderVal === 1 || orderVal === 2) ? 3 : orderVal);
 
   // Restore progress
   const prog = xml.querySelector('progress');

@@ -43,7 +43,7 @@ public:
     
 private:
     std::string getAlphagram(const std::string& word) const;
-    double getProbabilityScore(const std::string& alphagram) const;
+    long long getProbabilityScore(const std::string& alphagram) const;
     void computeHooks(const std::string& word, std::string& front, std::string& back) const;
 
     std::unordered_set<std::string> fullDictionary;

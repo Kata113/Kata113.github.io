@@ -15,6 +15,11 @@
   --text2: #aab0b7;
   --muted: #808891;
   --focus: #b1c4d8;
+  --tile: #91b9dd;
+  --tile-hover: #a6c7e5;
+  --tile-border: #c0d4e6;
+  --tile-shadow: #5f7890;
+  --tile-ink: #16202a;
   --shadow: 0 24px 70px rgba(5, 6, 7, .24);
   --radius-sm: 10px;
   --radius-md: 16px;
@@ -907,10 +912,79 @@ main {
   background: rgba(9, 10, 11, .22);
 }
 
+.quiz-rack {
+  display: flex;
+  min-height: 70px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: 14px 0 5px;
+  padding: 8px 4px 10px;
+  flex-wrap: wrap;
+}
+
 .quiz-tile {
-  border-color: var(--border);
-  background: var(--surface2);
-  box-shadow: none;
+  position: relative;
+  display: grid;
+  width: 52px;
+  height: 56px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0 0 4px;
+  border: 1px solid var(--tile-border);
+  border-radius: 9px;
+  background: var(--tile);
+  color: var(--tile-ink);
+  box-shadow: 0 4px 0 var(--tile-shadow), 0 8px 18px rgba(5, 6, 7, .2);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .14s ease, background-color .14s ease, box-shadow .14s ease, opacity .14s ease;
+}
+
+.quiz-tile:hover {
+  background: var(--tile-hover);
+  transform: translateY(-2px);
+}
+
+.quiz-tile.is-dragging {
+  z-index: 2;
+  background: var(--tile-hover);
+  box-shadow: 0 7px 0 var(--tile-shadow), 0 14px 26px rgba(5, 6, 7, .3);
+  cursor: grabbing;
+  transform: translateY(-5px) scale(1.04);
+}
+
+.quiz-rack.is-dragging .quiz-tile:not(.is-dragging) {
+  opacity: .72;
+}
+
+.quiz-tile-letter {
+  pointer-events: none;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.quiz-tile-score {
+  position: absolute;
+  right: 5px;
+  bottom: 3px;
+  pointer-events: none;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.quiz-rack-hint {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
 }
 
 .judge-overlay,
@@ -1221,6 +1295,33 @@ main {
 
   .hook-column {
     font-size: 10px;
+  }
+
+  .quiz-rack {
+    gap: 7px;
+  }
+
+  .quiz-tile {
+    width: 46px;
+    height: 52px;
+  }
+
+  .quiz-tile-letter {
+    font-size: 22px;
+  }
+
+  #qAnswerInput {
+    font-size: 14px !important;
+    letter-spacing: .5px !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .quiz-tile {
+    border: 2px solid ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+    box-shadow: none;
   }
 }
 

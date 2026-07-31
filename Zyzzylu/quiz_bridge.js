@@ -7,6 +7,9 @@ let currentQuizPool = [];
 let activeSeed1 = 0;
 let activeSeed2 = 0;
 let quizHistory = []; // { word, status } for end-screen review
+let quizRackQuestionKey = '';
+let quizRackLetters = [];
+let quizRackDragState = null;
 
 // seed2 mirrors Zyzzyva's getPid() — constant per process/session
 // Linux PIDs are quint16 range (1–65535); generated once per page load
@@ -85,6 +88,136 @@ function trackWrongGuess(w) {
   if (!w) return;
   sessionIncorrect[w] = (sessionIncorrect[w] || 0) + 1;
   saveSessionIncorrect();
+}
+
+// ── QUIZ RACK ─────────────────────────────────────────────────────────
+function syncQuizRack(questionText, questionNumber) {
+  const nextKey = `${activeSeed1}:${questionNumber}:${questionText}`;
+  if (quizRackQuestionKey !== nextKey) {
+    clearQuizTileDrag();
+    quizRackQuestionKey = nextKey;
+    quizRackLetters = [...questionText];
+  }
+}
+
+function quizTileHtml(letter, index) {
+  const score = letterScores[letter] || 0;
+  const pointsLabel = score === 1 ? 'point' : 'points';
+  return `<button type="button" class="quiz-tile" data-rack-index="${index}"
+    data-letter="${letter}" data-score="${score}"
+    aria-label="${letter}, ${score} ${pointsLabel}. Position ${index + 1} of ${quizRackLetters.length}"
+    aria-describedby="quizRackHint"
+    onpointerdown="beginQuizTileDrag(event)"
+    onlostpointercapture="endQuizTileDrag(event)"
+    onkeydown="handleQuizTileKey(event)">
+      <span class="quiz-tile-letter">${letter}</span>
+      <span class="quiz-tile-score" aria-hidden="true">${score}</span>
+  </button>`;
+}
+
+function renderQuizRackTiles() {
+  return quizRackLetters.map(quizTileHtml).join('');
+}
+
+function announceQuizRack() {
+  const status = document.getElementById('quizRackStatus');
+  if (status) status.textContent = `Tile order: ${quizRackLetters.join(' ')}`;
+}
+
+function updateQuizRackFromDom(rack) {
+  const tiles = [...rack.querySelectorAll('.quiz-tile')];
+  quizRackLetters = tiles.map(tile => tile.dataset.letter);
+  tiles.forEach((tile, index) => {
+    tile.dataset.rackIndex = index;
+    const score = Number(tile.dataset.score) || 0;
+    tile.setAttribute(
+      'aria-label',
+      `${tile.dataset.letter}, ${score} ${score === 1 ? 'point' : 'points'}. Position ${index + 1} of ${tiles.length}`
+    );
+  });
+}
+
+function beginQuizTileDrag(event) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  const tile = event.currentTarget;
+  const rack = tile.closest('.quiz-rack');
+  if (!rack) return;
+
+  clearQuizTileDrag();
+  quizRackDragState = { pointerId:event.pointerId, tile, rack };
+  tile.setPointerCapture?.(event.pointerId);
+  tile.classList.add('is-dragging');
+  rack.classList.add('is-dragging');
+  window.addEventListener('pointermove', moveQuizTileDrag, { passive:false });
+  window.addEventListener('pointerup', endQuizTileDrag);
+  window.addEventListener('pointercancel', endQuizTileDrag);
+  event.preventDefault();
+}
+
+function moveQuizTileDrag(event) {
+  const state = quizRackDragState;
+  if (!state || state.pointerId !== event.pointerId) return;
+
+  const hit = document.elementFromPoint(event.clientX, event.clientY);
+  const target = hit?.closest?.('.quiz-tile');
+  if (!target || target === state.tile || target.closest('.quiz-rack') !== state.rack) return;
+
+  const tiles = [...state.rack.querySelectorAll('.quiz-tile')];
+  const draggedIndex = tiles.indexOf(state.tile);
+  const targetIndex = tiles.indexOf(target);
+  if (draggedIndex < targetIndex) target.after(state.tile);
+  else target.before(state.tile);
+  updateQuizRackFromDom(state.rack);
+  event.preventDefault();
+}
+
+function endQuizTileDrag(event) {
+  const state = quizRackDragState;
+  if (!state || (event.pointerId != null && state.pointerId !== event.pointerId)) return;
+
+  state.tile.classList.remove('is-dragging');
+  state.rack.classList.remove('is-dragging');
+  updateQuizRackFromDom(state.rack);
+  window.removeEventListener('pointermove', moveQuizTileDrag);
+  window.removeEventListener('pointerup', endQuizTileDrag);
+  window.removeEventListener('pointercancel', endQuizTileDrag);
+  quizRackDragState = null;
+  if (state.tile.hasPointerCapture?.(state.pointerId)) {
+    state.tile.releasePointerCapture(state.pointerId);
+  }
+  announceQuizRack();
+}
+
+function clearQuizTileDrag() {
+  const state = quizRackDragState;
+  if (state) {
+    state.tile?.classList.remove('is-dragging');
+    state.rack?.classList.remove('is-dragging');
+  }
+  window.removeEventListener('pointermove', moveQuizTileDrag);
+  window.removeEventListener('pointerup', endQuizTileDrag);
+  window.removeEventListener('pointercancel', endQuizTileDrag);
+  quizRackDragState = null;
+}
+
+function handleQuizTileKey(event) {
+  const fromIndex = Number(event.currentTarget.dataset.rackIndex);
+  let toIndex = fromIndex;
+  if (event.key === 'ArrowLeft') toIndex = Math.max(0, fromIndex - 1);
+  else if (event.key === 'ArrowRight') toIndex = Math.min(quizRackLetters.length - 1, fromIndex + 1);
+  else if (event.key === 'Home') toIndex = 0;
+  else if (event.key === 'End') toIndex = quizRackLetters.length - 1;
+  else return;
+
+  event.preventDefault();
+  if (toIndex === fromIndex) return;
+  const [letter] = quizRackLetters.splice(fromIndex, 1);
+  quizRackLetters.splice(toIndex, 0, letter);
+  const rack = document.getElementById('quizRack');
+  if (!rack) return;
+  rack.innerHTML = renderQuizRackTiles();
+  requestAnimationFrame(() => rack.querySelector(`[data-rack-index="${toIndex}"]`)?.focus());
+  announceQuizRack();
 }
 
 // ── QUIZ LIFECYCLE ─────────────────────────────────────────────────────
@@ -275,7 +408,8 @@ function renderQuizUI(q, prog) {
   const pane = document.getElementById('qEnginePane');
   if (!pane) return;
   const pct       = (prog.currentQuestion / prog.totalQuestions) * 100;
-  const tiles     = [...q.questionText].map(c => `<div class="quiz-tile">${c}</div>`).join('');
+  syncQuizRack(q.questionText, prog.currentQuestion);
+  const tiles     = renderQuizRackTiles();
   const isChecked = q.checked;
 
   pane.innerHTML = `
@@ -298,9 +432,11 @@ function renderQuizUI(q, prog) {
         <div style="height:100%;width:${pct}%;background:var(--accent);transition:width .3s"></div>
       </div>
 
-      <div style="display:flex;justify-content:center;gap:8px;margin:16px 0;flex-wrap:wrap">
+      <div class="quiz-rack" id="quizRack" aria-label="Rearrangeable letter tiles">
         ${tiles}
       </div>
+      <p class="quiz-rack-hint" id="quizRackHint">Drag tiles to rearrange · use Left and Right arrow keys</p>
+      <span class="sr-only" id="quizRackStatus" aria-live="polite" aria-atomic="true"></span>
 
       <input type="text" id="qAnswerInput" class="input-field mono"
         style="text-transform:uppercase;text-align:center;font-size:18px;

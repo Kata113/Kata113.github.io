@@ -29,15 +29,27 @@
 - เมื่อข้อถูก check แล้ว จะบันทึก `<missed-responses>` ด้วย
   ทำให้ไฟล์ compatible กับ Zyzzyva อย่างสมบูรณ์
 
+## 6. Probability Order รวม blank 2 ตัวและจัดอันดับเป็น alphagram
+- คำนวณจำนวนวิธีหยิบจากถุง 100 ตัว โดยรวมกรณีใช้ blank 0, 1 และ 2 ตัว
+- คำที่เป็น anagram กันใช้ Probability Order เดียวกัน
+- คำ 5 ตัวใน CSW24 ครบ 8,710 alphagram sets (เดิมสูตรไม่มี blank เหลือ 8,587 sets)
+- ใช้สูตรเดียวกันทั้ง JavaScript และ C++/WASM เพื่อให้ Search กับ Quiz เรียงตรงกัน
+
+## 7. เบี้ยคำถาม Quiz แบบลากเรียงได้
+- เปลี่ยน rack คำถามเป็นเบี้ยสีฟ้าพร้อมคะแนนตัวอักษร
+- ลากสลับตำแหน่งด้วย mouse, touch และ pen ผ่าน Pointer Events
+- ใช้ปุ่มลูกศรซ้าย/ขวา รวมถึง Home/End เพื่อเรียงด้วยคีย์บอร์ด
+- เก็บลำดับที่ผู้ใช้จัดไว้เมื่อ Quiz UI render ใหม่ในข้อเดิม
+
 ## ไฟล์ที่เปลี่ยน
 | ไฟล์ | สาเหตุ |
 |------|--------|
 | index.html | เพิ่ม Number of Vowels ใน select, เพิ่ม id="loadingStatus" |
-| core.js | เพิ่ม num_vowels filter logic |
+| core.js | เพิ่ม num_vowels filter logic และแก้ Probability Order ให้รวม blank/จัดอันดับเป็น alphagram |
+| cpp/quiz_engine.cpp, cpp/quiz_engine.h | ใช้สูตร probability ที่รวม blank 0–2 ตัว |
+| zyzzylu_cpp_engine.js, zyzzylu_cpp_engine.wasm | คอมไพล์ Quiz engine ใหม่จาก C++ |
 | quiz_bridge.js | MWC fix, seed2 fix, Analyze redesign, vowel save/load |
 | sw.js | อัปเดต cache version เป็น v2 |
 
 ## ไฟล์ที่ต้องเก็บจาก Zip เดิม (ไม่เปลี่ยน)
 - CSW24.txt
-- zyzzylu_cpp_engine.js
-- zyzzylu_cpp_engine.wasm

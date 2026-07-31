@@ -19,31 +19,80 @@ const letterFrequencies = {
 };
 
 function choose(n, k) {
-  if (k < 0 || k > n) return 0;
-  if (k === 0 || k === n) return 1;
+  if (k < 0 || k > n) return 0n;
+  if (k === 0 || k === n) return 1n;
   if (k > n / 2) k = n - k;
-  let r = 1;
-  for (let i = 1; i <= k; i++) r = r * (n-i+1) / i;
+  let r = 1n;
+  for (let i = 1; i <= k; i++) {
+    r = r * BigInt(n - i + 1) / BigInt(i);
+  }
   return r;
 }
+
+function getProbabilityWaysForBlankCount(entries, index, blanksRemaining) {
+  if (index === entries.length) return blanksRemaining === 0 ? 1n : 0n;
+
+  const [letter, count] = entries[index];
+  let total = 0n;
+  const maxBlanksForLetter = Math.min(count, blanksRemaining);
+  for (let blanksForLetter = 0; blanksForLetter <= maxBlanksForLetter; blanksForLetter++) {
+    const tileWays = choose(letterFrequencies[letter] || 0, count - blanksForLetter);
+    if (tileWays === 0n) continue;
+    total += tileWays * getProbabilityWaysForBlankCount(
+      entries,
+      index + 1,
+      blanksRemaining - blanksForLetter
+    );
+  }
+  return total;
+}
+
 function getProbabilityScore(w) {
-  let c = {};
-  for (let ch of w) c[ch] = (c[ch]||0)+1;
-  let s = 1;
-  for (let ch in c) s *= choose(letterFrequencies[ch]||0, c[ch]);
-  return s;
+  const counts = {};
+  for (const ch of w) counts[ch] = (counts[ch] || 0) + 1;
+  const entries = Object.entries(counts);
+  let total = 0n;
+
+  // Zyzzyva probability uses the full 100-tile bag. Count racks containing
+  // exactly 0, 1, and 2 blanks, then add those combination counts together.
+  for (let blanksUsed = 0; blanksUsed <= 2; blanksUsed++) {
+    total += choose(2, blanksUsed)
+      * getProbabilityWaysForBlankCount(entries, 0, blanksUsed);
+  }
+  return total;
 }
 
 let probCache = {}, probRankMap = {};
 function initProbabilityCache() {
   probCache = {}; probRankMap = {};
-  const sc = {};
-  for (let w of dict) sc[w] = getProbabilityScore(w);
-  for (let w of dict) { let l=w.length; (probCache[l]=probCache[l]||[]).push(w); }
-  for (let l in probCache) {
-    let wl = probCache[l];
-    wl.sort((a,b) => sc[b]!==sc[a] ? sc[b]-sc[a] : (a<b?-1:1));
-    for (let i=0; i<wl.length; i++) probRankMap[wl[i]] = i+1;
+  const wordsByAlphagram = new Map();
+  const alphagramsByLength = {};
+  const scores = new Map();
+
+  for (const word of dict) {
+    const alphagram = [...word].sort().join('');
+    if (!wordsByAlphagram.has(alphagram)) {
+      wordsByAlphagram.set(alphagram, []);
+      (alphagramsByLength[word.length] = alphagramsByLength[word.length] || []).push(alphagram);
+      scores.set(alphagram, getProbabilityScore(alphagram));
+    }
+    wordsByAlphagram.get(alphagram).push(word);
+  }
+
+  for (const length in alphagramsByLength) {
+    const alphagrams = alphagramsByLength[length];
+    alphagrams.sort((a, b) => {
+      const scoreA = scores.get(a);
+      const scoreB = scores.get(b);
+      if (scoreA !== scoreB) return scoreA > scoreB ? -1 : 1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    });
+    probCache[length] = alphagrams;
+    for (let index = 0; index < alphagrams.length; index++) {
+      for (const word of wordsByAlphagram.get(alphagrams[index])) {
+        probRankMap[word] = index + 1;
+      }
+    }
   }
 }
 

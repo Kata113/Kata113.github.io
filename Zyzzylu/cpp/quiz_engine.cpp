@@ -32,6 +32,29 @@ static int getLetterFrequency(char c) {
     }
 }
 
+static long long getProbabilityWaysForBlankCount(
+    const int counts[26], int letterIndex, int blanksRemaining) {
+    if (letterIndex == 26) {
+        return blanksRemaining == 0 ? 1 : 0;
+    }
+
+    long long total = 0;
+    int maxBlanksForLetter = std::min(counts[letterIndex], blanksRemaining);
+    for (int blanksForLetter = 0; blanksForLetter <= maxBlanksForLetter; ++blanksForLetter) {
+        long long tileWays = choose(
+            getLetterFrequency('A' + letterIndex),
+            counts[letterIndex] - blanksForLetter
+        );
+        if (tileWays == 0) continue;
+        total += tileWays * getProbabilityWaysForBlankCount(
+            counts,
+            letterIndex + 1,
+            blanksRemaining - blanksForLetter
+        );
+    }
+    return total;
+}
+
 QuizEngine::QuizEngine() 
     : currentQuestionIndex(-1),
       currentQuestionChecked(false),
@@ -59,20 +82,21 @@ std::string QuizEngine::getAlphagram(const std::string& word) const {
     return sorted;
 }
 
-double QuizEngine::getProbabilityScore(const std::string& alphagram) const {
+long long QuizEngine::getProbabilityScore(const std::string& alphagram) const {
     int counts[26] = {0};
     for (char c : alphagram) {
         if (c >= 'A' && c <= 'Z') {
             counts[c - 'A']++;
         }
     }
-    long long score = 1;
-    for (int i = 0; i < 26; i++) {
-        if (counts[i] > 0) {
-            score *= choose(getLetterFrequency('A' + i), counts[i]);
-        }
+    long long total = 0;
+    // Match Zyzzyva: count combinations containing exactly 0, 1, and 2
+    // blanks from the full 100-tile bag, then add the three counts.
+    for (int blanksUsed = 0; blanksUsed <= 2; ++blanksUsed) {
+        total += choose(2, blanksUsed)
+            * getProbabilityWaysForBlankCount(counts, 0, blanksUsed);
     }
-    return (double)score;
+    return total;
 }
 
 void QuizEngine::computeHooks(const std::string& word, std::string& front, std::string& back) const {
@@ -194,8 +218,8 @@ void QuizEngine::generateQuiz(int type, const std::vector<std::string>& pool, in
     else if (order == ProbabilityOrder) {
         std::sort(questions.begin(), questions.end(), [this](const QuizQuestion& a, const QuizQuestion& b) {
             // Sort descending by probability
-            double pA = getProbabilityScore(quizType == QuizBuild ? getAlphagram(a.questionText) : a.questionText);
-            double pB = getProbabilityScore(quizType == QuizBuild ? getAlphagram(b.questionText) : b.questionText);
+            long long pA = getProbabilityScore(quizType == QuizBuild ? getAlphagram(a.questionText) : a.questionText);
+            long long pB = getProbabilityScore(quizType == QuizBuild ? getAlphagram(b.questionText) : b.questionText);
             if (pA != pB) {
                 return pA > pB;
             }

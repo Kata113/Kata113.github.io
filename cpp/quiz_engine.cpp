@@ -459,7 +459,6 @@ void QuizEngine::restoreProgress(int questionIndex, int totalCorrectVal, int tot
     
     currentQuestionIndex = questionIndex;
     totalCorrect = totalCorrectVal;
-    totalIncorrect = totalIncorrectVal;
     fullyCorrectQuestions = fullyCorrectVal;
     currentQuestionChecked = checked;
     
@@ -469,7 +468,18 @@ void QuizEngine::restoreProgress(int questionIndex, int totalCorrectVal, int tot
         completedPossible += questions[i].answers.size();
     }
     int prevCorrect = totalCorrectVal - userCorrect.size();
-    totalMissed = std::max(0, completedPossible - prevCorrect);
+    int calculatedMissed = std::max(0, completedPossible - prevCorrect);
+    if (checked) {
+        calculatedMissed += std::max(
+            0,
+            static_cast<int>(questions[questionIndex].answers.size())
+                - static_cast<int>(userCorrect.size())
+        );
+    }
+    totalMissed = totalMissedVal >= 0 ? totalMissedVal : calculatedMissed;
+    totalIncorrect = totalIncorrectVal >= 0
+        ? totalIncorrectVal
+        : (checked ? static_cast<int>(userIncorrect.size()) : 0);
     
     // Populate active question user answers
     userCorrectAnswers.clear();

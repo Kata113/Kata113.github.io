@@ -675,7 +675,9 @@ function favWord(){
 
 // ─── BOOKMARKS ────────────────────────────────────────────────────────
 function renderSaved(){
-  document.getElementById('bList').innerHTML=saved.map(w=>`
+  const list = document.getElementById('bList');
+  if (!list) return;
+  list.innerHTML=saved.map(w=>`
     <div class="item-row">
       <span class="mono" style="font-size:18px;font-weight:700;">${w}</span>
       <button type="button" class="btn destructive-action" aria-label="Remove ${w} from saved words" onclick="toggleSave('${w}')">Remove</button>

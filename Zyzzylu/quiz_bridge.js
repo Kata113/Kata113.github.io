@@ -162,10 +162,12 @@ function moveQuizTileDrag(event) {
   const target = hit?.closest?.('.quiz-tile');
   if (!target || target === state.tile || target.closest('.quiz-rack') !== state.rack) return;
 
-  const tiles = [...state.rack.querySelectorAll('.quiz-tile')];
-  const draggedIndex = tiles.indexOf(state.tile);
-  const targetIndex = tiles.indexOf(target);
-  if (draggedIndex < targetIndex) target.after(state.tile);
+  // Insert at the pointer's actual position.  Using the target midpoint lets
+  // a tile jump across several letters in one drag instead of stepping one
+  // neighbour at a time.
+  const rect = target.getBoundingClientRect();
+  const insertAfter = event.clientX > rect.left + rect.width / 2;
+  if (insertAfter) target.after(state.tile);
   else target.before(state.tile);
   updateQuizRackFromDom(state.rack);
   event.preventDefault();
@@ -293,16 +295,16 @@ function buildOrderedPool(pool, quizType, order, s1, s2) {
 }
 
 function loadCurrentQuestion() {
-  clearInterval(timerInterval);
+  stopTimer();
   const q = parseQ();
   if (!q) { endQuiz(); return; }
   renderQuizUI(q, parseProg());
-  startTimer();
+  if (!q.checked) startTimer();
   setTimeout(() => document.getElementById('qAnswerInput')?.focus(), 80);
 }
 
 function handleCheck() {
-  clearInterval(timerInterval);
+  stopTimer();
   parseQ()?.userIncorrectAnswers?.forEach(w => {
     if (w && !sessionIncorrect[w]) trackWrongGuess(w);
   });
@@ -326,13 +328,13 @@ function handleNext() {
 }
 
 function quitQuiz() {
-  clearInterval(timerInterval);
+  stopTimer();
   document.getElementById('qEnginePane').style.display   = 'none';
   document.getElementById('qSettingsPane').style.display = 'block';
 }
 
 function endQuiz() {
-  clearInterval(timerInterval);
+  stopTimer();
   const prog  = parseProg();
   const total = prog.totalCorrect + prog.totalMissed;
   const acc   = total > 0 ? Math.round(prog.totalCorrect / total * 100) : 0;
@@ -981,15 +983,22 @@ function loadXmlZzq(content) {
 }
 
 // ── TIMER ──────────────────────────────────────────────────────────────
+function stopTimer() {
+  if (timerInterval !== null) clearInterval(timerInterval);
+  timerInterval = null;
+}
+
 function startTimer() {
   const el = document.getElementById('qTimerDisplay');
-  if (quizTimeLimit <= 0) { if (el) el.innerText = ''; return; }
+  stopTimer();
+  if (quizTimeLimit <= 0 || parseQ()?.checked) { if (el) el.innerText = ''; return; }
   quizTimeLeft = quizTimeLimit;
   updateTimerDisplay();
   timerInterval = setInterval(() => {
+    if (parseQ()?.checked) { stopTimer(); return; }
     quizTimeLeft--;
     updateTimerDisplay();
-    if (quizTimeLeft <= 0) { clearInterval(timerInterval); handleCheck(); }
+    if (quizTimeLeft <= 0) { stopTimer(); handleCheck(); }
   }, 1000);
 }
 

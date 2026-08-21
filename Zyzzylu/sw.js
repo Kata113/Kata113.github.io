@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zyzzylu-v22';
+const CACHE_NAME = 'zyzzylu-v23';
 const ASSETS = [
   './', './index.html', './styles.css?v=12', './core.js?v=12', './search.js?v=8',
   './quiz_bridge.js?v=9', './judge.js?v=4', './manifest.json',

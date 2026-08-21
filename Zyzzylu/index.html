@@ -93,6 +93,18 @@
     .calc-fn  { background:var(--surface); color:var(--text2); }
     .calc-op  { color:var(--orange); border-color:rgba(255,149,0,.35); }
     .calc-eq  { background:var(--accent); color:#000; border:none; }
+    .clock-board { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:10px; align-items:stretch; }
+    .clock-side { min-height:220px; border:1px solid var(--border); border-radius:16px; background:var(--surface); color:var(--text); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; cursor:pointer; transition:.18s; }
+    .clock-side:hover, .clock-side.active { border-color:var(--accent); background:var(--surface2); }
+    .clock-side.active { box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+    .clock-side.overtime .clock-display { color:var(--danger); }
+    .clock-player-label { color:var(--text2); font-size:11px; font-weight:700; letter-spacing:1.5px; }
+    .clock-display { font-size:clamp(30px,8vw,56px); font-weight:800; letter-spacing:-2px; }
+    .clock-controls { display:flex; flex-direction:column; gap:7px; justify-content:center; min-width:126px; }
+    .clock-settings { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:7px; }
+    .clock-adjust-row { display:grid; grid-template-columns:auto 1fr auto; gap:5px; align-items:center; }
+    .clock-adjust-row .input-field { padding:9px 4px; text-align:center; }
+    @media (max-width:560px) { .clock-board { grid-template-columns:1fr 1fr; } .clock-controls { grid-column:1 / -1; grid-row:2; flex-direction:row; flex-wrap:wrap; justify-content:center; } .clock-settings { width:100%; } .clock-side { min-height:170px; } }
   </style>
   <link rel="stylesheet" href="styles.css?v=12">
 </head>
@@ -118,8 +130,8 @@
     <button type="button" class="nav-item active" id="nb-0" aria-controls="t0" aria-current="page" onclick="tab(0, this)"><span class="nav-glyph" aria-hidden="true">Aa</span><span>Search</span></button>
     <button type="button" class="nav-item" id="nb-1" aria-controls="t1" aria-current="false" onclick="tab(1, this)"><span class="nav-glyph" aria-hidden="true">?</span><span>Quiz</span></button>
     <button type="button" class="nav-item" id="nb-2" aria-controls="t2" aria-current="false" onclick="tab(2, this)"><span class="nav-glyph" aria-hidden="true">✓</span><span>Judge</span></button>
-    <button type="button" class="nav-item" id="nb-3" aria-controls="t3" aria-current="false" onclick="tab(3, this)"><span class="nav-glyph" aria-hidden="true">☆</span><span>Saved</span></button>
-    <button type="button" class="nav-item" id="nb-4" aria-controls="t4" aria-current="false" onclick="tab(4, this)"><span class="nav-glyph" aria-hidden="true">±</span><span>Calc</span></button>
+    <button type="button" class="nav-item" id="nb-3" aria-controls="t3" aria-current="false" onclick="tab(3, this)"><span class="nav-glyph" aria-hidden="true">±</span><span>Calc</span></button>
+    <button type="button" class="nav-item" id="nb-4" aria-controls="t4" aria-current="false" onclick="tab(4, this)"><span class="nav-glyph" aria-hidden="true">◷</span><span>Clock</span></button>
   </nav>
 
   <main id="mainContent" tabindex="-1">
@@ -244,19 +256,8 @@
       </div>
     </section>
 
-    <!-- ── SAVED ─────────────────────────────────────────────────── -->
-    <section class="section" id="t3" aria-labelledby="savedTitle" aria-hidden="true">
-      <div class="section-heading">
-        <p class="eyebrow">Saved words</p>
-      </div>
-      <div class="section-toolbar">
-        <h2>Bookmarks</h2>
-        <button type="button" class="btn destructive-action" onclick="clearSaved()">Clear all</button>
-      </div>
-      <div id="bList"></div>
-    </section>
     <!-- ── CALCULATOR ──────────────────────────────────────────────────── -->
-    <section class="section" id="t4" aria-labelledby="calcTitle" aria-hidden="true">
+    <section class="section" id="t3" aria-labelledby="calcTitle" aria-hidden="true">
       <div class="section-heading">
         <p class="eyebrow">Calculator</p>
       </div>
@@ -303,6 +304,39 @@
                 onclick="calcClearHistory()">Clear</button>
       </div>
       <div id="calcHistory" class="calc-history"></div>
+    </section>
+
+    <!-- ── CHESS CLOCK ───────────────────────────────────────────────── -->
+    <section class="section" id="t4" aria-labelledby="clockTitle" aria-hidden="true">
+      <div class="section-heading">
+        <p class="eyebrow">Chess clock</p>
+        <h1 id="clockTitle">Two-sided timer</h1>
+        <p class="field-hint">แตะฝั่งที่ต้องการเริ่มหรือสลับเวลา เมื่อหมดเวลาจะนับเพิ่มเป็นโอเวอร์ไทม์</p>
+      </div>
+      <div class="clock-board" id="clockBoard">
+        <button type="button" class="clock-side" id="clockSide0" onclick="clockPressSide(0)" aria-label="Start player one clock">
+          <span class="clock-player-label">PLAYER 1</span>
+          <span class="clock-display mono" id="clockDisplay0">25:00</span>
+        </button>
+        <div class="clock-controls" aria-label="Clock controls">
+          <button type="button" class="btn" id="clockPauseBtn" onclick="clockTogglePause()">หยุดเวลา</button>
+          <button type="button" class="btn" onclick="clockToggleSettings()">ตั้งค่าเวลา</button>
+          <button type="button" class="btn destructive-action" onclick="clockReset()">รีเซ็ตเวลา</button>
+          <div class="clock-settings" id="clockSettings" hidden>
+            <label class="field-label" for="clockMinutes">เวลาเริ่มต้น (นาที)</label>
+            <div class="clock-adjust-row">
+              <button type="button" class="btn" onclick="clockAdjust(-1)" aria-label="Decrease minutes">−</button>
+              <input class="input-field mono" id="clockMinutes" type="number" min="1" max="180" step="1" value="25" inputmode="numeric">
+              <button type="button" class="btn" onclick="clockAdjust(1)" aria-label="Increase minutes">+</button>
+            </div>
+            <button type="button" class="btn btn-p" onclick="clockApplySettings()">ใช้เวลานี้</button>
+          </div>
+        </div>
+        <button type="button" class="clock-side" id="clockSide1" onclick="clockPressSide(1)" aria-label="Start player two clock">
+          <span class="clock-player-label">PLAYER 2</span>
+          <span class="clock-display mono" id="clockDisplay1">25:00</span>
+        </button>
+      </div>
     </section>
   </main>
 
@@ -513,7 +547,7 @@
     }
     // Keyboard support for calculator tab
     document.addEventListener('keydown', e => {
-      const calcSection = document.getElementById('t4');
+      const calcSection = document.getElementById('t3');
       if (!calcSection?.classList.contains('active')) return;
       if (e.key >= '0' && e.key <= '9') calcFn(e.key);
       else if (e.key === '+') calcFn('+');
@@ -527,6 +561,89 @@
     });
     // Init history display
     calcRenderHistory();
+  </script>
+  <script>
+    // ── CHESS CLOCK ────────────────────────────────────────────────────
+    let clockBaseSeconds = 25 * 60;
+    let clockValues = [clockBaseSeconds, clockBaseSeconds];
+    let clockActiveSide = -1;
+    let clockRunning = false;
+    let clockLastTick = 0;
+    let clockFrame = null;
+
+    function clockFormat(seconds) {
+      const overtime = seconds < 0;
+      const total = Math.max(0, Math.ceil(Math.abs(seconds)));
+      const mins = Math.floor(total / 60);
+      const secs = total % 60;
+      return `${overtime ? '+' : ''}${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+    function clockRender() {
+      for (let i = 0; i < 2; i++) {
+        const side = document.getElementById(`clockSide${i}`);
+        const display = document.getElementById(`clockDisplay${i}`);
+        if (!side || !display) continue;
+        display.innerText = clockFormat(clockValues[i]);
+        side.classList.toggle('active', clockRunning && clockActiveSide === i);
+        side.classList.toggle('overtime', clockValues[i] < 0);
+      }
+      const pause = document.getElementById('clockPauseBtn');
+      if (pause) pause.innerText = clockRunning ? 'หยุดเวลา' : 'เริ่มเวลา';
+    }
+    function clockTick(now) {
+      if (!clockRunning || clockActiveSide < 0) return;
+      const elapsed = Math.max(0, now - clockLastTick) / 1000;
+      clockLastTick = now;
+      clockValues[clockActiveSide] -= elapsed;
+      clockRender();
+      clockFrame = requestAnimationFrame(clockTick);
+    }
+    function clockStart(side) {
+      clockActiveSide = side;
+      clockRunning = true;
+      clockLastTick = performance.now();
+      cancelAnimationFrame(clockFrame);
+      clockFrame = requestAnimationFrame(clockTick);
+      clockRender();
+    }
+    function clockPressSide(side) { clockStart(side); }
+    function clockTogglePause() {
+      if (clockRunning) {
+        clockRunning = false;
+        cancelAnimationFrame(clockFrame);
+      } else if (clockActiveSide >= 0) {
+        clockStart(clockActiveSide);
+      }
+      clockRender();
+    }
+    function clockReset() {
+      clockRunning = false;
+      clockActiveSide = -1;
+      cancelAnimationFrame(clockFrame);
+      clockValues = [clockBaseSeconds, clockBaseSeconds];
+      clockRender();
+    }
+    function clockToggleSettings() {
+      const panel = document.getElementById('clockSettings');
+      if (!panel) return;
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden) document.getElementById('clockMinutes')?.focus();
+    }
+    function clockAdjust(amount) {
+      const input = document.getElementById('clockMinutes');
+      if (!input) return;
+      input.value = String(Math.min(180, Math.max(1, (Number(input.value) || 25) + amount)));
+    }
+    function clockApplySettings() {
+      const input = document.getElementById('clockMinutes');
+      const minutes = Math.min(180, Math.max(1, Math.round(Number(input?.value) || 25)));
+      if (input) input.value = String(minutes);
+      clockBaseSeconds = minutes * 60;
+      clockReset();
+      const panel = document.getElementById('clockSettings');
+      if (panel) panel.hidden = true;
+    }
+    clockRender();
   </script>
   <script>
     if ('serviceWorker' in navigator) {

@@ -69,10 +69,10 @@ function initProbabilityCache() {
   const alphagramsByLength = {};
   const scores = new Map();
 
-  // Probability is calculated from the full 100-tile bag with the configured
-  // two blanks: add the ways to draw the rack with 0, 1, or 2 blanks.
-  // Alphagrams with equal counts remain alphabetized for display, while their
-  // rank uses Zyzzyva's default Lax (competition-ranking) convention.
+  // Probability is calculated from the full 100-tile bag with its two blanks:
+  // add the ways to draw the rack with 0, 1, or 2 blanks.  The score belongs
+  // to a rack, but Probability Order belongs to an individual word.  Therefore
+  // anagrams are expanded into alphabetic word order before ranks are assigned.
   for (const word of dict) {
     const alphagram = [...word].sort().join('');
     if (!wordsByAlphagram.has(alphagram)) {
@@ -91,16 +91,14 @@ function initProbabilityCache() {
       if (scoreA !== scoreB) return scoreA > scoreB ? -1 : 1;
       return a < b ? -1 : a > b ? 1 : 0;
     });
+    // Keep this cache as the ordered rack list for callers that need it, but
+    // give every word its own consecutive position.  For example, MO and OM
+    // have the same rack score but receive adjacent ranks in alphabetic order.
     probCache[length] = alphagrams;
     let rank = 1;
-    let previousScore = null;
-    for (let index = 0; index < alphagrams.length; index++) {
-      const score = scores.get(alphagrams[index]);
-      if (previousScore !== null && score !== previousScore) rank = index + 1;
-      for (const word of wordsByAlphagram.get(alphagrams[index])) {
-        probRankMap[word] = rank;
-      }
-      previousScore = score;
+    for (const alphagram of alphagrams) {
+      const words = wordsByAlphagram.get(alphagram).sort();
+      for (const word of words) probRankMap[word] = rank++;
     }
   }
 }

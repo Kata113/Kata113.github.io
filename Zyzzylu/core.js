@@ -247,7 +247,7 @@ function showDictFallback(reason) {
           onchange="loadDictFromFile(event)">
       </label>
       <div class="mono" style="font-size:11px; color:var(--text2); margin-top:16px;">
-        ไฟล์จะไม่ถูกอัปโหลดไปที่ใด — โหลดในเบราว์เซอร์เท่านั้น
+        ไฟล์จะไม่ถูกอัปโหลดไปที่ใด
       </div>
     </div>`;
 }
@@ -258,7 +258,7 @@ async function loadDictFromFile(event) {
   const ls = document.getElementById('loadingScreen');
   ls.innerHTML = `
     <div class="spinner"></div>
-    <div class="mono" id="loadingStatus">กำลังอ่านพจนานุกรม…</div>`;
+    <div class="mono" id="loadingStatus">แปปนึงน้าาา…</div>`;
   try {
     const text = await file.text();
     await processDictText(text);
@@ -283,11 +283,11 @@ window.onload = async () => {
       loaded += value.length;
       const s = document.getElementById('loadingStatus');
       if (s) s.innerText = total > 0
-        ? `Loading dictionary · ${Math.min(100,Math.round(loaded/total*100))}%`
-        : `Loading dictionary · ${Math.round(loaded/1024)} KB`;
+        ? `Loading · ${Math.min(100,Math.round(loaded/total*100))}%`
+        : `Loading · ${Math.round(loaded/1024)} KB`;
     }
     const s = document.getElementById('loadingStatus');
-    if (s) s.innerText = "Preparing the word index…";
+    if (s) s.innerText = "โหลดอยู่อย่างพึ่งออกกก…";
     await processDictText(await new Blob(chunks).text());
 
   } catch(e) {

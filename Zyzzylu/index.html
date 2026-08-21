@@ -93,18 +93,34 @@
     .calc-fn  { background:var(--surface); color:var(--text2); }
     .calc-op  { color:var(--orange); border-color:rgba(255,149,0,.35); }
     .calc-eq  { background:var(--accent); color:#000; border:none; }
-    .clock-board { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:10px; align-items:stretch; }
-    .clock-side { min-height:220px; border:1px solid var(--border); border-radius:16px; background:var(--surface); color:var(--text); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; cursor:pointer; transition:.18s; }
+    .clock-board { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:10px; align-items:stretch; width:100%; }
+    .clock-side { width:100%; min-width:0; min-height:220px; border:1px solid var(--border); border-radius:16px; background:var(--surface); color:var(--text); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; cursor:pointer; transition:.18s; }
     .clock-side:hover, .clock-side.active { border-color:var(--accent); background:var(--surface2); }
     .clock-side.active { box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
     .clock-side.overtime .clock-display { color:var(--danger); }
     .clock-player-label { color:var(--text2); font-size:11px; font-weight:700; letter-spacing:1.5px; }
     .clock-display { font-size:clamp(30px,8vw,56px); font-weight:800; letter-spacing:-2px; }
     .clock-controls { display:flex; flex-direction:column; gap:7px; justify-content:center; min-width:126px; }
-    .clock-settings { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:7px; }
-    .clock-adjust-row { display:grid; grid-template-columns:auto 1fr auto; gap:5px; align-items:center; }
-    .clock-adjust-row .input-field { padding:9px 4px; text-align:center; }
-    @media (max-width:560px) { .clock-board { grid-template-columns:1fr 1fr; } .clock-controls { grid-column:1 / -1; grid-row:2; flex-direction:row; flex-wrap:wrap; justify-content:center; } .clock-settings { width:100%; } .clock-side { min-height:170px; } }
+    .clock-modal { position:fixed; inset:0; z-index:2500; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(0,0,0,.76); backdrop-filter:blur(8px); }
+    .clock-modal[hidden] { display:none; }
+    .clock-modal-card { width:min(100%,460px); background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px; box-shadow:0 18px 55px rgba(0,0,0,.45); }
+    .clock-setting-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px; }
+    .clock-time-pair { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:6px; }
+    .clock-time-pair .input-field { text-align:center; }
+    .clock-modal-actions { display:flex; flex-wrap:wrap; gap:7px; justify-content:flex-end; margin-top:16px; }
+    /* Phone portrait: wide top/bottom touch zones, controls in the middle. */
+    @media (max-width:560px) and (orientation:portrait) {
+      .clock-board { grid-template-columns:1fr; gap:8px; }
+      .clock-side { min-height:clamp(180px, 30vh, 300px); }
+      .clock-controls { grid-column:auto; grid-row:auto; min-width:0; flex-direction:row; flex-wrap:wrap; justify-content:stretch; }
+      .clock-controls .btn { flex:1 1 0; min-height:48px; padding:10px 8px; }
+    }
+    /* Tablet/landscape keeps the three-column chess-clock layout. */
+    @media (min-width:561px) and (orientation:landscape) {
+      .clock-side { min-height:clamp(240px, 48vh, 520px); }
+      .clock-controls .btn { width:100%; }
+    }
+    @media (max-width:560px) { .clock-setting-grid { grid-template-columns:1fr; } .clock-modal-actions { justify-content:stretch; } .clock-modal-actions .btn { flex:1 1 45%; } }
   </style>
   <link rel="stylesheet" href="styles.css?v=12">
 </head>
@@ -307,12 +323,7 @@
     </section>
 
     <!-- ── CHESS CLOCK ───────────────────────────────────────────────── -->
-    <section class="section" id="t4" aria-labelledby="clockTitle" aria-hidden="true">
-      <div class="section-heading">
-        <p class="eyebrow">Chess clock</p>
-        <h1 id="clockTitle">Two-sided timer</h1>
-        <p class="field-hint">แตะฝั่งที่ต้องการเริ่มหรือสลับเวลา เมื่อหมดเวลาจะนับเพิ่มเป็นโอเวอร์ไทม์</p>
-      </div>
+    <section class="section" id="t4" aria-label="Two-sided timer" aria-hidden="true">
       <div class="clock-board" id="clockBoard">
         <button type="button" class="clock-side" id="clockSide0" onclick="clockPressSide(0)" aria-label="Start player one clock">
           <span class="clock-player-label">PLAYER 1</span>
@@ -322,15 +333,6 @@
           <button type="button" class="btn" id="clockPauseBtn" onclick="clockTogglePause()">หยุดเวลา</button>
           <button type="button" class="btn" onclick="clockToggleSettings()">ตั้งค่าเวลา</button>
           <button type="button" class="btn destructive-action" onclick="clockReset()">รีเซ็ตเวลา</button>
-          <div class="clock-settings" id="clockSettings" hidden>
-            <label class="field-label" for="clockMinutes">เวลาเริ่มต้น (นาที)</label>
-            <div class="clock-adjust-row">
-              <button type="button" class="btn" onclick="clockAdjust(-1)" aria-label="Decrease minutes">−</button>
-              <input class="input-field mono" id="clockMinutes" type="number" min="1" max="180" step="1" value="25" inputmode="numeric">
-              <button type="button" class="btn" onclick="clockAdjust(1)" aria-label="Increase minutes">+</button>
-            </div>
-            <button type="button" class="btn btn-p" onclick="clockApplySettings()">ใช้เวลานี้</button>
-          </div>
         </div>
         <button type="button" class="clock-side" id="clockSide1" onclick="clockPressSide(1)" aria-label="Start player two clock">
           <span class="clock-player-label">PLAYER 2</span>
@@ -339,6 +341,37 @@
       </div>
     </section>
   </main>
+
+  <div class="clock-modal" id="clockSettings" role="dialog" aria-modal="true" aria-labelledby="clockSettingsTitle" hidden>
+    <div class="clock-modal-card">
+      <div class="section-toolbar compact-toolbar">
+        <h2 id="clockSettingsTitle">ตั้งเวลา</h2>
+        <button type="button" class="btn" onclick="clockToggleSettings()" aria-label="Close clock settings">ปิด</button>
+      </div>
+      <p class="field-hint">ตั้งเวลาเริ่มต้นแยกทั้งสองฝั่ง แล้วกดใช้เวลา</p>
+      <div class="clock-setting-grid">
+        <label class="field-label">PLAYER 1
+          <span class="clock-time-pair">
+            <input class="input-field mono" id="clockMinutes0" aria-label="Player 1 minutes" type="number" min="0" max="180" step="1" value="25" inputmode="numeric">
+            <input class="input-field mono" id="clockSeconds0" aria-label="Player 1 seconds" type="number" min="0" max="59" step="1" value="0" inputmode="numeric">
+          </span>
+          <span class="field-hint">นาที : วินาที</span>
+        </label>
+        <label class="field-label">PLAYER 2
+          <span class="clock-time-pair">
+            <input class="input-field mono" id="clockMinutes1" aria-label="Player 2 minutes" type="number" min="0" max="180" step="1" value="25" inputmode="numeric">
+            <input class="input-field mono" id="clockSeconds1" aria-label="Player 2 seconds" type="number" min="0" max="59" step="1" value="0" inputmode="numeric">
+          </span>
+          <span class="field-hint">นาที : วินาที</span>
+        </label>
+      </div>
+      <div class="clock-modal-actions">
+        <button type="button" class="btn" onclick="clockAdjust(-1)" aria-label="Decrease both times">− 1 นาทีทั้งคู่</button>
+        <button type="button" class="btn" onclick="clockAdjust(1)" aria-label="Increase both times">+ 1 นาทีทั้งคู่</button>
+        <button type="button" class="btn btn-p" onclick="clockApplySettings()">ใช้เวลานี้</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Judge overlay -->
   <div class="judge-overlay" id="jOverlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="jStatus" tabindex="-1" onclick="closeJudgeOverlay(event)">
@@ -564,8 +597,8 @@
   </script>
   <script>
     // ── CHESS CLOCK ────────────────────────────────────────────────────
-    let clockBaseSeconds = 25 * 60;
-    let clockValues = [clockBaseSeconds, clockBaseSeconds];
+    let clockBaseValues = [25 * 60, 25 * 60];
+    let clockValues = [...clockBaseValues];
     let clockActiveSide = -1;
     let clockRunning = false;
     let clockLastTick = 0;
@@ -606,7 +639,8 @@
       clockFrame = requestAnimationFrame(clockTick);
       clockRender();
     }
-    function clockPressSide(side) { clockStart(side); }
+    // Pressing your own side ends your turn, so the opponent's clock starts.
+    function clockPressSide(side) { clockStart(side === 0 ? 1 : 0); }
     function clockTogglePause() {
       if (clockRunning) {
         clockRunning = false;
@@ -620,25 +654,39 @@
       clockRunning = false;
       clockActiveSide = -1;
       cancelAnimationFrame(clockFrame);
-      clockValues = [clockBaseSeconds, clockBaseSeconds];
+      clockValues = [...clockBaseValues];
       clockRender();
     }
     function clockToggleSettings() {
       const panel = document.getElementById('clockSettings');
       if (!panel) return;
       panel.hidden = !panel.hidden;
-      if (!panel.hidden) document.getElementById('clockMinutes')?.focus();
+      if (!panel.hidden) {
+        for (const i of [0, 1]) {
+          const total = Math.max(0, Math.round(clockBaseValues[i]));
+          document.getElementById(`clockMinutes${i}`).value = String(Math.floor(total / 60));
+          document.getElementById(`clockSeconds${i}`).value = String(total % 60);
+        }
+        document.getElementById('clockMinutes0')?.focus();
+      }
     }
     function clockAdjust(amount) {
-      const input = document.getElementById('clockMinutes');
-      if (!input) return;
-      input.value = String(Math.min(180, Math.max(1, (Number(input.value) || 25) + amount)));
+      for (const id of ['clockMinutes0', 'clockMinutes1']) {
+        const input = document.getElementById(id);
+        if (input) input.value = String(Math.min(180, Math.max(1, (Number(input.value) || 25) + amount)));
+      }
     }
     function clockApplySettings() {
-      const input = document.getElementById('clockMinutes');
-      const minutes = Math.min(180, Math.max(1, Math.round(Number(input?.value) || 25)));
-      if (input) input.value = String(minutes);
-      clockBaseSeconds = minutes * 60;
+      const minutes = [0, 1].map(i => {
+        const minuteInput = document.getElementById(`clockMinutes${i}`);
+        const secondInput = document.getElementById(`clockSeconds${i}`);
+        const minute = Math.min(180, Math.max(0, Math.round(Number(minuteInput?.value) || 0)));
+        const second = Math.min(59, Math.max(0, Math.round(Number(secondInput?.value) || 0)));
+        if (minuteInput) minuteInput.value = String(minute);
+        if (secondInput) secondInput.value = String(second);
+        return minute * 60 + second;
+      });
+      clockBaseValues = minutes;
       clockReset();
       const panel = document.getElementById('clockSettings');
       if (panel) panel.hidden = true;

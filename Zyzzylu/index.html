@@ -103,7 +103,7 @@
   <div id="loadingScreen" role="status" aria-live="polite">
     <div class="spinner"></div>
     <!-- id="loadingStatus" is used by core.js to show download progress -->
-    <div class="mono" id="loadingStatus">Preparing the dictionary…</div>
+    <div class="mono" id="loadingStatus">โหลดอยู่รอก่อนนน อย่าพึ่งรีบบบบบบ…</div>
   </div>
 
   <header class="dictionary-status" aria-live="polite">
@@ -127,8 +127,6 @@
     <section class="section active" id="t0" aria-labelledby="searchTitle" aria-hidden="false">
       <div class="section-heading">
         <p class="eyebrow">Word search</p>
-        <h1 id="searchTitle">Find your next word.</h1>
-        <p>Start with the letters you have. Refine the results only when you need to.</p>
       </div>
       <div class="capsule-wrapper mono" role="group" aria-label="Search mode">
         <button type="button" class="capsule-btn active" id="sm-subanagram" aria-pressed="true" onclick="setSearchMode('subanagram')">Subanagram</button>
@@ -167,8 +165,6 @@
     <section class="section" id="t1" aria-labelledby="quizTitle" aria-hidden="true">
       <div class="section-heading">
         <p class="eyebrow">Practice</p>
-        <h1 id="quizTitle">Study at your pace.</h1>
-        <p>Choose a format that feels useful. The timer can stay off.</p>
       </div>
       <div class="card" id="qBox">
         <div id="qSettingsPane">
@@ -236,8 +232,6 @@
     <section class="section" id="t2" aria-labelledby="judgeTitle" aria-hidden="true">
       <div class="section-heading">
         <p class="eyebrow">Word judge</p>
-        <h1 id="judgeTitle">Check without the guesswork.</h1>
-        <p>Enter one word or a short list. Your text stays in this browser.</p>
       </div>
       <div class="card judge-card">
         <label class="field-label" for="cInp">Words to check</label>
@@ -254,8 +248,6 @@
     <section class="section" id="t3" aria-labelledby="savedTitle" aria-hidden="true">
       <div class="section-heading">
         <p class="eyebrow">Saved words</p>
-        <h1 id="savedTitle">Words worth returning to.</h1>
-        <p>Keep a small study list here. It remains on this device.</p>
       </div>
       <div class="section-toolbar">
         <h2>Bookmarks</h2>
@@ -267,8 +259,6 @@
     <section class="section" id="t4" aria-labelledby="calcTitle" aria-hidden="true">
       <div class="section-heading">
         <p class="eyebrow">Calculator</p>
-        <h1 id="calcTitle">Keep the score close by.</h1>
-        <p>A quiet scratchpad for quick totals during play.</p>
       </div>
       <!-- Display -->
       <div class="card calc-display-card">
@@ -529,6 +519,7 @@
       else if (e.key === '+') calcFn('+');
       else if (e.key === '-') calcFn('-');
       else if (e.key === '*') calcFn('*');
+      else if (e.key === 'x') calcFn('*');
       else if (e.key === '/') { e.preventDefault(); calcFn('/'); }
       else if (e.key === '.' || e.key === ',') calcFn('.');
       else if (e.key === 'Enter' || e.key === '=') calcFn('=');

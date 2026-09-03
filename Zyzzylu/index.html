@@ -94,13 +94,20 @@
     .calc-op  { color:var(--orange); border-color:rgba(255,149,0,.35); }
     .calc-eq  { background:var(--accent); color:#000; border:none; }
     .clock-board { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:10px; align-items:stretch; width:100%; }
-    .clock-side { width:100%; min-width:0; min-height:220px; border:1px solid var(--border); border-radius:16px; background:var(--surface); color:var(--text); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; cursor:pointer; transition:.18s; }
-    .clock-side:hover, .clock-side.active { border-color:var(--accent); background:var(--surface2); }
-    .clock-side.active { box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+    .clock-side { width:100%; min-width:0; min-height:220px; border:1px solid var(--border); border-radius:16px; background:var(--surface); color:var(--text); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; cursor:pointer; transition:.18s; touch-action:manipulation; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+    .clock-side.active { border-color:var(--accent); background:var(--surface2); box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+    .clock-side:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+    @media (hover:hover) and (pointer:fine) {
+      .clock-side:hover { border-color:var(--accent); background:var(--surface2); }
+    }
     .clock-side.overtime .clock-display { color:var(--danger); }
     .clock-player-label { color:var(--text2); font-size:11px; font-weight:700; letter-spacing:1.5px; }
     .clock-display { font-size:clamp(30px,8vw,56px); font-weight:800; letter-spacing:-2px; }
     .clock-controls { display:flex; flex-direction:column; gap:7px; justify-content:center; min-width:126px; }
+    .clock-pause-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+    .clock-pause-icon { display:inline-flex; width:0; height:0; border-top:7px solid transparent; border-bottom:7px solid transparent; border-left:11px solid currentColor; flex:0 0 auto; }
+    .clock-pause-btn.is-paused { color:#22c55e; border-color:rgba(34,197,94,.45); }
+    .clock-pause-btn.is-running { color:#ef4444; border-color:rgba(239,68,68,.45); }
     .clock-modal { position:fixed; inset:0; z-index:2500; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(0,0,0,.76); backdrop-filter:blur(8px); }
     .clock-modal[hidden] { display:none; }
     .clock-modal-card { width:min(100%,460px); background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px; box-shadow:0 18px 55px rgba(0,0,0,.45); }
@@ -108,21 +115,104 @@
     .clock-time-pair { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:6px; }
     .clock-time-pair .input-field { text-align:center; }
     .clock-modal-actions { display:flex; flex-wrap:wrap; gap:7px; justify-content:flex-end; margin-top:16px; }
-    /* Phone portrait: wide top/bottom touch zones, controls in the middle. */
+    /* Phone portrait: full-height top/bottom touch zones, controls in the middle. */
     @media (max-width:560px) and (orientation:portrait) {
-      .clock-board { grid-template-columns:1fr; gap:8px; }
-      .clock-side { min-height:clamp(180px, 30vh, 300px); }
-      /* Keep Player 1 readable from the opposite side of a phone.  Use a
-         class plus !important because clock state/theme rules may add
-         transforms later during rendering. */
-      #clockSide0.player-one .clock-player-label,
-      #clockSide0.player-one .clock-display {
-        transform:rotate(180deg) !important;
-        transform-origin:center;
-        backface-visibility:hidden;
+      #t4.section.active {
+        position:fixed;
+        inset:0 0 calc(72px + env(safe-area-inset-bottom)) 0;
+        z-index:900;
+        width:100%;
+        height:auto;
+        padding:0;
+        overflow:hidden;
+        overscroll-behavior:none;
+        background:var(--bg);
       }
-      .clock-controls { grid-column:auto; grid-row:auto; min-width:0; flex-direction:row; flex-wrap:wrap; justify-content:stretch; }
-      .clock-controls .btn { flex:1 1 0; min-height:48px; padding:10px 8px; }
+      #t4.section.active .clock-board {
+        grid-template-columns:1fr;
+        grid-template-rows:minmax(0,1fr) auto minmax(0,1fr);
+        gap:0;
+        width:100%;
+        height:100%;
+        min-height:0;
+      }
+      #t4.section.active .clock-side {
+        width:100%;
+        height:100%;
+        min-height:0;
+        border-width:0;
+        border-radius:0;
+      }
+      /* Chess-clock orientation: Player 1 faces the opposite direction from Player 2. */
+      #t4.section.active #clockSide0 .clock-player-label,
+      #t4.section.active #clockSide0 .clock-display {
+        transform:rotate(180deg);
+      }
+      #t4.section.active .clock-side.active {
+        box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+      }
+      #t4.section.active .clock-controls {
+        grid-column:auto;
+        grid-row:auto;
+        min-width:0;
+        padding:8px;
+        flex-direction:row;
+        flex-wrap:wrap;
+        justify-content:stretch;
+        background:var(--bg);
+        border-top:1px solid var(--border);
+        border-bottom:1px solid var(--border);
+      }
+      #t4.section.active .clock-controls .btn {
+        flex:1 1 0;
+        min-height:48px;
+        padding:10px 8px;
+      }
+    }
+    /* Landscape: keep the desktop three-column layout, but make both clock touch zones fill the available screen. */
+    @media (min-width:561px) and (orientation:landscape) {
+      #t4.section.active {
+        position:fixed;
+        inset:0 0 72px 0;
+        z-index:900;
+        width:auto;
+        height:auto;
+        max-width:none;
+        margin:0;
+        padding:0;
+        overflow:hidden;
+        overscroll-behavior:none;
+        background:var(--bg);
+      }
+      #t4.section.active .clock-board {
+        grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+        gap:0;
+        width:100%;
+        height:100%;
+        min-height:0;
+      }
+      #t4.section.active .clock-side {
+        width:100%;
+        height:100%;
+        min-height:0;
+        border-width:0;
+        border-radius:0;
+      }
+      #t4.section.active .clock-controls {
+        min-width:126px;
+        padding:8px;
+        background:var(--bg);
+        justify-content:center;
+      }
+      #t4.section.active .clock-controls .btn {
+        width:100%;
+      }
+    }
+    /* Large desktop: account for the left navigation while the clock touch zones still fill the viewport height. */
+    @media (min-width:900px) and (orientation:landscape) {
+      #t4.section.active {
+        inset:0 0 0 232px;
+      }
     }
     /* Tablet/landscape keeps the three-column chess-clock layout. */
     @media (min-width:561px) and (orientation:landscape) {
@@ -130,10 +220,6 @@
       .clock-controls .btn { width:100%; }
     }
     @media (max-width:560px) { .clock-setting-grid { grid-template-columns:1fr; } .clock-modal-actions { justify-content:stretch; } .clock-modal-actions .btn { flex:1 1 45%; } }
-    @media (max-width:800px) and (orientation:portrait) {
-      #clockSide0.player-one .clock-player-label,
-      #clockSide0.player-one .clock-display { transform:rotate(180deg) !important; }
-    }
   </style>
   <link rel="stylesheet" href="styles.css?v=12">
 </head>
@@ -338,12 +424,15 @@
     <!-- ── CHESS CLOCK ───────────────────────────────────────────────── -->
     <section class="section" id="t4" aria-label="Two-sided timer" aria-hidden="true">
       <div class="clock-board" id="clockBoard">
-        <button type="button" class="clock-side player-one" id="clockSide0" onclick="clockPressSide(0)" aria-label="Start player one clock">
+        <button type="button" class="clock-side" id="clockSide0" onclick="clockPressSide(0)" aria-label="Start player one clock">
           <span class="clock-player-label">PLAYER 1</span>
           <span class="clock-display mono" id="clockDisplay0">25:00</span>
         </button>
         <div class="clock-controls" aria-label="Clock controls">
-          <button type="button" class="btn" id="clockPauseBtn" onclick="clockTogglePause()">หยุดเวลา</button>
+          <button type="button" class="btn clock-pause-btn is-running" id="clockPauseBtn" onclick="clockTogglePause()" aria-label="หยุดเวลา">
+            <span class="clock-pause-icon" aria-hidden="true"></span>
+            <span class="clock-pause-label">หยุดเวลา</span>
+          </button>
           <button type="button" class="btn" onclick="clockToggleSettings()">ตั้งค่าเวลา</button>
           <button type="button" class="btn destructive-action" onclick="clockReset()">รีเซ็ตเวลา</button>
         </div>
@@ -467,10 +556,10 @@
   <div class="toast" id="tst" role="status" aria-live="polite" aria-atomic="true"></div>
   <input type="file" id="fInp" style="display:none" accept=".zzq,.txt,text/plain,application/xml,text/xml,*/*" onchange="loadZzq(event)">
 
-  <script src="core.js?v=13"></script>
+  <script src="core.js?v=12"></script>
   <script src="search.js?v=8"></script>
   <script src="zyzzylu_cpp_engine.js"></script>
-  <script src="quiz_bridge.js?v=13"></script>
+  <script src="quiz_bridge.js?v=9"></script>
   <script src="judge.js?v=4"></script>
   <script>
     // ── CALCULATOR ─────────────────────────────────────────────────────
@@ -480,8 +569,7 @@
     let calcPrev     = null; // previous value
     let calcNewNum   = true; // next digit starts a fresh number
     let calcResult   = false;// last action was =
-    let calcHistory  = readJsonStorage('zyz_calc_hist', []);
-    if (!Array.isArray(calcHistory)) calcHistory = [];
+    let calcHistory  = JSON.parse(localStorage.getItem('zyz_calc_hist') || '[]');
 
     function calcSaveHistory() {
       localStorage.setItem('zyz_calc_hist', JSON.stringify(calcHistory.slice(-50)));
@@ -492,9 +580,9 @@
       el.innerHTML = [...calcHistory].reverse().map(h =>
         `<div class="card" style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
           <div style="font-size:12px;color:var(--text2);font-family:'JetBrains Mono',monospace;
-                      flex:1;word-break:break-all;">${escapeHtml(h.expr)}</div>
+                      flex:1;word-break:break-all;">${h.expr}</div>
           <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;
-                      color:var(--orange);white-space:nowrap;">${escapeHtml(h.result)}</div>
+                      color:var(--orange);white-space:nowrap;">${h.result}</div>
          </div>`
       ).join('') || '<p style="text-align:center;color:var(--text2);font-size:13px;padding:12px;">No history yet</p>';
     }
@@ -618,6 +706,15 @@
     let clockLastTick = 0;
     let clockFrame = null;
 
+    function clockHaptic() {
+      const canHaptic = typeof navigator !== 'undefined'
+        && 'vibrate' in navigator
+        && (navigator.maxTouchPoints > 0 || window.matchMedia?.('(pointer: coarse)').matches);
+      if (canHaptic) {
+        try { navigator.vibrate(50); } catch (_) {}
+      }
+    }
+
     function clockFormat(seconds) {
       const overtime = seconds < 0;
       const total = Math.max(0, Math.ceil(Math.abs(seconds)));
@@ -635,7 +732,24 @@
         side.classList.toggle('overtime', clockValues[i] < 0);
       }
       const pause = document.getElementById('clockPauseBtn');
-      if (pause) pause.innerText = clockRunning ? 'หยุดเวลา' : 'เริ่มเวลา';
+      if (pause) {
+        const label = pause.querySelector('.clock-pause-label');
+        const running = clockRunning;
+        if (label) label.innerText = running ? 'หยุดเวลา' : 'เล่นต่อ';
+        pause.classList.toggle('is-running', running);
+        pause.classList.toggle('is-paused', !running);
+        pause.setAttribute('aria-label', running ? 'หยุดเวลา' : 'เล่นต่อ');
+        // A triangle means "play/resume" when paused; when running, the icon
+        // becomes a compact red stop indicator.
+        const icon = pause.querySelector('.clock-pause-icon');
+        if (icon) {
+          icon.style.width = running ? '12px' : '0';
+          icon.style.height = running ? '12px' : '0';
+          icon.style.border = running ? '0' : '';
+          icon.style.background = running ? 'currentColor' : '';
+          icon.style.borderRadius = running ? '2px' : '';
+        }
+      }
     }
     function clockTick(now) {
       if (!clockRunning || clockActiveSide < 0) return;
@@ -654,8 +768,12 @@
       clockRender();
     }
     // Pressing your own side ends your turn, so the opponent's clock starts.
-    function clockPressSide(side) { clockStart(side === 0 ? 1 : 0); }
+    function clockPressSide(side) {
+      clockStart(side === 0 ? 1 : 0);
+      clockHaptic();
+    }
     function clockTogglePause() {
+      clockHaptic();
       if (clockRunning) {
         clockRunning = false;
         cancelAnimationFrame(clockFrame);
@@ -665,6 +783,7 @@
       clockRender();
     }
     function clockReset() {
+      clockHaptic();
       clockRunning = false;
       clockActiveSide = -1;
       cancelAnimationFrame(clockFrame);

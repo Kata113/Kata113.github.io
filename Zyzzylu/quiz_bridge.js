@@ -10,13 +10,14 @@ let quizHistory = []; // { word, status } for end-screen review
 let quizRackQuestionKey = '';
 let quizRackLetters = [];
 let quizRackDragState = null;
+let activeQuizSessionId = '';
 
 // seed2 mirrors Zyzzyva's getPid() — constant per process/session
 // Linux PIDs are quint16 range (1–65535); generated once per page load
 const SESSION_SEED2 = Math.floor(Math.random() * 65534) + 1;
 
 // Session-wide wrong-guess tracking { word: count }
-// Persisted in localStorage keyed by seed pair so it survives tab refresh
+// Persisted in localStorage keyed by active quiz session ID (unique per file/save)
 let sessionIncorrect = {};
 
 // ── WASM INIT ──────────────────────────────────────────────────────────
@@ -68,22 +69,38 @@ function shuffleMwc(arr, s1, s2) {
   return a;
 }
 
-// ── SESSION STORAGE (localStorage keyed by seed pair) ─────────────────
-function sessionKey() { return `zzlu_si_${activeSeed1}_${activeSeed2}`; }
+// ── SESSION STORAGE (localStorage keyed by isolated session/file ID) ──
+function sessionKey() {
+  if (activeQuizSessionId) {
+    return `zzlu_si_${activeQuizSessionId}`;
+  }
+  return activeSeed1 ? `zzlu_si_${activeSeed1}_${activeSeed2}` : '';
+}
+
 function saveSessionIncorrect() {
-  if (!activeSeed1) return;
-  if (Object.keys(sessionIncorrect).length)
-    localStorage.setItem(sessionKey(), JSON.stringify(sessionIncorrect));
-  else
-    localStorage.removeItem(sessionKey());
+  const k = sessionKey();
+  if (!k) return;
+  if (Object.keys(sessionIncorrect).length) {
+    localStorage.setItem(k, JSON.stringify(sessionIncorrect));
+  } else {
+    localStorage.removeItem(k);
+  }
 }
+
 function loadSessionIncorrect() {
-  if (!activeSeed1) return;
+  const k = sessionKey();
+  if (!k) return;
   try {
-    const raw = localStorage.getItem(sessionKey());
-    sessionIncorrect = raw ? JSON.parse(raw) : {};
-  } catch(_) { sessionIncorrect = {}; }
+    const raw = localStorage.getItem(k);
+    if (raw) {
+      const stored = JSON.parse(raw);
+      for (const [w, c] of Object.entries(stored)) {
+        sessionIncorrect[w] = Math.max(sessionIncorrect[w] || 0, Number(c) || 1);
+      }
+    }
+  } catch(_) {}
 }
+
 function trackWrongGuess(w) {
   if (!w) return;
   sessionIncorrect[w] = (sessionIncorrect[w] || 0) + 1;
@@ -234,6 +251,7 @@ function startQuiz() {
   //          seed2 = Auxil::getPid()  (process ID, constant per session)
   activeSeed1 = Math.floor(Date.now() / 1000);
   activeSeed2 = SESSION_SEED2;
+  activeQuizSessionId = `new_${activeSeed1}_${activeSeed2}_${Date.now()}`;
   sessionIncorrect = {};
   quizHistory = [];
   saveSessionIncorrect();
@@ -471,7 +489,7 @@ function renderQuizUI(q, prog) {
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" style="flex:1;min-width:60px"  onclick="quitQuiz()">Quit</button>
         <button class="btn" style="flex:1;min-width:64px;color:var(--orange)"
-                onclick="saveCurrentZzq()">Save 💾</button>
+                onclick="handleSaveQuizClick()">Save</button>
         <button class="btn" style="flex:1;min-width:64px;color:#0A84FF"
                 onclick="showAnalysis()">Analyze</button>
         ${isChecked
@@ -689,7 +707,7 @@ function showAnalysis() {
         <div style="font-size:11px;text-transform:uppercase;font-weight:700;
                     color:var(--danger);margin-bottom:6px">
           All Session Wrong (${sessWords.length})
-          <span style="color:var(--text2);font-weight:400;font-size:10px"> — saved in localStorage per seed</span>
+          <span style="color:var(--text2);font-weight:400;font-size:10px"> — แยกตามเซฟ/ไฟล์นี้</span>
         </div>
         ${wordList(sessWords, 'var(--danger)', '✕')}
       </div>
@@ -702,15 +720,19 @@ function renderActiveQuiz() {
   renderQuizUI(q, parseProg());
 }
 
-// ── SAVE .zzq — 100% Zyzzyva-compatible XML ───────────────────────────
-// IMPORTANT: Zyzzyva's fromDomElement uses `else return false` for unknown
-// tags — so we CANNOT add any custom XML elements. Session data goes in an
-// XML comment instead (comments are skipped by .toElement() in Qt's DOM).
-function saveCurrentZzq() {
-  if (!currentQuizPool?.length) { toast('No active quiz to save'); return; }
-  let name = prompt('ชื่อไฟล์:', 'zyzzylu_quiz');
-  if (name === null) return;
-  name = (name.trim() || 'zyzzylu_quiz').replace(/\.zzq$/i, '') + '.zzq';
+// ── QUIZ STORAGE & SERIALIZATION ──────────────────────────────────────────
+// Supports dual-mode saving/loading:
+// 1. Local Storage: fast, instant pop-up, isolated metadata vs full XML payload
+// 2. .zzq file: 100% Zyzzyva-compatible XML format
+
+const STORAGE_META_KEY = 'zyz_quiz_saves_meta';
+const STORAGE_SAVE_PREFIX = 'zyz_quiz_save_';
+
+// ── BUILD .zzq XML — 100% Zyzzyva-compatible XML string ──────────────────
+// Extracted to be shared across file downloads and Local Storage saves.
+// Note: session data is stored in XML comments to ensure Qt's DOM skips it.
+function buildZzqXmlString() {
+  if (!currentQuizPool?.length) return null;
 
   const prog      = parseProg();
   const q         = parseQ();
@@ -825,9 +847,712 @@ function saveCurrentZzq() {
   }
 
   lines.push('</zyzzyva-quiz>');
-  downloadBlob(lines.join('\r\n'), name);
-  toast(`Saved ${name}`);
+  return lines.join('\r\n');
 }
+
+// ── SAVE HANDLERS ────────────────────────────────────────────────────────
+function saveCurrentZzq() {
+  if (!currentQuizPool?.length) { toast('No active quiz to save'); return; }
+  let name = prompt('ชื่อไฟล์:', 'zyzzylu_quiz');
+  if (name === null) return;
+  const baseName = (name.trim() || 'zyzzylu_quiz').replace(/\.zzq$/i, '');
+  const fileName = baseName + '.zzq';
+  const xml = buildZzqXmlString();
+  if (!xml) { toast('Failed to build quiz data'); return; }
+  downloadBlob(xml, fileName);
+  const safeName = baseName.replace(/[^a-zA-Z0-9_\-\u0E00-\u0E7F]/g, '_');
+  activeQuizSessionId = `file_${safeName}_${activeSeed1}_${activeSeed2}`;
+  saveSessionIncorrect();
+  toast(`Saved ${fileName}`);
+}
+
+function handleSaveQuizClick() {
+  if (!currentQuizPool?.length) {
+    toast('No active quiz to save');
+    return;
+  }
+  // Pause the quiz timer while the user is choosing save options
+  stopTimer();
+  showSaveChoiceModal();
+}
+
+function handleLoadQuizClick() {
+  if (!cppInitialized || !dict?.length) {
+    toast('พจนานุกรมกำลังเตรียมความพร้อม กรุณารอสักครู่…');
+    return;
+  }
+  showLoadChoiceModal();
+}
+
+// ── LOCAL STORAGE REPOSITORY ──────────────────────────────────────────────
+function getLocalSavesMeta() {
+  try {
+    const raw = localStorage.getItem(STORAGE_META_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch (e) {
+    console.error('Failed to read quiz saves metadata:', e);
+    return [];
+  }
+}
+
+function saveLocalSavesMeta(list) {
+  localStorage.setItem(STORAGE_META_KEY, JSON.stringify(list));
+}
+
+function saveQuizToLocalStorage(customName) {
+  if (!currentQuizPool?.length) {
+    toast('No active quiz to save');
+    return false;
+  }
+  const xmlContent = buildZzqXmlString();
+  if (!xmlContent) {
+    toast('Failed to generate quiz data');
+    return false;
+  }
+
+  const prog = parseProg();
+  const q = parseQ();
+  const isChecked = q?.checked ?? false;
+  let cr = null;
+  if (isChecked) {
+    try {
+      const s = Module.checkAnswers();
+      if (s && s !== '{}') cr = JSON.parse(s);
+    } catch (_) {}
+  }
+
+  const quizTypeVal = sel('qTypeSelect');
+  const typeStr = ['Anagrams', 'Anagrams with Hooks', 'Build Word'][quizTypeVal] || 'Anagrams';
+  const totalQuestions = prog.totalQuestions || currentQuizPool.length || 0;
+  const currentQuestion = prog.currentQuestion || 1;
+  const correct = prog.totalCorrect || 0;
+  const missedOnCurrent = isChecked ? (cr?.answers?.filter(a => a.status === 'missed').length || 0) : 0;
+  const missed = (prog.totalMissed || 0) + missedOnCurrent;
+
+  const id = 'save_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const dateStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  const defaultName = `${typeStr} · ${totalQuestions} คำ (ข้อ ${currentQuestion})`;
+  const name = (customName && customName.trim()) ? customName.trim() : defaultName;
+
+  const metaEntry = {
+    id,
+    name,
+    date: dateStr,
+    timestamp: Date.now(),
+    totalQuestions,
+    currentQuestion,
+    typeStr,
+    correct,
+    missed
+  };
+
+  try {
+    // 1. Save full XML data payload under isolated key
+    localStorage.setItem(STORAGE_SAVE_PREFIX + id, xmlContent);
+
+    // 2. Prepend lightweight metadata header
+    const metaList = getLocalSavesMeta();
+    metaList.unshift(metaEntry);
+    saveLocalSavesMeta(metaList);
+
+    // 3. Switch active session to this new local save and persist session data under its key
+    activeQuizSessionId = 'local_' + id;
+    saveSessionIncorrect();
+
+    toast('บันทึกลงเครื่องสำเร็จ');
+    return true;
+  } catch (err) {
+    console.error('LocalStorage save error:', err);
+    try { localStorage.removeItem(STORAGE_SAVE_PREFIX + id); } catch (_) {}
+    if (err.name === 'QuotaExceededError' || err.code === 22) {
+      alert('พื้นที่จัดเก็บข้อมูลของเบราว์เซอร์เต็ม (Storage quota exceeded) กรุณาลบเซฟเก่าที่ไม่ใช้แล้วออกก่อน');
+    } else {
+      toast('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+    }
+    return false;
+  }
+}
+
+function loadLocalSave(id) {
+  try {
+    const xmlContent = localStorage.getItem(STORAGE_SAVE_PREFIX + id);
+    if (!xmlContent) {
+      toast('ไม่พบข้อมูลเซฟ หรือข้อมูลเสียหาย');
+      return false;
+    }
+    return loadXmlZzq(xmlContent, 'local', id);
+  } catch (err) {
+    console.error('Failed to load save from localStorage:', err);
+    toast('เกิดข้อผิดพลาดในการโหลดแบบฝึกหัด');
+    return false;
+  }
+}
+
+function deleteLocalSave(id, name) {
+  if (!confirm(`คุณต้องการลบเซฟ "${name || 'นี้'}" ใช่หรือไม่?`)) return false;
+  try {
+    localStorage.removeItem(STORAGE_SAVE_PREFIX + id);
+    localStorage.removeItem('zzlu_si_local_' + id);
+    let metaList = getLocalSavesMeta();
+    metaList = metaList.filter(s => s.id !== id);
+    saveLocalSavesMeta(metaList);
+    toast('ลบเซฟเรียบร้อยแล้ว');
+    return true;
+  } catch (err) {
+    console.error('Failed to delete save:', err);
+    toast('เกิดข้อผิดพลาดในการลบเซฟ');
+    return false;
+  }
+}
+
+function handleSaveLocal() {
+  if (!currentQuizPool?.length) { toast('No active quiz to save'); return; }
+
+  const prog = parseProg();
+  const qType = sel('qTypeSelect');
+  const typeStr = ['Anagrams', 'Anagrams with Hooks', 'Build Word'][qType] || 'Anagrams';
+  const total = prog.totalQuestions || currentQuizPool?.length || 0;
+  const currentQ = prog.currentQuestion || 1;
+  const defaultName = `${typeStr} · ${total} คำ (ข้อ ${currentQ})`;
+
+  const saveName = prompt('ตั้งชื่อแบบฝึกหัดที่จะบันทึก:', defaultName);
+  if (saveName === null) return; // User cancelled
+
+  saveQuizToLocalStorage(saveName);
+}
+
+// ── DYNAMIC MODAL DOM & STYLES (No HTML Clutter) ──────────────────────────
+function ensureStorageStyles() {
+  if (document.getElementById('zyz-storage-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'zyz-storage-styles';
+  style.textContent = `
+    .zyz-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 5000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(14px, 3vw, 28px);
+      background: rgba(10, 11, 12, 0.84);
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .zyz-modal-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+    .zyz-modal-card {
+      width: min(100%, 540px);
+      max-height: min(88vh, 760px);
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transform: scale(0.96) translateY(8px);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .zyz-modal-overlay.open .zyz-modal-card {
+      transform: scale(1) translateY(0);
+    }
+    .zyz-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .zyz-modal-title {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .zyz-modal-close-btn,
+    .zyz-modal-back-btn {
+      background: transparent;
+      border: none;
+      color: var(--text2);
+      font-size: 20px;
+      line-height: 1;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      min-height: 44px;
+      min-width: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .zyz-modal-close-btn:hover,
+    .zyz-modal-back-btn:hover {
+      background: var(--surface3);
+      color: var(--text);
+    }
+    .zyz-modal-body {
+      padding: 18px 20px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .zyz-choice-btn {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      width: 100%;
+      min-height: 64px;
+      text-align: left;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+    .zyz-choice-btn:hover {
+      background: var(--surface3);
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+    .zyz-choice-btn:active {
+      transform: scale(0.99);
+    }
+    .zyz-choice-icon {
+      font-size: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 46px;
+      height: 46px;
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .zyz-choice-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .zyz-choice-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .zyz-choice-desc {
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.4;
+    }
+
+    /* Saves List Cards */
+    .zyz-save-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: border-color 0.15s;
+    }
+    .zyz-save-card:hover {
+      border-color: var(--border-strong);
+    }
+    .zyz-save-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .zyz-save-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      word-break: break-word;
+      line-height: 1.35;
+    }
+    .zyz-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--surface3);
+      color: var(--accent);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .zyz-save-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+    .zyz-save-stat {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .zyz-save-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 4px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .zyz-btn-load {
+      min-height: 40px;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      background: var(--accent);
+      color: var(--accent-ink);
+      font-weight: 700;
+      font-size: 13px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: filter 0.15s, transform 0.1s;
+    }
+    .zyz-btn-load:hover {
+      filter: brightness(1.1);
+    }
+    .zyz-btn-load:active {
+      transform: scale(0.97);
+    }
+    .zyz-btn-delete {
+      min-height: 40px;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid rgba(220, 160, 165, 0.3);
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .zyz-btn-delete:hover {
+      background: rgba(220, 160, 165, 0.12);
+      border-color: var(--danger);
+    }
+    .zyz-empty-state {
+      text-align: center;
+      padding: 40px 16px;
+      color: var(--text2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .zyz-empty-icon {
+      font-size: 42px;
+      margin-bottom: 4px;
+      opacity: 0.75;
+    }
+    .zyz-empty-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .zyz-empty-sub {
+      font-size: 13px;
+      max-width: 320px;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .zyz-modal-overlay,
+      .zyz-modal-card,
+      .zyz-choice-btn,
+      .zyz-btn-load,
+      .zyz-btn-delete {
+        transition: none !important;
+        transform: none !important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function handleStorageModalKeydown(e) {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeStorageModal();
+  }
+}
+
+let storageModalCloseTimer = null;
+
+function closeStorageModal() {
+  const overlay = document.getElementById('zyzStorageModalOverlay');
+  if (overlay) {
+    overlay.classList.remove('open');
+    document.removeEventListener('keydown', handleStorageModalKeydown);
+    if (storageModalCloseTimer) clearTimeout(storageModalCloseTimer);
+    storageModalCloseTimer = setTimeout(() => {
+      storageModalCloseTimer = null;
+      if (overlay && overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+    }, 200);
+  }
+
+  // Resume quiz timer if active and currently unanswered
+  try {
+    const q = parseQ();
+    if (q && !q.checked && document.getElementById('qEnginePane')?.style.display !== 'none') {
+      startTimer();
+    }
+  } catch (_) {}
+}
+
+function openStorageModal(htmlContent, bindEvents) {
+  ensureStorageStyles();
+  if (storageModalCloseTimer) {
+    clearTimeout(storageModalCloseTimer);
+    storageModalCloseTimer = null;
+  }
+  let overlay = document.getElementById('zyzStorageModalOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'zyzStorageModalOverlay';
+    overlay.className = 'zyz-modal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('tabindex', '-1');
+    overlay.innerHTML = `<div class="zyz-modal-card" role="document"></div>`;
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeStorageModal();
+    });
+  }
+
+  const card = overlay.querySelector('.zyz-modal-card');
+  card.innerHTML = htmlContent;
+  if (bindEvents) bindEvents(card);
+
+  requestAnimationFrame(() => {
+    overlay.classList.add('open');
+  });
+
+  document.removeEventListener('keydown', handleStorageModalKeydown);
+  document.addEventListener('keydown', handleStorageModalKeydown);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function showSaveChoiceModal() {
+  const content = `
+    <div class="zyz-modal-header">
+      <h3 class="zyz-modal-title">💾 บันทึกแบบฝึกหัด (Save)</h3>
+      <button type="button" class="zyz-modal-close-btn" aria-label="Close" onclick="closeStorageModal()">✕</button>
+    </div>
+    <div class="zyz-modal-body">
+      <button type="button" class="zyz-choice-btn" id="zyzSaveLocalBtn">
+        <div class="zyz-choice-icon">💾</div>
+        <div class="zyz-choice-content">
+          <div class="zyz-choice-title">บันทึกลงเครื่อง (Local)</div>
+          <div class="zyz-choice-desc">บันทึกไว้ใน Local Storage ของเครื่อง ข้อมูลไม่หาย สะดวก ไม่ต้องโหลดไฟล์</div>
+        </div>
+      </button>
+      <button type="button" class="zyz-choice-btn" id="zyzSaveZzqBtn">
+        <div class="zyz-choice-icon">📥</div>
+        <div class="zyz-choice-content">
+          <div class="zyz-choice-title">ดาวน์โหลดไฟล์ (.zzq)</div>
+          <div class="zyz-choice-desc">บันทึกเป็นไฟล์ .zzq มาตรฐาน Zyzzyva เพื่อนำไปเปิดในโปรแกรมอื่น</div>
+        </div>
+      </button>
+    </div>
+  `;
+  openStorageModal(content, (card) => {
+    card.querySelector('#zyzSaveLocalBtn')?.addEventListener('click', () => {
+      closeStorageModal();
+      handleSaveLocal();
+    });
+    card.querySelector('#zyzSaveZzqBtn')?.addEventListener('click', () => {
+      closeStorageModal();
+      saveCurrentZzq();
+    });
+  });
+}
+
+function showLoadChoiceModal() {
+  const content = `
+    <div class="zyz-modal-header">
+      <h3 class="zyz-modal-title">📂 โหลดแบบฝึกหัด (Load)</h3>
+      <button type="button" class="zyz-modal-close-btn" aria-label="Close" onclick="closeStorageModal()">✕</button>
+    </div>
+    <div class="zyz-modal-body">
+      <button type="button" class="zyz-choice-btn" id="zyzLoadLocalBtn">
+        <div class="zyz-choice-icon">💾</div>
+        <div class="zyz-choice-content">
+          <div class="zyz-choice-title">โหลดจากเครื่อง (Local)</div>
+          <div class="zyz-choice-desc">เลือกจากรายการแบบฝึกหัดที่บันทึกไว้ในเครื่องนี้</div>
+        </div>
+      </button>
+      <button type="button" class="zyz-choice-btn" id="zyzLoadZzqBtn">
+        <div class="zyz-choice-icon">📂</div>
+        <div class="zyz-choice-content">
+          <div class="zyz-choice-title">เปิดไฟล์ (.zzq)</div>
+          <div class="zyz-choice-desc">เปิดไฟล์แบบฝึกหัด .zzq หรือไฟล์คำศัพท์จากเครื่องของคุณ</div>
+        </div>
+      </button>
+    </div>
+  `;
+  openStorageModal(content, (card) => {
+    card.querySelector('#zyzLoadLocalBtn')?.addEventListener('click', () => {
+      openLocalSavesModal();
+    });
+    card.querySelector('#zyzLoadZzqBtn')?.addEventListener('click', () => {
+      closeStorageModal();
+      document.getElementById('fInp')?.click();
+    });
+  });
+}
+
+function openLocalSavesModal() {
+  const metaList = getLocalSavesMeta();
+  renderLocalSavesModal(metaList);
+}
+
+function renderLocalSavesModal(metaList) {
+  // Sort metadata: newest first
+  metaList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+  let bodyHtml = '';
+  if (!metaList.length) {
+    bodyHtml = `
+      <div class="zyz-empty-state">
+        <div class="zyz-empty-icon">📭</div>
+        <div class="zyz-empty-title">ยังไม่มีแบบฝึกหัดในเครื่อง</div>
+        <div class="zyz-empty-sub">เมื่อเริ่มทำแบบฝึกหัด คุณสามารถกดปุ่ม Save เพื่อบันทึกความคืบหน้าไว้เล่นต่อภายหลังได้</div>
+      </div>
+    `;
+  } else {
+    bodyHtml = metaList.map(s => {
+      const qProgress = `ข้อ ${s.currentQuestion || 1}/${s.totalQuestions || 0}`;
+      const correctStat = `ถูก ${s.correct ?? 0}`;
+      const missedStat = `ตกหล่น ${s.missed ?? 0}`;
+      const dateText = s.date || '';
+      const safeName = escapeHtml(s.name || 'Untitled Quiz');
+      const safeId = escapeHtml(s.id);
+      const safeType = escapeHtml(s.typeStr || 'Anagrams');
+
+      return `
+        <div class="zyz-save-card" data-save-id="${safeId}">
+          <div class="zyz-save-top">
+            <span class="zyz-save-name">${safeName}</span>
+            <span class="zyz-badge">${safeType}</span>
+          </div>
+          <div class="zyz-save-meta">
+            <span class="zyz-save-stat">🕒 ${escapeHtml(dateText)}</span>
+            <span class="zyz-save-stat">🎯 ${escapeHtml(qProgress)}</span>
+            <span class="zyz-save-stat" style="color:var(--orange)">✓ ${escapeHtml(correctStat)}</span>
+            <span class="zyz-save-stat" style="color:var(--danger)">✗ ${escapeHtml(missedStat)}</span>
+          </div>
+          <div class="zyz-save-actions">
+            <button type="button" class="zyz-btn-delete" data-del-id="${safeId}" aria-label="ลบเซฟ ${safeName}">
+              🗑️ ลบ
+            </button>
+            <button type="button" class="zyz-btn-load" data-load-id="${safeId}" aria-label="โหลดเซฟ ${safeName}">
+              ▶️ โหลด (Load)
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  const content = `
+    <div class="zyz-modal-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button type="button" class="zyz-modal-back-btn" id="zyzBackToChoiceBtn" aria-label="Back to load options" title="ย้อนกลับ">←</button>
+        <h3 class="zyz-modal-title">
+          💾 แบบฝึกหัดในเครื่อง
+          <span class="zyz-badge" style="margin-left:4px">${metaList.length} เซฟ</span>
+        </h3>
+      </div>
+      <button type="button" class="zyz-modal-close-btn" aria-label="Close" onclick="closeStorageModal()">✕</button>
+    </div>
+    <div class="zyz-modal-body" style="max-height:min(65vh, 520px);">
+      ${bodyHtml}
+    </div>
+  `;
+
+  openStorageModal(content, (card) => {
+    // Bind back button
+    card.querySelector('#zyzBackToChoiceBtn')?.addEventListener('click', () => {
+      showLoadChoiceModal();
+    });
+    // Bind load buttons
+    card.querySelectorAll('[data-load-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-load-id');
+        if (loadLocalSave(id)) {
+          closeStorageModal();
+        }
+      });
+    });
+
+    // Bind delete buttons
+    card.querySelectorAll('[data-del-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-del-id');
+        const target = metaList.find(s => s.id === id);
+        if (target && deleteLocalSave(id, target.name)) {
+          const updated = getLocalSavesMeta();
+          renderLocalSavesModal(updated);
+        }
+      });
+    });
+  });
+}
+
+// Attach public API to window
+window.handleSaveQuizClick = handleSaveQuizClick;
+window.handleLoadQuizClick = handleLoadQuizClick;
+window.buildZzqXmlString = buildZzqXmlString;
+window.saveCurrentZzq = saveCurrentZzq;
+window.openLocalSavesModal = openLocalSavesModal;
+window.closeStorageModal = closeStorageModal;
 
 // ── LOAD .zzq ──────────────────────────────────────────────────────────
 function loadZzq(event) {
@@ -835,10 +1560,11 @@ function loadZzq(event) {
   // Reset input so the same file can be reloaded
   event.target.value = '';
   const reader = new FileReader();
+  const rawFileName = file.name ? file.name.replace(/\.zzq$/i, '').trim() : 'quiz_file';
   reader.onload = e => {
     try {
       const content = e.target.result.trim();
-      content.startsWith('<?xml') ? loadXmlZzq(content) : loadPlainWordList(content);
+      content.startsWith('<?xml') ? loadXmlZzq(content, '.zzq', rawFileName) : loadPlainWordList(content, rawFileName);
     } catch(err) {
       console.error(err); toast('Error parsing quiz file');
     }
@@ -846,12 +1572,15 @@ function loadZzq(event) {
   reader.readAsText(file);
 }
 
-function loadPlainWordList(content) {
+function loadPlainWordList(content, fileName = 'words') {
   const words = content.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => dictSet.has(w));
   if (!words.length) { toast('No valid words in file'); return; }
   activeSeed1 = Math.floor(Date.now() / 1000);
   activeSeed2 = SESSION_SEED2;
+  const safeName = (fileName || 'words').replace(/[^a-zA-Z0-9_\-\u0E00-\u0E7F]/g, '_');
+  activeQuizSessionId = `plain_${safeName}_${Date.now()}`;
   sessionIncorrect = {};
+  saveSessionIncorrect();
   currentQuizPool  = words;
   Module.generateQuiz(sel('qTypeSelect'), words.join(' '), 3);
   showQuizPane();
@@ -859,10 +1588,14 @@ function loadPlainWordList(content) {
   toast(`Loaded ${words.length} words`);
 }
 
-function loadXmlZzq(content) {
-  const xml      = new DOMParser().parseFromString(content, 'text/xml');
+function loadXmlZzq(content, source = '.zzq', sessionContextId = '') {
+  if (!cppInitialized || !dict?.length) {
+    toast('พจนานุกรมกำลังเตรียมความพร้อม กรุณารอสักครู่…');
+    return false;
+  }
+  const xml = new DOMParser().parseFromString(content, 'text/xml');
   const quizNode = xml.querySelector('zyzzyva-quiz');
-  if (!quizNode) { toast('Invalid .zzq file'); return; }
+  if (!quizNode) { toast('Invalid .zzq file'); return false; }
 
   // Quiz type
   const typeStr = quizNode.getAttribute('type') || '';
@@ -878,9 +1611,17 @@ function loadXmlZzq(content) {
 
   // Seeds — restored exactly from file to reproduce Zyzzyva's question order
   const rnd = xml.getElementsByTagName('randomizer')[0];
-  if (!rnd) { toast('.zzq missing <randomizer>'); return; }
+  if (!rnd) { toast('.zzq missing <randomizer>'); return false; }
   activeSeed1 = parseInt(rnd.getAttribute('seed'))  || Math.floor(Date.now() / 1000);
   activeSeed2 = parseInt(rnd.getAttribute('seed2')) || SESSION_SEED2;
+
+  // Establish isolated activeQuizSessionId BEFORE loading session incorrect data
+  if (source === 'local') {
+    activeQuizSessionId = 'local_' + (sessionContextId || 'unknown');
+  } else {
+    const safeName = (sessionContextId || 'file').replace(/[^a-zA-Z0-9_\-\u0E00-\u0E7F]/g, '_');
+    activeQuizSessionId = `file_${safeName}_${activeSeed1}_${activeSeed2}`;
+  }
 
   // Rebuild filters from conditions
   qFilters.length = 0;
@@ -935,7 +1676,10 @@ function loadXmlZzq(content) {
       if (w && dictSet.has(w) && !seen.has(w)) { seen.add(w); pool.push(w); }
     });
   }
-  if (!pool.length) { alert('No matching words found'); return; }
+  if (!pool.length) { alert('No matching words found'); return false; }
+
+  // Clear previous quiz review history so results do not bleed across quizzes
+  quizHistory = [];
 
   // Reproduce Zyzzyva's exact question order using saved seeds
   currentQuizPool = buildOrderedPool(pool, typeVal, orderVal, activeSeed1, activeSeed2);
@@ -957,6 +1701,13 @@ function loadXmlZzq(content) {
 
     Module.restoreProgress(qIdx, correct, 0, 0, cq,
       correctWords.join(' '), incorrectWords.join(' '), complete);
+
+    correctWords.forEach(w => {
+      if (w && !quizHistory.some(h => h.word === w)) quizHistory.push({ word: w, status: 'correct' });
+    });
+    incorrectWords.forEach(w => {
+      if (w && !quizHistory.some(h => h.word === w)) quizHistory.push({ word: w, status: 'missed' });
+    });
   }
 
   // Load session data — from our XML comment (ignored by Zyzzyva)
@@ -974,12 +1725,24 @@ function loadXmlZzq(content) {
       break;
     }
   }
-  // Also try localStorage (for same seed pair, saved from previous session)
+
+  // Fallback: if no comment session data, restore from <incorrect-responses> if present
+  if (Object.keys(sessionIncorrect).length === 0) {
+    xml.querySelectorAll('incorrect-responses response').forEach(r => {
+      const w = r.getAttribute('word')?.trim().toUpperCase();
+      const cnt = parseInt(r.getAttribute('count')) || 1;
+      if (w) sessionIncorrect[w] = cnt;
+    });
+  }
+
+  // Also merge with any session data in localStorage under this session's isolated key
   loadSessionIncorrect();
+  saveSessionIncorrect();
 
   showQuizPane();
   loadCurrentQuestion();
-  toast(`Loaded .zzq — ${pool.length} words`);
+  toast(source === 'local' ? `โหลดแบบฝึกหัดสำเร็จ — ${pool.length} คำ` : `Loaded .zzq — ${pool.length} words`);
+  return true;
 }
 
 // ── TIMER ──────────────────────────────────────────────────────────────
@@ -1010,33 +1773,57 @@ function updateTimerDisplay() {
 }
 
 // ── HELPERS ────────────────────────────────────────────────────────────
-const parseQ = () => {
-  try { const s = Module.getCurrentQuestionJson(); return (!s || s === '{}') ? null : JSON.parse(s); }
-  catch(_) { return null; }
-};
-const parseProg = () => {
-  try { return JSON.parse(Module.getProgressJson()); }
-  catch(_) { return {}; }
-};
-const sel = id => parseInt(document.getElementById(id)?.value || '0');
-const showQuizPane = () => {
-  document.getElementById('qSettingsPane').style.display = 'none';
-  document.getElementById('qEnginePane').style.display   = 'block';
-};
-const shake = el => {
-  el.classList.remove('shake-input'); void el.offsetWidth; el.classList.add('shake-input');
+function parseQ() {
+  try {
+    const s = Module.getCurrentQuestionJson();
+    return (!s || s === '{}') ? null : JSON.parse(s);
+  } catch(_) {
+    return null;
+  }
+}
+
+function parseProg() {
+  try {
+    return JSON.parse(Module.getProgressJson());
+  } catch(_) {
+    return {};
+  }
+}
+
+function sel(id) {
+  return parseInt(document.getElementById(id)?.value || '0', 10);
+}
+
+function showQuizPane() {
+  const settings = document.getElementById('qSettingsPane');
+  const engine = document.getElementById('qEnginePane');
+  if (settings) settings.style.display = 'none';
+  if (engine) engine.style.display = 'block';
+}
+
+function shake(el) {
+  if (!el) return;
+  el.classList.remove('shake-input');
+  void el.offsetWidth;
+  el.classList.add('shake-input');
   setTimeout(() => el.classList.remove('shake-input'), 350);
-};
-const statRow = (label, val, col) =>
-  `<div style="display:flex;justify-content:space-between">
+}
+
+function statRow(label, val, col) {
+  return `<div style="display:flex;justify-content:space-between">
     <span style="color:${col}">${label}</span>
     <span class="mono" style="font-weight:700;color:${col}">${val}</span></div>`;
-const downloadBlob = (text, filename) => {
+}
+
+function downloadBlob(text, filename) {
   const a = document.createElement('a');
   a.download = filename;
   a.href = URL.createObjectURL(new Blob([text], { type: 'application/octet-stream' }));
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-};
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 function toggleSavedWord(word, btn) {
   toggleSave(word);
   const s = saved.includes(word);

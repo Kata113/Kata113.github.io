@@ -57,14 +57,24 @@
 - เมื่อเวลาฝั่งใดหมด จะแสดงโอเวอร์ไทม์และนับเพิ่มขึ้นต่อเนื่อง
 - ปรับ Quiz rack ให้ลากข้ามหลายเบี้ยได้ในครั้งเดียว และหยุด timer ทันทีเมื่อจบข้อ/จบ quiz
 
+## 10. ระบบ Save & Load ทางเลือกระหว่าง .zzq กับ Local Storage
+- สร้าง `buildZzqXmlString()` ใช้งานร่วมกันทั้งการดาวน์โหลดไฟล์ .zzq และการบันทึกลง Local Storage
+- ปรับ UI ปุ่มเป็น "Save" และ "Load" (แทน Save 💾 / Load .zzq)
+- Save Flow: แสดง Modal ทางเลือกระหว่าง "บันทึกลงเครื่อง (Local)" กับ "ดาวน์โหลดไฟล์ (.zzq)"
+- Load Flow: แสดง Modal ทางเลือกระหว่าง "โหลดจากเครื่อง (Local)" กับ "เปิดไฟล์ (.zzq)"
+- Performance Optimization สำหรับ Local Storage:
+  - แยก Header Metadata น้ำหนักเบา (`zyz_quiz_saves_meta`) ออกจาก Data Payload (`zyz_quiz_save_<id>`) ทำให้โหลดและเปิด Pop-up รายการเซฟได้ทันที ไม่เกิดอาการค้างหรือกระตุก
+  - การ์ดรายการเซฟแสดงชื่อ, วันที่เวลา, ประเภท Quiz, ความคืบหน้า (ข้อ X/Y, ถูก, ตกหล่น)
+  - ปุ่มโหลด (Load) อ่านเฉพาะข้อมูล id นั้น และเข้าสู่ Quiz ทันที
+  - ปุ่มลบ (Delete) พร้อม confirm dialog และอัปเดตหน้าจอทันที
+  - มี Empty state เมื่อยังไม่มีเซฟในเครื่อง และรองรับ QuotaExceededError
+  - Keyboard a11y: Esc เพื่อปิด, ปิดเมื่อคลิกพื้นหลัง, ไม่ยัด HTML/CSS ลง index.html แต่ inject ผ่าน JS ด้วย Design Tokens จาก styles.css
+
 ## ไฟล์ที่เปลี่ยน
 | ไฟล์ | สาเหตุ |
 |------|--------|
-| index.html | เพิ่ม Number of Vowels ใน select, เพิ่ม id="loadingStatus" |
-| core.js | เพิ่ม num_vowels filter logic และแก้ Probability Order ให้รวม blank/จัดอันดับเป็น alphagram |
-| cpp/quiz_engine.cpp, cpp/quiz_engine.h | ใช้สูตร probability ที่รวม blank 0–2 ตัว |
-| zyzzylu_cpp_engine.js, zyzzylu_cpp_engine.wasm | คอมไพล์ Quiz engine ใหม่จาก C++ |
-| quiz_bridge.js | MWC fix, seed2 fix, Analyze redesign, vowel save/load |
+| index.html | ปรับปุ่ม Load .zzq เป็น Load เรียก handleLoadQuizClick() |
+| quiz_bridge.js | ระบบ Save & Load (.zzq + Local Storage), buildZzqXmlString(), metadata optimization, dynamic modal injection |
 | sw.js | อัปเดต cache version เป็น v2 |
 
 ## ไฟล์ที่ต้องเก็บจาก Zip เดิม (ไม่เปลี่ยน)

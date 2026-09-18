@@ -287,7 +287,7 @@ window.onload = async () => {
         : `Loading · ${Math.round(loaded/1024)} KB`;
     }
     const s = document.getElementById('loadingStatus');
-    if (s) s.innerText = "โหลดอยู่อย่างพึ่งออกกก…";
+    if (s) s.innerText = "โหลดอยู่อย่าพึ่งออกกก…";
     await processDictText(await new Blob(chunks).text());
 
   } catch(e) {

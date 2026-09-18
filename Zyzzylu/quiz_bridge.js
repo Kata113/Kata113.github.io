@@ -353,9 +353,19 @@ function quitQuiz() {
 
 function endQuiz() {
   stopTimer();
-  const prog  = parseProg();
-  const total = prog.totalCorrect + prog.totalMissed;
-  const acc   = total > 0 ? Math.round(prog.totalCorrect / total * 100) : 0;
+  const prog = parseProg();
+  const totalIncorrect = Math.max(
+    prog.totalIncorrect || 0,
+    Object.values(sessionIncorrect).reduce((sum, c) => sum + (Number(c) || 0), 0)
+  );
+  const totalSubmitted = prog.totalCorrect + totalIncorrect;
+  const totalPossible = prog.totalCorrect + prog.totalMissed;
+  const precision = totalSubmitted > 0 ? Math.round((prog.totalCorrect / totalSubmitted) * 100) : 100;
+  const recall = totalPossible > 0 ? Math.round((prog.totalCorrect / totalPossible) * 100) : 0;
+  const fullyCorrect = prog.fullyCorrectQuestions || 0;
+  const completedQuestions = Math.min(prog.currentQuestion || 0, prog.totalQuestions || 0);
+  const questionAcc = completedQuestions > 0 ? Math.round((fullyCorrect / completedQuestions) * 100) : 0;
+  const scoreCol = p => p >= 70 ? 'var(--accent)' : p >= 40 ? 'var(--orange)' : 'var(--danger)';
 
   // Build word review list with hook + prob layout
   const wordRow = ({ word, status }) => {
@@ -395,15 +405,28 @@ function endQuiz() {
     <div class="q-clean-layout" style="text-align:center;padding:20px 0">
       <h2 style="font-size:24px;color:var(--accent);margin-bottom:20px">Quiz Complete!</h2>
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;
-                  padding:20px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px">
-        ${statRow('Total Questions',  prog.totalQuestions, 'var(--text2)')}
-        ${statRow('Correct Answers',  prog.totalCorrect,   'var(--accent)')}
-        ${statRow('Missed Answers',   prog.totalMissed,    'var(--danger)')}
-        ${statRow('Wrong Guesses',    prog.totalIncorrect, 'var(--orange)')}
-        <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;
-                    display:flex;justify-content:space-between">
-          <span style="font-weight:600">Accuracy</span>
-          <span class="mono" style="font-weight:700;color:var(--orange)">${acc}%</span>
+                  padding:18px 20px;margin-bottom:16px;display:flex;flex-direction:column;gap:10px">
+        ${statRow('Total Questions', prog.totalQuestions, 'var(--text2)')}
+        ${statRow('Completed Questions', completedQuestions, 'var(--text2)')}
+        ${statRow('Fully Correct Questions', `${fullyCorrect} (${questionAcc}%)`, 'var(--accent)')}
+        ${statRow('Correct Answers', prog.totalCorrect, 'var(--accent)')}
+        ${statRow('Missed Answers', prog.totalMissed, 'var(--danger)')}
+        ${statRow('Wrong Guesses', totalIncorrect, 'var(--orange)')}
+        ${statRow('Total Words Submitted', totalSubmitted, 'var(--text2)')}
+        ${statRow('Total Possible Words', totalPossible, 'var(--text2)')}
+        <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:2px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-weight:600">1. Precision (ความแม่นยำ)</span>
+            <span class="mono" style="font-weight:700;color:${scoreCol(precision)}">${prog.totalCorrect}/${totalSubmitted} (${precision}%)</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-weight:600">2. Recall (ความระลึกได้)</span>
+            <span class="mono" style="font-weight:700;color:${scoreCol(recall)}">${prog.totalCorrect}/${totalPossible} (${recall}%)</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-weight:600">3. Question Accuracy</span>
+            <span class="mono" style="font-weight:700;color:${scoreCol(questionAcc)}">${fullyCorrect}/${completedQuestions} (${questionAcc}%)</span>
+          </div>
         </div>
       </div>
       <div style="text-align:left;margin-bottom:16px;">
@@ -635,30 +658,65 @@ function onQuizInput() {
 // ── ANALYZE ────────────────────────────────────────────────────────────
 function showAnalysis() {
   const q = parseQ(); if (!q) return;
+  stopTimer();
+
+  // If question is in-progress, finalize it immediately so all missed words and wrong guesses are evaluated
   if (!q.checked) {
-    if (!confirm('⚠️ This reveals all answers and finalises this question. Proceed?')) return;
-    clearInterval(timerInterval);
+    try {
+      Module.checkAnswers();
+    } catch (_) {}
   }
+
   let cr;
   try { cr = JSON.parse(Module.checkAnswers()); } catch(_) {}
   if (!cr?.answers) { toast('No analysis data'); return; }
 
+  // Sync any incorrect answers into session tracking immediately
   (cr.incorrectAnswers || []).forEach(w => { if (w && !sessionIncorrect[w]) trackWrongGuess(w); });
 
-  const prog      = parseProg();
-  const sessTotal = prog.totalCorrect + prog.totalMissed;
-  const sessAcc   = sessTotal > 0 ? Math.round(prog.totalCorrect / sessTotal * 100) : 0;
+  // Track answered and missed words into review history if not already present
+  (cr.answers || []).forEach(a => {
+    if (a.word && !quizHistory.some(h => h.word === a.word)) {
+      quizHistory.push({ word: a.word, status: a.status });
+    }
+  });
+
+  const prog = parseProg();
+  const missed = cr.answers.filter(a => a?.status === 'missed').map(a => a.word);
+  const wrongQ = cr.incorrectAnswers || [];
   const curCorrect = cr.answers.filter(a => a?.status === 'correct').length;
-  const curAcc    = cr.answers.length > 0 ? Math.round(curCorrect / cr.answers.length * 100) : 0;
-  const col       = p => p >= 70 ? 'var(--accent)' : p >= 40 ? 'var(--orange)' : 'var(--danger)';
-  const missed    = cr.answers.filter(a => a?.status === 'missed').map(a => a.word);
-  const wrongQ    = cr.incorrectAnswers || [];
+
+  // 1. ค่าความแม่นยำในการตอบคำศัพท์ (Precision) — คำถูก / คำทั้งหมดที่พิมพ์ส่ง
+  const totalIncorrect = Math.max(
+    prog.totalIncorrect || 0,
+    Object.values(sessionIncorrect).reduce((sum, c) => sum + (Number(c) || 0), 0)
+  );
+  const totalSubmitted = prog.totalCorrect + totalIncorrect;
+  const precision = totalSubmitted > 0 ? Math.round((prog.totalCorrect / totalSubmitted) * 100) : 100;
+
+  // 2. ค่าความระลึกได้หรือการจำคำศัพท์ได้ (Recall) — คำถูก / คำเฉลยทั้งหมดในควิซ
+  const totalPossible = prog.totalCorrect + prog.totalMissed;
+  const recall = totalPossible > 0 ? Math.round((prog.totalCorrect / totalPossible) * 100) : 0;
+
+  // 3. ความแม่นยำระดับข้อ (Question-Level Accuracy)
+  const fullyCorrect = prog.fullyCorrectQuestions || 0;
+  const completedQuestions = Math.min(prog.currentQuestion || 0, prog.totalQuestions || 0);
+  const questionAcc = completedQuestions > 0 ? Math.round((fullyCorrect / completedQuestions) * 100) : 0;
+
+  // Current Question Stats
+  const curWrong = wrongQ.length;
+  const curSubmitted = curCorrect + curWrong;
+  const curPossible = curCorrect + missed.length;
+  const curPrecision = curSubmitted > 0 ? Math.round((curCorrect / curSubmitted) * 100) : 100;
+  const curRecall = curPossible > 0 ? Math.round((curCorrect / curPossible) * 100) : 0;
+
+  const col = p => p >= 70 ? 'var(--accent)' : p >= 40 ? 'var(--orange)' : 'var(--danger)';
   const sessWords = Object.keys(sessionIncorrect);
-  const badge     = wrongQ.length === 0
+  const badge = wrongQ.length === 0 && missed.length === 0
     ? `<span style="background:rgba(52,199,89,.15);color:var(--accent);
                     padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">✓ CLEAN</span>`
     : `<span style="background:rgba(255,59,48,.1);color:var(--danger);
-                    padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">⚠ HAD WRONG GUESSES</span>`;
+                    padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">⚠ HAD ERRORS</span>`;
 
   const wordList = (arr, color, icon='•') => arr.length
     ? arr.map(w => {
@@ -670,48 +728,94 @@ function showAnalysis() {
 
   document.getElementById('qEnginePane').innerHTML = `
     <div class="q-clean-layout">
-      <h3 class="mono" style="font-size:16px;border-bottom:1px solid var(--border);padding-bottom:6px">
-        Analysis
-      </h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div style="background:var(--surface2);border:1px solid var(--border);
-                    border-radius:8px;padding:10px;text-align:center">
-          <div style="font-size:10px;color:var(--text2);font-weight:700;
-                      text-transform:uppercase;margin-bottom:4px">Current Q</div>
-          <div style="font-size:26px;font-weight:800;color:${col(curAcc)}">${curAcc}%</div>
-          <div style="font-size:11px;color:var(--text2)">${curCorrect}/${cr.answers.length}</div>
-          <div style="margin-top:4px">${badge}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px">
+        <h3 class="mono" style="font-size:16px;margin:0">Analysis</h3>
+        <div>${badge}</div>
+      </div>
+
+      <!-- 1. แถบสถิติหลัก (มีเพียง 2 ค่า) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <!-- Precision Card -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 10px;text-align:center">
+          <div style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">
+            Precision (ความแม่นยำ)
+          </div>
+          <div style="font-size:28px;font-weight:800;color:${col(precision)};line-height:1.2;margin:3px 0">
+            ${precision}%
+          </div>
+          <div style="font-size:11px;color:var(--text);font-weight:600;margin-top:2px">
+            ${prog.totalCorrect}/${totalSubmitted} คำที่พิมพ์ส่ง
+          </div>
+          <div style="font-size:10px;color:var(--text2);margin-top:3px;line-height:1.3">
+            บอกว่าพิมพ์แม่นยำแค่ไหน หรือเดามั่วไปกี่คำ
+          </div>
         </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);
-                    border-radius:8px;padding:10px;text-align:center">
-          <div style="font-size:10px;color:var(--text2);font-weight:700;
-                      text-transform:uppercase;margin-bottom:4px">Session</div>
-          <div style="font-size:26px;font-weight:800;color:${col(sessAcc)}">${sessAcc}%</div>
-          <div style="font-size:11px;color:var(--text2)">${prog.totalCorrect}/${sessTotal}</div>
+
+        <!-- Recall Card -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 10px;text-align:center">
+          <div style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">
+            Recall (ความระลึกได้)
+          </div>
+          <div style="font-size:28px;font-weight:800;color:${col(recall)};line-height:1.2;margin:3px 0">
+            ${recall}%
+          </div>
+          <div style="font-size:11px;color:var(--text);font-weight:600;margin-top:2px">
+            ${prog.totalCorrect}/${totalPossible} คำเฉลยในควิซ
+          </div>
+          <div style="font-size:10px;color:var(--text2);margin-top:3px;line-height:1.3">
+            บอกว่าจำคำศัพท์เฉลยและดึงออกมาได้ครบถ้วนกี่เปอร์เซ็นต์
+          </div>
         </div>
       </div>
-      <div style="background:rgba(255,149,0,.08);border:1px solid rgba(255,149,0,.25);
-                  border-radius:8px;padding:12px;max-height:150px;overflow-y:auto">
-        <div style="font-size:11px;text-transform:uppercase;font-weight:700;
-                    color:var(--orange);margin-bottom:6px">Missed (${missed.length})</div>
-        ${wordList(missed, 'var(--orange)')}
-      </div>
+
+      <!-- 2. รายการคำที่เดาผิด (Wrong Guesses) -->
+      <!-- Wrong This Q -->
       <div style="background:rgba(255,59,48,.05);border:1px solid rgba(255,59,48,.2);
-                  border-radius:8px;padding:12px;max-height:120px;overflow-y:auto">
-        <div style="font-size:11px;text-transform:uppercase;font-weight:700;
-                    color:var(--danger);margin-bottom:6px">Wrong This Q (${wrongQ.length})</div>
-        ${wordList(wrongQ, 'var(--danger)', '✕')}
-      </div>
-      <div style="background:rgba(255,59,48,.03);border:1px solid rgba(255,59,48,.15);
-                  border-radius:8px;padding:12px;max-height:150px;overflow-y:auto">
-        <div style="font-size:11px;text-transform:uppercase;font-weight:700;
-                    color:var(--danger);margin-bottom:6px">
-          All Session Wrong (${sessWords.length})
-          <span style="color:var(--text2);font-weight:400;font-size:10px"> — แยกตามเซฟ/ไฟล์นี้</span>
+                  border-radius:8px;padding:12px;margin-bottom:8px;max-height:130px;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:11px;text-transform:uppercase;font-weight:700;color:var(--danger)">
+            Wrong This Q (${wrongQ.length})
+          </span>
+          <span style="font-size:10px;color:var(--text2)">คำที่คุณพิมพ์ผิดในข้อปัจจุบัน</span>
         </div>
-        ${wordList(sessWords, 'var(--danger)', '✕')}
+        ${wrongQ.length ? wrongQ.map(w => `
+          <div class="mono" style="color:var(--danger);font-size:15px;padding:2px 0;font-weight:600">
+            ✕ ${w}
+          </div>
+        `).join('') : `<div style="color:var(--text2);text-align:center;padding:6px 0;font-size:12px">ไม่มีคำเดาผิดในข้อนี้</div>`}
       </div>
-      <button class="btn btn-p" style="width:100%" onclick="renderActiveQuiz()">Back to Quiz</button>
+
+      <!-- All Session Wrong -->
+      <div style="background:rgba(255,59,48,.03);border:1px solid rgba(255,59,48,.15);
+                  border-radius:8px;padding:12px;margin-bottom:8px;max-height:150px;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:11px;text-transform:uppercase;font-weight:700;color:var(--danger)">
+            All Session Wrong (${sessWords.length})
+          </span>
+          <span style="font-size:10px;color:var(--text2)">คำที่คุณเดาผิดทั้งหมดในเซสชัน/ไฟล์นี้</span>
+        </div>
+        ${sessWords.length ? sessWords.map(w => {
+          const cnt = sessionIncorrect[w];
+          return `<div class="mono" style="color:var(--danger);font-size:15px;padding:2px 0;font-weight:600">
+            ✕ ${w}${cnt > 1 ? ` <span style="color:var(--text2);font-size:12px;font-weight:400">(×${cnt})</span>` : ''}
+          </div>`;
+        }).join('') : `<div style="color:var(--text2);text-align:center;padding:6px 0;font-size:12px">ไม่มีประวัติคำเดาผิดในเซสชันนี้</div>`}
+      </div>
+
+      ${missed.length ? `
+      <!-- Missed Words (แสดงเมื่อมีคำเฉลยที่ตกหล่น) -->
+      <div style="background:rgba(255,149,0,.08);border:1px solid rgba(255,149,0,.25);
+                  border-radius:8px;padding:12px;margin-bottom:8px;max-height:120px;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:11px;text-transform:uppercase;font-weight:700;color:var(--orange)">
+            Missed Words (${missed.length})
+          </span>
+          <span style="font-size:10px;color:var(--text2)">คำเฉลยที่ตกหล่น</span>
+        </div>
+        ${wordList(missed, 'var(--orange)')}
+      </div>` : ''}
+
+      <button class="btn btn-p" style="width:100%;margin-top:6px;min-height:44px" onclick="renderActiveQuiz()">Back to Quiz</button>
     </div>`;
 }
 
@@ -1010,7 +1114,7 @@ function deleteLocalSave(id, name) {
   }
 }
 
-function handleSaveLocal() {
+function handleCreateNewLocalSave() {
   if (!currentQuizPool?.length) { toast('No active quiz to save'); return; }
 
   const prog = parseProg();
@@ -1020,10 +1124,178 @@ function handleSaveLocal() {
   const currentQ = prog.currentQuestion || 1;
   const defaultName = `${typeStr} · ${total} คำ (ข้อ ${currentQ})`;
 
-  const saveName = prompt('ตั้งชื่อแบบฝึกหัดที่จะบันทึก:', defaultName);
+  const saveName = prompt('ตั้งชื่อแบบฝึกหัดใหม่:', defaultName);
   if (saveName === null) return; // User cancelled
 
-  saveQuizToLocalStorage(saveName);
+  if (saveQuizToLocalStorage(saveName)) {
+    closeStorageModal();
+  }
+}
+
+function overwriteLocalSave(id) {
+  if (!currentQuizPool?.length) {
+    toast('No active quiz to save');
+    return false;
+  }
+  const metaList = getLocalSavesMeta();
+  const targetSave = metaList.find(s => s.id === id);
+  if (!targetSave) {
+    toast('ไม่พบเซฟที่ต้องการบันทึกทับ');
+    return false;
+  }
+  if (!confirm(`คุณต้องการบันทึกทับ "${targetSave.name}" ใช่หรือไม่?`)) {
+    return false;
+  }
+
+  const xmlContent = buildZzqXmlString();
+  if (!xmlContent) {
+    toast('Failed to generate quiz data');
+    return false;
+  }
+
+  const prog = parseProg();
+  const q = parseQ();
+  const isChecked = q?.checked ?? false;
+  let cr = null;
+  if (isChecked) {
+    try {
+      const s = Module.checkAnswers();
+      if (s && s !== '{}') cr = JSON.parse(s);
+    } catch (_) {}
+  }
+
+  const quizTypeVal = sel('qTypeSelect');
+  const typeStr = ['Anagrams', 'Anagrams with Hooks', 'Build Word'][quizTypeVal] || 'Anagrams';
+  const totalQuestions = prog.totalQuestions || currentQuizPool.length || 0;
+  const currentQuestion = prog.currentQuestion || 1;
+  const correct = prog.totalCorrect || 0;
+  const missedOnCurrent = isChecked ? (cr?.answers?.filter(a => a.status === 'missed').length || 0) : 0;
+  const missed = (prog.totalMissed || 0) + missedOnCurrent;
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const dateStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  targetSave.date = dateStr;
+  targetSave.timestamp = Date.now();
+  targetSave.totalQuestions = totalQuestions;
+  targetSave.currentQuestion = currentQuestion;
+  targetSave.typeStr = typeStr;
+  targetSave.correct = correct;
+  targetSave.missed = missed;
+
+  try {
+    localStorage.setItem(STORAGE_SAVE_PREFIX + id, xmlContent);
+    saveLocalSavesMeta(metaList);
+    activeQuizSessionId = 'local_' + id;
+    saveSessionIncorrect();
+    toast(`บันทึกทับ "${targetSave.name}" สำเร็จ`);
+    closeStorageModal();
+    return true;
+  } catch (err) {
+    console.error('LocalStorage overwrite error:', err);
+    toast('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+    return false;
+  }
+}
+
+function openLocalSaveModal() {
+  if (!currentQuizPool?.length) {
+    toast('No active quiz to save');
+    return;
+  }
+  const metaList = getLocalSavesMeta();
+  metaList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+  const currentSaveId = activeQuizSessionId.startsWith('local_') ? activeQuizSessionId.replace(/^local_/, '') : '';
+  const currentSaveMeta = currentSaveId ? metaList.find(s => s.id === currentSaveId) : null;
+
+  let existingSavesHtml = '';
+  if (metaList.length > 0) {
+    existingSavesHtml = `
+      <div style="margin-top:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">
+          🔄 เลือกเซฟเดิมที่ต้องการบันทึกทับ (Overwrite)
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;max-height:280px;overflow-y:auto;padding-right:2px">
+          ${metaList.map(s => {
+            const isCurrent = s.id === currentSaveId;
+            return `
+              <div class="zyz-save-card" style="${isCurrent ? 'border-color:var(--accent);background:rgba(52,199,89,.04)' : ''}">
+                <div class="zyz-save-top">
+                  <div class="zyz-save-name">
+                    ${escapeHtml(s.name)}
+                    ${isCurrent ? `<span class="zyz-badge" style="background:rgba(52,199,89,.15);color:var(--accent);margin-left:6px">● เซฟปัจจุบัน</span>` : ''}
+                  </div>
+                  <span class="zyz-badge">${escapeHtml(s.typeStr || 'Quiz')}</span>
+                </div>
+                <div class="zyz-save-meta">
+                  <span class="zyz-save-stat">📅 ${escapeHtml(s.date || '')}</span>
+                  <span class="zyz-save-stat">📝 ข้อ ${s.currentQuestion || 1}/${s.totalQuestions || 0}</span>
+                  <span class="zyz-save-stat" style="color:var(--accent)">✓ ถูก ${s.correct || 0}</span>
+                  <span class="zyz-save-stat" style="color:var(--orange)">✕ ตกหล่น ${s.missed || 0}</span>
+                </div>
+                <div class="zyz-save-actions">
+                  <button type="button" class="zyz-btn-overwrite" data-save-id="${s.id}">
+                    🔄 เซฟทับอันนี้
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  const content = `
+    <div class="zyz-modal-header">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button type="button" class="zyz-modal-back-btn" id="zyzLocalSaveBackBtn" title="ย้อนกลับ">←</button>
+        <h3 class="zyz-modal-title">💾 บันทึกแบบฝึกหัด (Local)</h3>
+      </div>
+      <button type="button" class="zyz-modal-close-btn" aria-label="Close" onclick="closeStorageModal()">✕</button>
+    </div>
+    <div class="zyz-modal-body">
+      ${currentSaveMeta ? `
+        <button type="button" class="zyz-choice-btn" id="zyzOverwriteCurrentBtn" style="border-color:var(--accent);background:rgba(52,199,89,.06)">
+          <div class="zyz-choice-icon" style="color:var(--accent)">🔄</div>
+          <div class="zyz-choice-content">
+            <div class="zyz-choice-title" style="color:var(--accent)">บันทึกทับเซฟปัจจุบัน: ${escapeHtml(currentSaveMeta.name)}</div>
+            <div class="zyz-choice-desc">อัปเดตความคืบหน้าล่าสุดลงในเซฟนี้ทันที</div>
+          </div>
+        </button>
+      ` : ''}
+      <button type="button" class="zyz-choice-btn" id="zyzCreateNewSaveBtn">
+        <div class="zyz-choice-icon">➕</div>
+        <div class="zyz-choice-content">
+          <div class="zyz-choice-title">สร้างเซฟใหม่ (Create New Save)</div>
+          <div class="zyz-choice-desc">บันทึกเป็นแบบฝึกหัดรายการใหม่ โดยไม่ทับข้อมูลเก่า</div>
+        </div>
+      </button>
+      ${existingSavesHtml}
+    </div>
+  `;
+
+  openStorageModal(content, (card) => {
+    card.querySelector('#zyzLocalSaveBackBtn')?.addEventListener('click', () => {
+      showSaveChoiceModal();
+    });
+    card.querySelector('#zyzCreateNewSaveBtn')?.addEventListener('click', () => {
+      handleCreateNewLocalSave();
+    });
+    if (currentSaveMeta) {
+      card.querySelector('#zyzOverwriteCurrentBtn')?.addEventListener('click', () => {
+        overwriteLocalSave(currentSaveMeta.id);
+      });
+    }
+    card.querySelectorAll('.zyz-btn-overwrite').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-save-id');
+        overwriteLocalSave(id);
+      });
+    });
+  });
 }
 
 // ── DYNAMIC MODAL DOM & STYLES (No HTML Clutter) ──────────────────────────
@@ -1264,6 +1536,28 @@ function ensureStorageStyles() {
       background: rgba(220, 160, 165, 0.12);
       border-color: var(--danger);
     }
+    .zyz-btn-overwrite {
+      min-height: 38px;
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 149, 0, 0.12);
+      color: var(--orange);
+      font-weight: 700;
+      font-size: 13px;
+      border: 1px solid rgba(255, 149, 0, 0.35);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+    .zyz-btn-overwrite:hover {
+      background: rgba(255, 149, 0, 0.22);
+      border-color: var(--orange);
+    }
+    .zyz-btn-overwrite:active {
+      transform: scale(0.97);
+    }
     .zyz-empty-state {
       text-align: center;
       padding: 40px 16px;
@@ -1404,8 +1698,7 @@ function showSaveChoiceModal() {
   `;
   openStorageModal(content, (card) => {
     card.querySelector('#zyzSaveLocalBtn')?.addEventListener('click', () => {
-      closeStorageModal();
-      handleSaveLocal();
+      openLocalSaveModal();
     });
     card.querySelector('#zyzSaveZzqBtn')?.addEventListener('click', () => {
       closeStorageModal();

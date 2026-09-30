@@ -189,11 +189,53 @@ function getWordMetadata(w) {
   };
 }
 
+function formatWordPos(w) {
+  if (!w) return '';
+  const lexicon = getLexiconMetadata(w);
+  let pos = (lexicon && lexicon.pos) ? lexicon.pos : '';
+  if (!pos) {
+    const wm = getWordMetadata(w);
+    if (wm && wm.pos) pos = wm.pos;
+  }
+  if (!pos) {
+    if (w.endsWith('ED') || w.endsWith('ING')) pos = 'v';
+    else if (w.endsWith('LY')) pos = 'adv';
+    else if (w.endsWith('ABLE') || w.endsWith('FUL')) pos = 'adj';
+    else pos = 'n';
+  }
+
+  const tokens = pos
+    .split(/[·,\/|]/)
+    .map(t => t.trim().toLowerCase().replace(/[()[\]]/g, ''))
+    .filter(Boolean);
+
+  if (tokens.length === 0) return '(n.)';
+
+  const formatted = tokens.map(t => {
+    const clean = t.endsWith('.') ? t.slice(0, -1) : t;
+    return `(${clean}.)`;
+  });
+
+  return [...new Set(formatted)].slice(0, 3).join(' ');
+}
+
 // ─── Dictionary loading ───────────────────────────────────────────────
+function setLoadingProgress(pct, statusText) {
+  const percentEl = document.getElementById('loadingPercent');
+  const barEl = document.getElementById('loadingBarFill');
+  const statusEl = document.getElementById('loadingStatus');
+
+  const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+  if (barEl) barEl.style.width = `${clamped}%`;
+  if (percentEl) percentEl.innerText = `${clamped}%`;
+  if (statusEl && statusText) statusEl.innerText = statusText;
+}
+
 async function processDictText(text) {
   const nextDict = [];
   const nextMetadata = new Map();
 
+  setLoadingProgress(90, 'กำลังแปลงข้อมูลคำศัพท์…');
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line) continue;
@@ -215,16 +257,29 @@ async function processDictText(text) {
   dictSet = new Set(dict);
   wordsByL = {};
   dict.forEach(w => { (wordsByL[w.length]=wordsByL[w.length]||[]).push(w); });
+
+  setLoadingProgress(96, 'กำลังสร้าง Probability Cache…');
   initProbabilityCache();
+
+  setLoadingProgress(100, 'พร้อมใช้งาน!');
   document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " words";
   document.body.classList.add('is-ready');
-  document.getElementById('loadingScreen').style.display = 'none';
+
+  const ls = document.getElementById('loadingScreen');
+  if (ls) {
+    ls.style.opacity = '0';
+    ls.style.transition = 'opacity 0.25s ease';
+    setTimeout(() => { ls.style.display = 'none'; }, 260);
+  }
   renderSaved();
   if (typeof tryInitCppEngine === 'function') tryInitCppEngine();
 }
 
 function showDictFallback(reason) {
   const ls = document.getElementById('loadingScreen');
+  if (!ls) return;
+  ls.style.opacity = '1';
+  ls.style.display = 'flex';
   ls.innerHTML = `
     <div style="text-align:center; padding:24px; max-width:320px;">
       <div style="font-size:32px; margin-bottom:12px;">📖</div>
@@ -256,11 +311,28 @@ async function loadDictFromFile(event) {
   const file = event.target.files[0];
   if (!file) return;
   const ls = document.getElementById('loadingScreen');
-  ls.innerHTML = `
-    <div class="spinner"></div>
-    <div class="mono" id="loadingStatus">แปปนึงน้าาา…</div>`;
+  if (ls) {
+    ls.style.opacity = '1';
+    ls.style.display = 'flex';
+    ls.innerHTML = `
+      <div class="loading-container">
+        <div class="spinner"></div>
+        <div class="loading-title">ZYZZYLU</div>
+        <div class="loading-bar-wrapper">
+          <div class="loading-bar-track">
+            <div class="loading-bar-fill" id="loadingBarFill" style="width: 25%;"></div>
+          </div>
+        </div>
+        <div class="loading-info mono">
+          <span id="loadingPercent" class="loading-percent">25%</span>
+          <span id="loadingStatus" class="loading-status">กำลังอ่านไฟล์…</span>
+        </div>
+      </div>`;
+  }
   try {
+    setLoadingProgress(35, "กำลังอ่านไฟล์…");
     const text = await file.text();
+    setLoadingProgress(70, "กำลังประมวลผลคำศัพท์…");
     await processDictText(text);
   } catch(e) {
     showDictFallback("อ่านไฟล์ไม่ได้: " + e.message);
@@ -269,30 +341,35 @@ async function loadDictFromFile(event) {
 
 window.onload = async () => {
   try {
+    setLoadingProgress(0, "กำลังเชื่อมต่อเพื่อโหลด CSW24.txt…");
     const resp = await fetch(DICTIONARY_URL);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-    const total  = parseInt(resp.headers.get('content-length')||'0');
+    const headerTotal = parseInt(resp.headers.get('content-length') || '0', 10);
+    const total = headerTotal > 0 ? headerTotal : 10299304;
+
     const reader = resp.body.getReader();
     const chunks = [];
     let loaded = 0;
+
     while (true) {
       const {done, value} = await reader.read();
       if (done) break;
       chunks.push(value);
       loaded += value.length;
-      const s = document.getElementById('loadingStatus');
-      if (s) s.innerText = total > 0
-        ? `Loading · ${Math.min(100,Math.round(loaded/total*100))}%`
-        : `Loading · ${Math.round(loaded/1024)} KB`;
+      const pct = Math.min(88, Math.round((loaded / total) * 88));
+      const loadedMB = (loaded / (1024 * 1024)).toFixed(1);
+      const totalMB = (total / (1024 * 1024)).toFixed(1);
+      setLoadingProgress(pct, `กำลังดาวน์โหลด… ${loadedMB} / ${totalMB} MB`);
     }
-    const s = document.getElementById('loadingStatus');
-    if (s) s.innerText = "โหลดอยู่อย่าพึ่งออกกก…";
-    await processDictText(await new Blob(chunks).text());
+
+    setLoadingProgress(89, "กำลังเตรียมข้อมูล…");
+    const blob = new Blob(chunks);
+    const text = await blob.text();
+    await processDictText(text);
 
   } catch(e) {
     console.warn(`fetch('${DICTIONARY_URL}') failed:`, e.message);
-    // Could be file:// restriction, wrong path, or missing file
     showDictFallback(
       window.location.protocol === 'file:'
         ? "เปิดผ่าน file:// ไม่สามารถโหลดอัตโนมัติได้"

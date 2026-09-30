@@ -921,6 +921,9 @@ main {
   margin: 14px 0 5px;
   padding: 8px 4px 10px;
   flex-wrap: wrap;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .quiz-tile {
@@ -949,6 +952,29 @@ main {
   transform: translateY(-2px);
 }
 
+.quiz-tile.is-floating {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  margin: 0 !important;
+  pointer-events: none !important;
+  z-index: 10000 !important;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, .45), 0 8px 14px rgba(0, 0, 0, .3) !important;
+  background: var(--tile-hover) !important;
+  cursor: grabbing !important;
+  opacity: 0.96;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.quiz-tile.is-placeholder {
+  opacity: 0.28 !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px dashed var(--tile-border) !important;
+  box-shadow: none !important;
+  transform: scale(0.96) !important;
+}
+
 .quiz-tile.is-dragging {
   z-index: 2;
   background: var(--tile-hover);
@@ -957,8 +983,8 @@ main {
   transform: translateY(-5px) scale(1.04);
 }
 
-.quiz-rack.is-dragging .quiz-tile:not(.is-dragging) {
-  opacity: .72;
+.quiz-rack.is-dragging .quiz-tile:not(.is-placeholder):not(.is-floating) {
+  opacity: .85;
 }
 
 .quiz-tile-letter {
@@ -1445,11 +1471,30 @@ main {
 
 .clock-modal-card {
   width: min(100%, 460px);
+  max-height: 88vh;
+  overflow-y: auto;
   padding: 18px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--surface);
   box-shadow: 0 18px 55px rgba(0, 0, 0, .45);
+}
+
+.clock-sound-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.clock-sound-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 12px;
 }
 
 .clock-setting-grid {

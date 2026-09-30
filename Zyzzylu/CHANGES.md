@@ -70,12 +70,35 @@
   - มี Empty state เมื่อยังไม่มีเซฟในเครื่อง และรองรับ QuotaExceededError
   - Keyboard a11y: Esc เพื่อปิด, ปิดเมื่อคลิกพื้นหลัง, ไม่ยัด HTML/CSS ลง index.html แต่ inject ผ่าน JS ด้วย Design Tokens จาก styles.css
 
+## 11. การปรับปรุง Quiz (Part of Speech & Floating Tile Drag) และหลอด Loading %
+- **Part of Speech ใน Quiz**: เปลี่ยนจากเดิมที่แสดงคะแนนตัวอักษร (${score}pts) ใต้คำ มาเป็นการแสดง Part of Speech เช่น `(v.)`, `(n.)`, `(adv.)` ดึงจาก metadata ของ CSW24 และปรับหัวตารางเป็น `Word · POS · #Prob`
+- **หลอดบอก % ในหน้า Loading**: ปรับปรุงหน้าจอเริ่มต้น `#loadingScreen` จาก spinner เดี่ยวๆ เป็นหลอดความคืบหน้า (Progress Bar) ที่สวยงาม พร้อมแสดง % ตัวเลขขนาดใหญ่ และสถานะขั้นตอนการประมวลผล (ดาวน์โหลด, ประมวลผลคำศัพท์, สร้าง Probability Cache) คำนวณแบบแม่นยำ
+- **ระบบลากเบี้ย Quiz ลอยตามมือ (Floating Drag Tile)**:
+  - ขณะเริ่มลาก มีตัวเบี้ยลอยขึ้นมาตามปลายนิ้ว/เคอร์เซอร์เมาส์ 1:1 (`is-floating` พร้อม lift shadow)
+  - ตำแหน่งเดิมในแร็คจะแสดงเป็น slot เส้นประโปร่งแสง (`is-placeholder`) และขยับสลับช่องตามการเลื่อนมือแบบ smooth
+  - เมื่อปล่อยมือ ตัวเบี้ยลอยจะดูดกลับเข้าช่องที่เลือกอย่างนุ่มนวล
+  - แก้ไขปัญหา pointer capture หลุด และบัคการกระตุกบนจอสัมผัส (Mobile Touch) และเมาส์
+
+## 12. ระบบเสียงเตือนนาฬิกา Chess Clock และฟีเจอร์พิเศษ Overtime Sound
+- **เสียงเตือน 10 วินาทีสุดท้าย**: เตือนเมื่อเวลาของฝั่งที่กำลังเดินเหลือ 00:10 วิ (เลือกเสียง High Beep, Chime, Two-Tone ได้)
+- **เสียงนับถอยหลัง 00:05 – 00:01 วิ**: มีเสียงเตือนทุกวินาที 5, 4, 3, 2, 1 ก่อนหมดเวลา (เลือกเสียง Tick, Beep, Wood Click ได้)
+- **เสียงหมดเวลา 00:00 วิ (ลากยาว)**: เมื่อเวลาหมดลงสู่ 00:00 จะมีเสียงบัซเซอร์ลากยาวต่อเนื่อง
+- **การหยุดเสียงลากยาว**: เสียงจะหยุดทันทีเมื่อผู้เล่นกดข้ามไปฝั่งตรงข้าม (Switch Side) หรือเมื่อเวลาเดินถึง `-00:01` วินาที หรือเมื่อกดหยุด/รีเซ็ต
+- **ฟีเจอร์พิเศษ: Custom เสียงเมื่อเวลาติดลบ (-1 ถึง -10 นาที)**:
+  - ค่าเริ่มต้น: ปิด/ไม่มีเสียง ตามที่กำหนด
+  - เมื่อเปิดใช้งาน: สามารถเลือกเสียง Custom (Double Beep, Triple Beep, Low Bell, Alarm Pulse) และเลือกระยะนาทีที่ต้องการเตือน (-1 ถึง -10 นาที)
+  - มีปุ่มทดสอบเสียง (▶) ให้ลองฟังทุกรูปแบบในหน้าต่างตั้งค่า
+- **Web Audio API**: ทำงานแบบ Offline 100% ไม่ต้องโหลดไฟล์ภายนอก ไม่ดีเลย์ พร้อมบันทึกค่าลง `localStorage`
+
 ## ไฟล์ที่เปลี่ยน
 | ไฟล์ | สาเหตุ |
 |------|--------|
-| index.html | ปรับปุ่ม Load .zzq เป็น Load เรียก handleLoadQuizClick() |
-| quiz_bridge.js | ระบบ Save & Load (.zzq + Local Storage), buildZzqXmlString(), metadata optimization, dynamic modal injection |
-| sw.js | อัปเดต cache version เป็น v2 |
+| index.html | หลอดความคืบหน้า % ใน loadingScreen, UI ปรับแต่งเสียงใน Modal ตั้งเวลา, asset versions (v=13, v=10, v=2) |
+| core.js | ฟังก์ชัน `formatWordPos()`, ฟังก์ชัน `setLoadingProgress()` ควบคุมหลอด %, อัปเดตการอ่านไฟล์และ parse CSW24 |
+| quiz_bridge.js | แสดง POS แทนคะแนนใต้คำและหัวตาราง, ระบบลากเบี้ยแบบ floating ghost tile ลอยตามมือและ smooth placeholder reorder |
+| clock.js | ระบบเสียงสังเคราะห์ Web Audio API, ตัวตรวจจับเวลา 10s, 5s-1s, 00:00 ลากยาว, หยุดที่ -00:01 หรือข้ามฝั่ง, Custom Overtime Sound (-1 ถึง -10 นาที) |
+| styles.css | เพิ่ม styling สำหรับ `.quiz-tile.is-floating`, `.quiz-tile.is-placeholder`, `touch-action: none`, และหน้าต่างตั้งค่าเสียงนาฬิกา |
+| sw.js | อัปเดต cache version เป็น v29 และ query strings ของ assets |
 
 ## ไฟล์ที่ต้องเก็บจาก Zip เดิม (ไม่เปลี่ยน)
 - CSW24.txt

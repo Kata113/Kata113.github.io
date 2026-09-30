@@ -203,7 +203,7 @@ function endQuiz() {
   const wordRow = ({ word, status }) => {
     const hk    = getHooksAndDots(word);
     const prob  = probRankMap[word];
-    const score = getWordScore(word);
+    const pos   = typeof formatWordPos === 'function' ? formatWordPos(word) : '';
     const ok    = status === 'correct';
     const col   = ok ? 'var(--accent)' : 'var(--danger)';
     const fH    = hk.f !== '-'
@@ -220,7 +220,7 @@ function endQuiz() {
         <div style="font-size:10px;color:${col};font-weight:700;margin-bottom:1px;">${ok?'✓':'⊘'}</div>
         <span class="mono" style="font-size:18px;font-weight:700;color:${col};">${word}</span>
         <div style="font-size:10px;color:var(--text2);margin-top:2px;">
-          <span style="color:var(--orange);font-weight:700;">${score}</span>pts
+          ${pos ? `<span style="color:var(--orange);font-weight:700;">${pos}</span>` : ''}
           ${prob ? `<span style="margin-left:4px;">#${prob}</span>` : ''}
         </div>
       </div>
@@ -253,7 +253,7 @@ function endQuiz() {
                     font-weight:700;text-transform:uppercase;color:var(--text2);
                     padding:6px 4px;border-bottom:1px solid var(--border);margin-bottom:2px;">
           <span style="text-align:right;">Front Hook</span>
-          <span style="text-align:center;padding:0 4px;">Word · Score · #Prob</span>
+          <span style="text-align:center;padding:0 4px;">Word · POS · #Prob</span>
           <span style="text-align:left;">Back Hook</span>
         </div>
         <div style="max-height:50vh;overflow-y:auto;background:var(--surface2);
@@ -267,12 +267,143 @@ function endQuiz() {
     </div>`;
 }
 
+// ── QUIZ RACK & FLOATING DRAG ──────────────────────────────────────────
+let oldQuizRackKey = '';
+let oldQuizRackLetters = [];
+let oldQuizRackDrag = null;
+
+function syncOldQuizRack(text, num) {
+  const k = `${num}:${text}`;
+  if (oldQuizRackKey !== k) {
+    clearOldQuizTileDrag();
+    oldQuizRackKey = k;
+    oldQuizRackLetters = [...text];
+  }
+}
+
+function clearOldQuizTileDrag() {
+  if (oldQuizRackDrag) {
+    if (oldQuizRackDrag.ghost?.parentNode) {
+      oldQuizRackDrag.ghost.parentNode.removeChild(oldQuizRackDrag.ghost);
+    }
+    oldQuizRackDrag.tile?.classList.remove('is-placeholder');
+  }
+  window.removeEventListener('pointermove', moveOldQuizTileDrag, { passive: false });
+  window.removeEventListener('pointerup', endOldQuizTileDrag);
+  window.removeEventListener('pointercancel', endOldQuizTileDrag);
+  oldQuizRackDrag = null;
+}
+
+function beginOldQuizTileDrag(event) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  const tile = event.currentTarget;
+  const rack = tile.closest('.old-quiz-rack');
+  if (!rack) return;
+
+  clearOldQuizTileDrag();
+  const rect = tile.getBoundingClientRect();
+  const offsetX = event.clientX - rect.left;
+  const offsetY = event.clientY - rect.top;
+
+  const ghost = document.createElement('div');
+  ghost.className = 'quiz-tile is-floating';
+  ghost.innerHTML = tile.innerHTML;
+  ghost.style.width = `${rect.width}px`;
+  ghost.style.height = `${rect.height}px`;
+  ghost.style.left = '0px';
+  ghost.style.top = '0px';
+  ghost.style.transform = `translate3d(${event.clientX - offsetX}px, ${event.clientY - offsetY}px, 0) scale(1.08)`;
+  document.body.appendChild(ghost);
+
+  tile.classList.add('is-placeholder');
+
+  oldQuizRackDrag = {
+    pointerId: event.pointerId,
+    tile,
+    rack,
+    ghost,
+    offsetX,
+    offsetY
+  };
+
+  window.addEventListener('pointermove', moveOldQuizTileDrag, { passive: false });
+  window.addEventListener('pointerup', endOldQuizTileDrag);
+  window.addEventListener('pointercancel', endOldQuizTileDrag);
+  event.preventDefault();
+}
+
+function moveOldQuizTileDrag(event) {
+  const state = oldQuizRackDrag;
+  if (!state || state.pointerId !== event.pointerId) return;
+
+  const x = event.clientX - state.offsetX;
+  const y = event.clientY - state.offsetY;
+  state.ghost.style.transform = `translate3d(${x}px, ${y}px, 0) scale(1.08)`;
+
+  const rack = state.rack;
+  const tiles = [...rack.querySelectorAll('.quiz-tile')];
+  const others = tiles.filter(t => t !== state.tile);
+
+  let target = null;
+  for (const t of others) {
+    const tr = t.getBoundingClientRect();
+    if (event.clientX < tr.left + tr.width / 2) {
+      target = t;
+      break;
+    }
+  }
+
+  if (target) {
+    if (state.tile.nextSibling !== target) {
+      rack.insertBefore(state.tile, target);
+      oldQuizRackLetters = [...rack.querySelectorAll('.quiz-tile')].map(t => t.dataset.letter);
+    }
+  } else if (others.length > 0) {
+    const last = others[others.length - 1];
+    if (state.tile.previousSibling !== last) {
+      rack.appendChild(state.tile);
+      oldQuizRackLetters = [...rack.querySelectorAll('.quiz-tile')].map(t => t.dataset.letter);
+    }
+  }
+  event.preventDefault();
+}
+
+function endOldQuizTileDrag(event) {
+  const state = oldQuizRackDrag;
+  if (!state || (event.pointerId != null && state.pointerId !== event.pointerId)) return;
+
+  window.removeEventListener('pointermove', moveOldQuizTileDrag, { passive: false });
+  window.removeEventListener('pointerup', endOldQuizTileDrag);
+  window.removeEventListener('pointercancel', endOldQuizTileDrag);
+
+  const ghost = state.ghost;
+  const tile = state.tile;
+  const rack = state.rack;
+
+  if (ghost && tile && rack) {
+    const targetRect = tile.getBoundingClientRect();
+    ghost.style.transition = 'transform 0.12s ease, opacity 0.12s ease';
+    ghost.style.transform = `translate3d(${targetRect.left}px, ${targetRect.top}px, 0) scale(1)`;
+    setTimeout(() => {
+      ghost?.remove();
+      tile.classList.remove('is-placeholder');
+      oldQuizRackLetters = [...rack.querySelectorAll('.quiz-tile')].map(t => t.dataset.letter);
+    }, 120);
+  } else {
+    clearOldQuizTileDrag();
+  }
+  oldQuizRackDrag = null;
+}
+
 // ── QUIZ UI ────────────────────────────────────────────────────────────
 function renderQuizUI(q, prog) {
   const pane = document.getElementById('qEnginePane');
   if (!pane) return;
-  const pct       = (prog.currentQuestion / prog.totalQuestions) * 100;
-  const tiles     = [...q.questionText].map(c => `<div class="quiz-tile">${c}</div>`).join('');
+  const pct = (prog.currentQuestion / prog.totalQuestions) * 100;
+  syncOldQuizRack(q.questionText, prog.currentQuestion);
+  const tiles = oldQuizRackLetters.map((c, i) =>
+    `<div class="quiz-tile" data-letter="${c}" data-index="${i}" onpointerdown="beginOldQuizTileDrag(event)">${c}</div>`
+  ).join('');
   const isChecked = q.checked;
 
   pane.innerHTML = `
@@ -295,7 +426,7 @@ function renderQuizUI(q, prog) {
         <div style="height:100%;width:${pct}%;background:var(--accent);transition:width .3s"></div>
       </div>
 
-      <div style="display:flex;justify-content:center;gap:8px;margin:16px 0;flex-wrap:wrap">
+      <div class="old-quiz-rack" style="display:flex;justify-content:center;gap:8px;margin:16px 0;flex-wrap:wrap;touch-action:none;user-select:none;">
         ${tiles}
       </div>
 
@@ -319,7 +450,7 @@ function renderQuizUI(q, prog) {
                     padding:5px 4px;border-bottom:1px solid var(--border);
                     background:var(--surface);border-radius:8px 8px 0 0;position:sticky;top:0;">
           <span style="text-align:right;">Front</span>
-          <span style="text-align:center;padding:0 4px;">Word · Pts · #Prob</span>
+          <span style="text-align:center;padding:0 4px;">Word · POS · #Prob</span>
           <span style="text-align:left;">Back</span>
         </div>
         ${renderAnswersList(q)}
@@ -347,7 +478,7 @@ function renderAnswersList(q) {
   const hookRow = (word, statusColor, statusIcon, showStar) => {
     const hk    = getHooksAndDots(word);
     const prob  = probRankMap[word];
-    const score = getWordScore(word);
+    const pos   = typeof formatWordPos === 'function' ? formatWordPos(word) : '';
     const star  = saved.includes(word);
     const fH = hk.f !== '-'
       ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.f.split('').join(' ')}</span>`
@@ -372,7 +503,7 @@ function renderAnswersList(q) {
                    color:${star?'var(--orange)':'var(--text2)'}">${star?'★':'☆'}</button>` : ''}
         </div>
         <div style="font-size:10px;color:var(--text2);margin-top:1px;">
-          <span style="color:var(--orange);font-weight:700;">${score}</span>pts
+          ${pos ? `<span style="color:var(--orange);font-weight:700;">${pos}</span>` : ''}
           ${prob ? `<span style="margin-left:4px;">#${prob}</span>` : ''}
         </div>
       </div>

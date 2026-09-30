@@ -29,13 +29,19 @@
 - เมื่อข้อถูก check แล้ว จะบันทึก `<missed-responses>` ด้วย
   ทำให้ไฟล์ compatible กับ Zyzzyva อย่างสมบูรณ์
 
+## 6. เพิ่ม Part of Speech ใน Quiz, หลอด Loading % และ Floating Tile Drag (คง UI เดิม 100%)
+- **Part of Speech ใน Quiz**: แสดง POS เช่น `(v.)`, `(n.)`, `(adv.)` แทนคะแนนตัวอักษรใต้คำ และปรับหัวตารางเป็น `Word · POS · #Prob`
+- **หลอดบอก % ในหน้า Loading**: มี Progress bar สีเขียวธีมเดิมของ old พร้อมเปอร์เซ็นต์นับความคืบหน้า 0% - 100%
+- **เบี้ยตัวอักษรใน Quiz ลอยตามมือ (Floating Drag Tile)**: ลากจัดเรียงสลับตำแหน่งได้ ลอยตามนิ้ว/เมาส์แบบไม่มีบัค โดยรักษา styling สี่เหลี่ยมสีเทาดั้งเดิมของ old
+- **คง UI เดิม**: ไม่เปลี่ยนแท็บ, ไม่เปลี่ยนเลย์เอาต์, และคงหน้าตาเดิมของ old ไว้ทุกประการ
+
 ## ไฟล์ที่เปลี่ยน
 | ไฟล์ | สาเหตุ |
 |------|--------|
-| index.html | เพิ่ม Number of Vowels ใน select, เพิ่ม id="loadingStatus" |
-| core.js | เพิ่ม num_vowels filter logic |
-| quiz_bridge.js | MWC fix, seed2 fix, Analyze redesign, vowel save/load |
-| sw.js | อัปเดต cache version เป็น v2 |
+| index.html | หลอด % ใน loadingScreen, styling สำหรับ floating drag tile |
+| core.js | ฟังก์ชัน `formatWordPos()`, `setLoadingProgress()`, อัปเดต parsing metadata |
+| quiz_bridge.js | แสดง POS แทนคะแนนใต้คำและหัวตาราง, ระบบลากเบี้ย Quiz แบบ floating drag tile |
+| sw.js | อัปเดต cache version เป็น v4 |
 
 ## ไฟล์ที่ต้องเก็บจาก Zip เดิม (ไม่เปลี่ยน)
 - CSW24.txt

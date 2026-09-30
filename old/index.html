@@ -63,9 +63,10 @@
     .score-badge { font-size:14px; font-weight:700; color:var(--orange); }
 
     .q-clean-layout { display:flex; flex-direction:column; gap:16px; }
-    .quiz-history-pane { max-height:200px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; background:rgba(0,0,0,.3); padding:10px; border-radius:8px; border:1px solid var(--border); }
-    .quiz-tile { width:44px; height:44px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; display:flex; justify-content:center; align-items:center; font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--text); box-shadow:0 4px 6px rgba(0,0,0,.2); transition:transform .2s,background-color .2s; }
+    .quiz-tile { width:44px; height:44px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; display:flex; justify-content:center; align-items:center; font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--text); box-shadow:0 4px 6px rgba(0,0,0,.2); transition:transform .14s,background-color .14s,box-shadow .14s,opacity .14s; cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none; }
     .quiz-tile:hover { transform:scale(1.08); background-color:var(--border); }
+    .quiz-tile.is-floating { position:fixed !important; top:0 !important; left:0 !important; margin:0 !important; pointer-events:none !important; z-index:10000 !important; box-shadow:0 12px 24px rgba(0,0,0,.55) !important; background:var(--border) !important; cursor:grabbing !important; opacity:.96; transform-origin:center center; will-change:transform; }
+    .quiz-tile.is-placeholder { opacity:.25 !important; border:1px dashed var(--accent) !important; background:transparent !important; box-shadow:none !important; transform:scale(.95) !important; }
 
     .judge-overlay { position:fixed; inset:0; background:rgba(0,0,0,.95); z-index:5000; display:none; flex-direction:column; justify-content:center; align-items:center; padding:24px; text-align:center; cursor:pointer; }
     .judge-overlay.open { display:flex; }
@@ -100,8 +101,12 @@
 
   <div id="loadingScreen">
     <div class="spinner"></div>
+    <div style="width:240px; height:6px; background:var(--surface2); border:1px solid var(--border); border-radius:999px; overflow:hidden;">
+      <div id="loadingBarFill" style="width:0%; height:100%; background:var(--accent); border-radius:999px; transition:width .15s ease-out;"></div>
+    </div>
+    <div class="mono" id="loadingPercent" style="font-size:14px; font-weight:700; color:var(--accent);">0%</div>
     <!-- id="loadingStatus" is used by core.js to show download progress -->
-    <div class="mono" id="loadingStatus" style="font-size:13px; color:var(--text2)">LOADING Zyzzylu CORE...</div>
+    <div class="mono" id="loadingStatus" style="font-size:12px; color:var(--text2)">LOADING Zyzzylu CORE...</div>
   </div>
 
   <header>

@@ -1,5 +1,5 @@
 // --- GLOBAL STATES ---
-let dict = [], dictSet = new Set(), wordsByL = {};
+let dict = [], dictSet = new Set(), wordsByL = {}, wordMetadata = new Map(), lexiconMetadataCache = new Map();
 let saved = JSON.parse(localStorage.getItem('zyz_sv') || '[]');
 let sFilters = [], qFilters = [], fId = 0;
 let currentResultsList = [], currentWordIndex = -1;
@@ -84,24 +84,111 @@ function getWordExtensions(w) {
   };
 }
 
+function getLexiconMetadata(w) {
+  if (lexiconMetadataCache.has(w)) return lexiconMetadataCache.get(w);
+
+  const raw = wordMetadata.get(w) || '';
+  if (!raw) return { definition:'', pos:'' };
+
+  const partsOfSpeech = [...raw.matchAll(/\[([^\]]+)\]/g)]
+    .map(match => match[1].trim())
+    .filter((value, index, values) => value && values.indexOf(value) === index);
+  const definition = raw
+    .replace(/\s*\[[^\]]+\]/g, '')
+    .replace(/\s+\/\s+/g, ' · ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  const result = { definition, pos:partsOfSpeech.join(' · ') };
+  lexiconMetadataCache.set(w, result);
+  return result;
+}
+
+function formatWordPos(w) {
+  if (!w) return '';
+  const lexicon = getLexiconMetadata(w);
+  let pos = (lexicon && lexicon.pos) ? lexicon.pos : '';
+  if (!pos) {
+    const wm = getWordMetadata(w);
+    if (wm && wm.pos) pos = wm.pos;
+  }
+  if (!pos) {
+    if (w.endsWith('ED') || w.endsWith('ING')) pos = 'v';
+    else if (w.endsWith('LY')) pos = 'adv';
+    else if (w.endsWith('ABLE') || w.endsWith('FUL')) pos = 'adj';
+    else pos = 'n';
+  }
+
+  const tokens = pos
+    .split(/[·,\/|]/)
+    .map(t => t.trim().toLowerCase().replace(/[()[\]]/g, ''))
+    .filter(Boolean);
+
+  if (tokens.length === 0) return '(n.)';
+
+  const formatted = tokens.map(t => {
+    const clean = t.endsWith('.') ? t.slice(0, -1) : t;
+    return `(${clean}.)`;
+  });
+
+  return [...new Set(formatted)].slice(0, 3).join(' ');
+}
+
 function getWordMetadata(w) {
   let ana = dict.filter(x=>x.length===w.length&&x!==w&&[...x].sort().join('')===[...w].sort().join(''));
   let inf = ['S','ES','ED','ING'].filter(s=>dictSet.has(w+s)).map(s=>w+s);
+  const lexicon = getLexiconMetadata(w);
   let p="n.";
   if(w.endsWith('ED')||w.endsWith('ING'))p="v.";
   else if(w.endsWith('LY'))p="adv.";
   else if(w.endsWith('ABLE')||w.endsWith('FUL'))p="adj.";
-  return {pos:p,def:"",anagrams:ana.join(', ')||'None',inflections:inf.join(', ')||'None'};
+  return {pos:lexicon.pos || p,def:lexicon.definition || "",anagrams:ana.join(', ')||'None',inflections:inf.join(', ')||'None'};
 }
 
 // ─── Dictionary loading ───────────────────────────────────────────────
+function setLoadingProgress(pct, statusText) {
+  const percentEl = document.getElementById('loadingPercent');
+  const barEl = document.getElementById('loadingBarFill');
+  const statusEl = document.getElementById('loadingStatus');
+
+  const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+  if (barEl) barEl.style.width = `${clamped}%`;
+  if (percentEl) percentEl.innerText = `${clamped}%`;
+  if (statusEl && statusText) statusEl.innerText = statusText;
+}
+
 async function processDictText(text) {
-  dict    = text.split(/\r?\n/).map(w=>w.trim().toUpperCase()).filter(w=>w.length>0);
+  const nextDict = [];
+  const nextMetadata = new Map();
+
+  setLoadingProgress(90, 'กำลังแปลงข้อมูลคำศัพท์…');
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const splitAt = line.search(/\s/);
+    const word = (splitAt === -1 ? line : line.slice(0, splitAt)).trim().toUpperCase();
+    const metadata = splitAt === -1 ? '' : line.slice(splitAt).trim();
+    if (!word) continue;
+
+    nextDict.push(word);
+    if (metadata) nextMetadata.set(word, metadata);
+  }
+
+  dict = nextDict;
+  wordMetadata = nextMetadata;
+  lexiconMetadataCache = new Map();
   dictSet = new Set(dict);
+  wordsByL = {};
   dict.forEach(w => { (wordsByL[w.length]=wordsByL[w.length]||[]).push(w); });
+
+  setLoadingProgress(96, 'กำลังสร้าง Probability Cache…');
   initProbabilityCache();
+
+  setLoadingProgress(100, 'พร้อมใช้งาน!');
   document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " Words";
-  document.getElementById('loadingScreen').style.display = 'none';
+  const ls = document.getElementById('loadingScreen');
+  if (ls) ls.style.display = 'none';
   renderSaved();
   if (typeof tryInitCppEngine === 'function') tryInitCppEngine();
 }
@@ -141,9 +228,15 @@ async function loadDictFromFile(event) {
   const ls = document.getElementById('loadingScreen');
   ls.innerHTML = `
     <div class="spinner"></div>
-    <div class="mono" id="loadingStatus" style="font-size:13px; color:var(--text2)">กำลังโหลด...</div>`;
+    <div style="width:240px; height:6px; background:var(--surface2); border:1px solid var(--border); border-radius:999px; overflow:hidden; margin:8px 0;">
+      <div id="loadingBarFill" style="width:30%; height:100%; background:var(--accent); border-radius:999px; transition:width .15s ease-out;"></div>
+    </div>
+    <div class="mono" id="loadingPercent" style="font-size:14px; font-weight:700; color:var(--accent);">30%</div>
+    <div class="mono" id="loadingStatus" style="font-size:12px; color:var(--text2)">กำลังอ่านไฟล์...</div>`;
   try {
+    setLoadingProgress(45, "กำลังอ่านไฟล์...");
     const text = await file.text();
+    setLoadingProgress(75, "กำลังประมวลผลคำศัพท์...");
     await processDictText(text);
   } catch(e) {
     showDictFallback("อ่านไฟล์ไม่ได้: " + e.message);
@@ -152,10 +245,12 @@ async function loadDictFromFile(event) {
 
 window.onload = async () => {
   try {
+    setLoadingProgress(0, "กำลังเชื่อมต่อ...");
     const resp = await fetch('CSW24.txt');
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-    const total  = parseInt(resp.headers.get('content-length')||'0');
+    const headerTotal = parseInt(resp.headers.get('content-length') || '0', 10);
+    const total = headerTotal > 0 ? headerTotal : 3119425;
     const reader = resp.body.getReader();
     const chunks = [];
     let loaded = 0;
@@ -164,18 +259,18 @@ window.onload = async () => {
       if (done) break;
       chunks.push(value);
       loaded += value.length;
-      const s = document.getElementById('loadingStatus');
-      if (s) s.innerText = total > 0
-        ? `Downloading Dictionary (${Math.min(100,Math.round(loaded/total*100))}%)`
-        : `Downloading Dictionary (${Math.round(loaded/1024)} KB)`;
+      const pct = Math.min(88, Math.round((loaded / total) * 88));
+      const loadedMB = (loaded / (1024 * 1024)).toFixed(1);
+      const totalMB = (total / (1024 * 1024)).toFixed(1);
+      setLoadingProgress(pct, `กำลังดาวน์โหลด… ${loadedMB} / ${totalMB} MB`);
     }
-    const s = document.getElementById('loadingStatus');
-    if (s) s.innerText = "Processing Dictionary...";
-    await processDictText(await new Blob(chunks).text());
+    setLoadingProgress(89, "กำลังเตรียมข้อมูล…");
+    const blob = new Blob(chunks);
+    const text = await blob.text();
+    await processDictText(text);
 
   } catch(e) {
     console.warn("fetch('CSW24.txt') failed:", e.message);
-    // Could be file:// restriction, wrong path, or missing file
     showDictFallback(
       window.location.protocol === 'file:'
         ? "เปิดผ่าน file:// ไม่สามารถโหลดอัตโนมัติได้"

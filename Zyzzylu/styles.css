@@ -913,14 +913,25 @@ main {
 }
 
 .quiz-rack {
+  --tile-w: 52px;
+  --tile-h: 56px;
+  --tile-gap: 9px;
+  --tile-font: 24px;
+  --tile-score-font: 9px;
+  --tile-radius: 9px;
+  --tile-shadow-y: 4px;
   display: flex;
   min-height: 70px;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: var(--tile-gap, 9px);
   margin: 14px 0 5px;
   padding: 8px 4px 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap !important;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: visible;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -929,16 +940,17 @@ main {
 .quiz-tile {
   position: relative;
   display: grid;
-  width: 52px;
-  height: 56px;
-  flex: 0 0 auto;
+  width: var(--tile-w, 52px);
+  height: var(--tile-h, 56px);
+  flex: 0 0 var(--tile-w, 52px);
+  max-width: var(--tile-w, 52px);
   place-items: center;
   padding: 0 0 4px;
   border: 1px solid var(--tile-border);
-  border-radius: 9px;
+  border-radius: var(--tile-radius, 9px);
   background: var(--tile);
   color: var(--tile-ink);
-  box-shadow: 0 4px 0 var(--tile-shadow), 0 8px 18px rgba(5, 6, 7, .2);
+  box-shadow: 0 var(--tile-shadow-y, 4px) 0 var(--tile-shadow), 0 8px 18px rgba(5, 6, 7, .2);
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -990,18 +1002,18 @@ main {
 .quiz-tile-letter {
   pointer-events: none;
   font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
-  font-size: 24px;
+  font-size: var(--tile-font, 24px);
   font-weight: 800;
   line-height: 1;
 }
 
 .quiz-tile-score {
   position: absolute;
-  right: 5px;
-  bottom: 3px;
+  right: max(2px, calc(var(--tile-w, 52px) * 0.08));
+  bottom: max(1px, calc(var(--tile-h, 56px) * 0.04));
   pointer-events: none;
   font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: var(--tile-score-font, 9px);
   font-weight: 800;
   line-height: 1;
 }
@@ -1365,16 +1377,22 @@ main {
   }
 
   .quiz-rack {
-    gap: 7px;
+    gap: var(--tile-gap, 7px);
   }
 
   .quiz-tile {
-    width: 46px;
-    height: 52px;
+    width: var(--tile-w, 46px);
+    height: var(--tile-h, 52px);
+    flex: 0 0 var(--tile-w, 46px);
+    border-radius: var(--tile-radius, 8px);
   }
 
   .quiz-tile-letter {
-    font-size: 22px;
+    font-size: var(--tile-font, 22px);
+  }
+
+  .quiz-tile-score {
+    font-size: var(--tile-score-font, 8px);
   }
 
   #qAnswerInput {

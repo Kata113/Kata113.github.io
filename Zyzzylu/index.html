@@ -165,8 +165,8 @@
 
     .q-clean-layout { display:flex; flex-direction:column; gap:16px; }
     .quiz-history-pane { max-height:200px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; background:rgba(0,0,0,.3); padding:10px; border-radius:8px; border:1px solid var(--border); }
-    .quiz-tile { width:44px; height:44px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; display:flex; justify-content:center; align-items:center; font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--text); box-shadow:0 4px 6px rgba(0,0,0,.2); transition:transform .2s,background-color .2s; }
-    .quiz-tile:hover { transform:scale(1.08); background-color:var(--border); }
+    .quiz-rack { flex-wrap:nowrap !important; width:100%; max-width:100%; }
+    .quiz-tile { width:var(--tile-w, 52px); height:var(--tile-h, 56px); flex:0 0 var(--tile-w, 52px); }
 
     .judge-overlay { position:fixed; inset:0; background:rgba(0,0,0,.95); z-index:5000; display:none; flex-direction:column; justify-content:center; align-items:center; padding:24px; text-align:center; cursor:pointer; }
     .judge-overlay.open { display:flex; }
@@ -196,7 +196,7 @@
     .calc-op  { color:var(--orange); border-color:rgba(255,149,0,.35); }
     .calc-eq  { background:var(--accent); color:#000; border:none; }
   </style>
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
 
@@ -771,10 +771,10 @@
   <div class="toast" id="tst" role="status" aria-live="polite" aria-atomic="true"></div>
   <input type="file" id="fInp" style="display:none" accept=".zzq,.txt,text/plain,application/xml,text/xml,*/*" onchange="loadZzq(event)">
 
-  <script src="core.js?v=14"></script>
+  <script src="core.js?v=15"></script>
   <script src="search.js?v=8"></script>
   <script src="zyzzylu_cpp_engine.js"></script>
-  <script src="quiz_bridge.js?v=11"></script>
+  <script src="quiz_bridge.js?v=12"></script>
   <script src="judge.js?v=6"></script>
   <script>
     // ── CALCULATOR ─────────────────────────────────────────────────────

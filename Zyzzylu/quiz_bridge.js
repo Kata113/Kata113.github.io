@@ -135,6 +135,88 @@ function renderQuizRackTiles() {
   return quizRackLetters.map(quizTileHtml).join('');
 }
 
+let quizRackResizeObserver = null;
+
+function fitQuizRackTiles(rackEl) {
+  const rack = rackEl || document.getElementById('quizRack');
+  if (!rack) return;
+  const tiles = rack.querySelectorAll('.quiz-tile:not(.is-floating)');
+  const N = tiles.length;
+  if (!N) return;
+
+  // Determine available container width
+  const container = rack.parentElement || rack;
+  const rackStyle = window.getComputedStyle(rack);
+  const padLeft = parseFloat(rackStyle.paddingLeft) || 4;
+  const padRight = parseFloat(rackStyle.paddingRight) || 4;
+  let containerWidth = rack.clientWidth;
+  if (!containerWidth && container) {
+    containerWidth = container.clientWidth;
+  }
+  if (!containerWidth && typeof window !== 'undefined') {
+    containerWidth = Math.min(680, window.innerWidth - 32);
+  }
+  const availableWidth = Math.max(100, (containerWidth || 320) - padLeft - padRight);
+
+  const maxW = 52;
+  const maxH = 56;
+  const maxGap = 9;
+  const gapRatio = maxGap / maxW;
+
+  const fullNeeded = N * maxW + (N - 1) * maxGap;
+  let chosenW = maxW;
+  let chosenGap = maxGap;
+
+  if (fullNeeded > availableWidth) {
+    let w = Math.floor(availableWidth / (N + (N - 1) * gapRatio));
+    w = Math.max(14, Math.min(maxW, w));
+    let gap = Math.max(2, Math.min(maxGap, Math.floor(w * gapRatio)));
+
+    while (N * w + (N - 1) * gap > availableWidth && w > 14) {
+      w--;
+      gap = Math.max(2, Math.floor(w * gapRatio));
+    }
+    chosenW = w;
+    chosenGap = gap;
+  }
+
+  const scale = chosenW / maxW;
+  const chosenH = Math.max(16, Math.round(chosenW * (maxH / maxW)));
+  const chosenFont = Math.max(10, Math.round(24 * scale));
+  const chosenScoreFont = Math.max(5, Math.round(9 * scale));
+  const chosenRadius = Math.max(3, Math.round(9 * scale));
+  const chosenShadow = Math.max(1, Math.round(4 * scale));
+
+  rack.style.setProperty('--tile-w', `${chosenW}px`);
+  rack.style.setProperty('--tile-h', `${chosenH}px`);
+  rack.style.setProperty('--tile-gap', `${chosenGap}px`);
+  rack.style.setProperty('--tile-font', `${chosenFont}px`);
+  rack.style.setProperty('--tile-score-font', `${chosenScoreFont}px`);
+  rack.style.setProperty('--tile-radius', `${chosenRadius}px`);
+  rack.style.setProperty('--tile-shadow-y', `${chosenShadow}px`);
+}
+
+function observeQuizRack(rack) {
+  if (!rack) return;
+  if (typeof ResizeObserver !== 'undefined') {
+    if (!quizRackResizeObserver) {
+      quizRackResizeObserver = new ResizeObserver(() => {
+        const currentRack = document.getElementById('quizRack');
+        if (currentRack) fitQuizRackTiles(currentRack);
+      });
+    }
+    quizRackResizeObserver.disconnect();
+    quizRackResizeObserver.observe(rack);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', () => {
+    const rack = document.getElementById('quizRack');
+    if (rack) fitQuizRackTiles(rack);
+  });
+}
+
 function announceQuizRack() {
   const status = document.getElementById('quizRackStatus');
   if (status) status.textContent = `Tile order: ${quizRackLetters.join(' ')}`;
@@ -186,6 +268,14 @@ function beginQuizTileDrag(event) {
   ghost.innerHTML = tile.innerHTML;
   ghost.style.width = `${rect.width}px`;
   ghost.style.height = `${rect.height}px`;
+  ghost.style.setProperty('--tile-w', `${rect.width}px`);
+  ghost.style.setProperty('--tile-h', `${rect.height}px`);
+  const tf = rack.style.getPropertyValue('--tile-font');
+  if (tf) ghost.style.setProperty('--tile-font', tf);
+  const tsf = rack.style.getPropertyValue('--tile-score-font');
+  if (tsf) ghost.style.setProperty('--tile-score-font', tsf);
+  const tr = rack.style.getPropertyValue('--tile-radius');
+  if (tr) ghost.style.setProperty('--tile-radius', tr);
   ghost.style.left = '0px';
   ghost.style.top = '0px';
   ghost.style.transform = `translate3d(${event.clientX - offsetX}px, ${event.clientY - offsetY}px, 0) scale(1.08)`;
@@ -270,6 +360,7 @@ function endQuizTileDrag(event) {
       tile.classList.remove('is-placeholder');
       rack.classList.remove('is-dragging');
       updateQuizRackFromDom(rack);
+      fitQuizRackTiles(rack);
       announceQuizRack();
     }, 120);
   } else {
@@ -295,6 +386,7 @@ function handleQuizTileKey(event) {
   const rack = document.getElementById('quizRack');
   if (!rack) return;
   rack.innerHTML = renderQuizRackTiles();
+  fitQuizRackTiles(rack);
   requestAnimationFrame(() => rack.querySelector(`[data-rack-index="${toIndex}"]`)?.focus());
   announceQuizRack();
 }
@@ -584,6 +676,13 @@ function renderQuizUI(q, prog) {
     </div>`;
 
   if (quizTimeLimit > 0) updateTimerDisplay();
+
+  const rack = document.getElementById('quizRack');
+  if (rack) {
+    fitQuizRackTiles(rack);
+    observeQuizRack(rack);
+    requestAnimationFrame(() => fitQuizRackTiles(rack));
+  }
 }
 
 function renderAnswersList(q) {

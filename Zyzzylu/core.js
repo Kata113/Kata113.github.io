@@ -392,6 +392,9 @@ function tab(idx, b) {
   });
   if (b) b.blur();
   window.scrollTo({ top:0, behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  if (idx === 1 && typeof fitQuizRackTiles === 'function') {
+    requestAnimationFrame(() => fitQuizRackTiles());
+  }
 }
 
 function toggleSearchFilters(button) {

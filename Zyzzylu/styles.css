@@ -1497,6 +1497,39 @@ main {
   font-size: 12px;
 }
 
+.clock-file-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 11px;
+  color: var(--accent);
+  max-width: 140px;
+}
+
+.clock-file-badge button {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.clock-file-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
 .clock-setting-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

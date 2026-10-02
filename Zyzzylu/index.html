@@ -434,12 +434,17 @@
               <input type="checkbox" id="clockWarn10Toggle" checked onchange="clockUpdateSoundSetting('warn10Enabled', this.checked)">
               <span>เตือนเมื่อเหลือ 10 วินาที</span>
             </label>
-            <div style="display:flex; gap:6px; align-items:center;">
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+              <span id="clockWarn10Badge" class="clock-file-badge" style="display:none;"></span>
               <select class="input-field mono" id="clockWarn10Select" onchange="clockUpdateSoundSetting('warn10Tone', this.value)" style="padding:4px 8px; font-size:11px;">
                 <option value="high-beep">High Beep</option>
                 <option value="chime">Chime</option>
                 <option value="two-tone">Two-Tone</option>
               </select>
+              <label class="btn clock-file-upload-btn" title="อัปโหลดไฟล์เสียง (.mp3, .wav, etc.)">
+                📁<span id="clockWarn10UploadText">อัปโหลด</span>
+                <input type="file" accept="audio/*" style="display:none" onchange="clockHandleUpload('warn10', this)">
+              </label>
               <button type="button" class="btn" style="padding:4px 8px; font-size:11px;" onclick="clockTestSound('10s')" title="ทดสอบเสียง">▶</button>
             </div>
           </div>
@@ -450,27 +455,40 @@
               <input type="checkbox" id="clockCountdownToggle" checked onchange="clockUpdateSoundSetting('countdownEnabled', this.checked)">
               <span>นับถอยหลัง 00:05 – 00:01</span>
             </label>
-            <div style="display:flex; gap:6px; align-items:center;">
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+              <span id="clockCountdownBadge" class="clock-file-badge" style="display:none;"></span>
               <select class="input-field mono" id="clockCountdownSelect" onchange="clockUpdateSoundSetting('countdownTone', this.value)" style="padding:4px 8px; font-size:11px;">
                 <option value="tick">Tick</option>
                 <option value="beep">Beep</option>
                 <option value="click">Wood Click</option>
               </select>
+              <label class="btn clock-file-upload-btn" title="อัปโหลดไฟล์เสียง (.mp3, .wav, etc.)">
+                📁<span id="clockCountdownUploadText">อัปโหลด</span>
+                <input type="file" accept="audio/*" style="display:none" onchange="clockHandleUpload('countdown', this)">
+              </label>
               <button type="button" class="btn" style="padding:4px 8px; font-size:11px;" onclick="clockTestSound('countdown')" title="ทดสอบเสียง">▶</button>
             </div>
           </div>
 
           <!-- 00:00 Timeout Buzzer -->
           <div class="clock-sound-row">
-            <label class="clock-sound-label">
-              <input type="checkbox" id="clockTimeoutToggle" checked onchange="clockUpdateSoundSetting('timeoutBuzzerEnabled', this.checked)">
-              <span>หมดเวลา 00:00 (ลากยาว)</span>
-            </label>
-            <div style="display:flex; gap:6px; align-items:center;">
+            <div>
+              <label class="clock-sound-label">
+                <input type="checkbox" id="clockTimeoutToggle" checked onchange="clockUpdateSoundSetting('timeoutBuzzerEnabled', this.checked)">
+                <span>หมดเวลา 00:00 (ลากยาว)</span>
+              </label>
+              <div style="font-size:10px; color:var(--text2); margin-left:22px;">หยุดเมื่อกดข้ามฝั่งหรือ -00:01</div>
+            </div>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+              <span id="clockTimeoutBadge" class="clock-file-badge" style="display:none;"></span>
               <select class="input-field mono" id="clockTimeoutSelect" onchange="clockUpdateSoundSetting('timeoutTone', this.value)" style="padding:4px 8px; font-size:11px;">
                 <option value="buzzer">Buzzer</option>
                 <option value="alarm-siren">Siren</option>
               </select>
+              <label class="btn clock-file-upload-btn" title="อัปโหลดไฟล์เสียง (.mp3, .wav, etc.)">
+                📁<span id="clockTimeoutUploadText">อัปโหลด</span>
+                <input type="file" accept="audio/*" style="display:none" onchange="clockHandleUpload('timeout', this)">
+              </label>
               <button type="button" class="btn" style="padding:4px 8px; font-size:11px;" onclick="clockTestSound('timeout')" title="ทดสอบเสียง">▶</button>
             </div>
           </div>
@@ -480,36 +498,51 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
               <div>
                 <span style="font-weight:700; font-size:12px; color:var(--orange);">⚡ ฟีเจอร์พิเศษ: เตือนเวลาติดลบ</span>
-                <div style="font-size:10px; color:var(--text2);">เตือนเมื่อติดลบถึงนาทีถัดไป (-1 ถึง -10 นาที)</div>
+                <div style="font-size:10px; color:var(--text2);">เตือนทุกครั้งที่ติดลบครบนาที: -01:00, -02:00, ..., -10:00 (ปกติไม่มีเสียง)</div>
               </div>
               <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
                 <input type="checkbox" id="clockOvertimeToggle" onchange="clockUpdateSoundSetting('overtimeAlertEnabled', this.checked)">
-                <span style="font-size:11px; font-weight:600; color:var(--text);">Custom เสียง</span>
+                <span style="font-size:11px; font-weight:600; color:var(--text);">เปิดเสียงติดลบ</span>
               </label>
             </div>
 
-            <div id="clockOvertimeCustomOptions" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-              <label style="font-size:11px; color:var(--text2); display:flex; align-items:center; gap:4px;">
-                เสียง:
-                <select class="input-field mono" id="clockOvertimeToneSelect" onchange="clockUpdateSoundSetting('overtimeTone', this.value)" style="padding:4px 8px; font-size:11px;">
-                  <option value="double-beep">Double Beep</option>
-                  <option value="triple-beep">Triple Beep</option>
-                  <option value="low-bell">Low Bell</option>
-                  <option value="pulse">Alarm Pulse</option>
-                </select>
-              </label>
+            <div id="clockOvertimeCustomOptions" style="display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                <label style="font-size:11px; color:var(--text2); display:flex; align-items:center; gap:4px;">
+                  เสียงหลัก:
+                  <select class="input-field mono" id="clockOvertimeToneSelect" onchange="clockUpdateSoundSetting('overtimeTone', this.value)" style="padding:4px 8px; font-size:11px;">
+                    <option value="double-beep">Double Beep</option>
+                    <option value="triple-beep">Triple Beep</option>
+                    <option value="low-bell">Low Bell</option>
+                    <option value="pulse">Alarm Pulse</option>
+                  </select>
+                </label>
 
-              <label style="font-size:11px; color:var(--text2); display:flex; align-items:center; gap:4px;">
-                เตือนถึง:
-                <select class="input-field mono" id="clockOvertimeMaxSelect" onchange="clockUpdateSoundSetting('overtimeMaxMinutes', Number(this.value))" style="padding:4px 8px; font-size:11px;">
-                  <option value="1">-1 นาที</option>
-                  <option value="3">-3 นาที</option>
-                  <option value="5">-5 นาที</option>
-                  <option value="10" selected>-10 นาที</option>
-                </select>
-              </label>
+                <span id="clockOvertimeBadge" class="clock-file-badge" style="display:none;"></span>
 
-              <button type="button" class="btn" style="padding:4px 8px; font-size:11px;" onclick="clockTestSound('overtime')" title="ทดสอบเสียง">▶ ลองฟัง</button>
+                <label class="btn clock-file-upload-btn" title="อัปโหลดไฟล์เสียงเวลาติดลบ (.mp3, .wav, etc.)">
+                  📁<span id="clockOvertimeUploadText">อัปโหลดเสียง</span>
+                  <input type="file" accept="audio/*" style="display:none" onchange="clockHandleUpload('overtime', this)">
+                </label>
+
+                <label style="font-size:11px; color:var(--text2); display:flex; align-items:center; gap:4px;">
+                  เตือนถึง:
+                  <select class="input-field mono" id="clockOvertimeMaxSelect" onchange="clockUpdateSoundSetting('overtimeMaxMinutes', Number(this.value))" style="padding:4px 8px; font-size:11px;">
+                    <option value="1">-1 นาที</option>
+                    <option value="3">-3 นาที</option>
+                    <option value="5">-5 นาที</option>
+                    <option value="10" selected>-10 นาที</option>
+                  </select>
+                </label>
+
+                <button type="button" class="btn" style="padding:4px 8px; font-size:11px;" onclick="clockTestSound('overtime')" title="ทดสอบเสียง">▶ ลองฟัง</button>
+              </div>
+
+              <!-- Minute-by-minute custom sound details -->
+              <details style="font-size:11px; color:var(--text2); margin-top:2px;">
+                <summary style="cursor:pointer; font-weight:600; color:var(--text); padding:2px 0;">⚙️ ตั้งค่าเสียงแยกรายนาที (-01:00 ถึง -10:00)</summary>
+                <div id="clockOvertimePerMinuteList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(135px, 1fr)); gap:6px; margin-top:8px;"></div>
+              </details>
             </div>
           </div>
         </div>

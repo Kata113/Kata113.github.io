@@ -9,21 +9,22 @@ let clockRunning = false;
 let clockLastTick = 0;
 let clockFrame = null;
 
-// ── CHESS CLOCK SOUND ENGINE (Web Audio API) ──────────────────────────
+// ── CHESS CLOCK SOUND ENGINE (Web Audio API + IndexedDB Custom Audio) ──
 let clockAudioCtx = null;
 let clockContinuousBuzzerSource = null;
 let clockContinuousBuzzerGain = null;
+let clockContinuousBuzzerHtmlAudio = null;
 
 const CLOCK_SOUND_DEFAULTS = {
   soundEnabled: true,
   warn10Enabled: true,
-  warn10Tone: 'high-beep',     // 'high-beep', 'chime', 'two-tone'
+  warn10Tone: 'high-beep',     // 'high-beep', 'chime', 'two-tone', or 'custom'
   countdownEnabled: true,
-  countdownTone: 'tick',       // 'tick', 'beep', 'click'
+  countdownTone: 'tick',       // 'tick', 'beep', 'click', or 'custom'
   timeoutBuzzerEnabled: true,
-  timeoutTone: 'buzzer',       // 'buzzer', 'alarm-siren'
+  timeoutTone: 'buzzer',       // 'buzzer', 'alarm-siren', or 'custom'
   overtimeAlertEnabled: false, // "แต่ปกติไม่มีเสียง" -> default: false
-  overtimeTone: 'double-beep', // 'double-beep', 'triple-beep', 'low-bell', 'pulse'
+  overtimeTone: 'double-beep', // 'double-beep', 'triple-beep', 'low-bell', 'pulse', or 'custom'
   overtimeMaxMinutes: 10       // -1 ถึง -10 นาที
 };
 
@@ -55,8 +56,216 @@ function getClockAudioContext() {
   return clockAudioCtx;
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ── INDEXEDDB AUDIO STORAGE FOR CUSTOM SOUNDS ────────────────────────
+const CLOCK_AUDIO_DB_NAME = 'ZyzzyluClockAudioDB';
+const CLOCK_AUDIO_STORE_NAME = 'custom_sounds';
+
+function openClockAudioDB() {
+  return new Promise((resolve) => {
+    if (typeof indexedDB === 'undefined') {
+      resolve(null);
+      return;
+    }
+    const req = indexedDB.open(CLOCK_AUDIO_DB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(CLOCK_AUDIO_STORE_NAME)) {
+        db.createObjectStore(CLOCK_AUDIO_STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+  });
+}
+
+let clockCustomAudioBuffers = {}; // id -> AudioBuffer
+let clockCustomAudioUrls = {};    // id -> Object URL
+let clockCustomAudioMeta = {};    // id -> { name, type, size }
+
+async function initClockCustomAudio() {
+  try {
+    const db = await openClockAudioDB();
+    if (!db) return;
+    const records = await new Promise((resolve) => {
+      const tx = db.transaction(CLOCK_AUDIO_STORE_NAME, 'readonly');
+      const store = tx.objectStore(CLOCK_AUDIO_STORE_NAME);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    });
+
+    const ctx = getClockAudioContext();
+    for (const rec of records) {
+      clockCustomAudioMeta[rec.id] = { name: rec.name, type: rec.type, size: rec.size };
+      if (rec.data) {
+        try {
+          clockCustomAudioUrls[rec.id] = URL.createObjectURL(new Blob([rec.data], { type: rec.type || 'audio/mpeg' }));
+        } catch (_) {}
+
+        if (ctx) {
+          try {
+            clockCustomAudioBuffers[rec.id] = await ctx.decodeAudioData(rec.data.slice(0));
+          } catch (_) {}
+        }
+      }
+    }
+    syncClockSoundSettingsUI();
+  } catch (err) {
+    console.warn('initClockCustomAudio error:', err);
+  }
+}
+
+async function saveClockCustomAudio(id, file) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const db = await openClockAudioDB();
+    if (db) {
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(CLOCK_AUDIO_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(CLOCK_AUDIO_STORE_NAME);
+        store.put({
+          id: id,
+          name: file.name,
+          type: file.type || 'audio/mpeg',
+          size: file.size,
+          data: arrayBuffer,
+          updatedAt: Date.now()
+        });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    clockCustomAudioMeta[id] = { name: file.name, type: file.type, size: file.size };
+    if (clockCustomAudioUrls[id]) {
+      try { URL.revokeObjectURL(clockCustomAudioUrls[id]); } catch (_) {}
+    }
+    try {
+      clockCustomAudioUrls[id] = URL.createObjectURL(new Blob([arrayBuffer], { type: file.type || 'audio/mpeg' }));
+    } catch (_) {}
+
+    const ctx = getClockAudioContext();
+    if (ctx) {
+      try {
+        clockCustomAudioBuffers[id] = await ctx.decodeAudioData(arrayBuffer.slice(0));
+      } catch (e) {
+        console.warn('decodeAudioData error, will use URL fallback:', e);
+      }
+    }
+
+    // Automatically switch the setting to custom
+    if (id === 'warn10') clockSoundSettings.warn10Tone = 'custom';
+    else if (id === 'countdown') clockSoundSettings.countdownTone = 'custom';
+    else if (id === 'timeout') clockSoundSettings.timeoutTone = 'custom';
+    else if (id === 'overtime') clockSoundSettings.overtimeTone = 'custom';
+
+    saveClockSoundSettings();
+    syncClockSoundSettingsUI();
+    if (typeof toast === 'function') toast(`อัปโหลดเสียง "${file.name}" เรียบร้อย`);
+  } catch (err) {
+    console.error('Failed to save custom audio:', err);
+    if (typeof toast === 'function') toast('ไม่สามารถบันทึกไฟล์เสียงได้');
+  }
+}
+
+async function deleteClockCustomAudio(id) {
+  try {
+    const db = await openClockAudioDB();
+    if (db) {
+      await new Promise((resolve) => {
+        const tx = db.transaction(CLOCK_AUDIO_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(CLOCK_AUDIO_STORE_NAME);
+        store.delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    }
+
+    if (clockCustomAudioUrls[id]) {
+      try { URL.revokeObjectURL(clockCustomAudioUrls[id]); } catch (_) {}
+      delete clockCustomAudioUrls[id];
+    }
+    delete clockCustomAudioBuffers[id];
+    delete clockCustomAudioMeta[id];
+
+    // Revert settings to default presets if was set to custom
+    if (id === 'warn10' && clockSoundSettings.warn10Tone === 'custom') {
+      clockSoundSettings.warn10Tone = CLOCK_SOUND_DEFAULTS.warn10Tone;
+    } else if (id === 'countdown' && clockSoundSettings.countdownTone === 'custom') {
+      clockSoundSettings.countdownTone = CLOCK_SOUND_DEFAULTS.countdownTone;
+    } else if (id === 'timeout' && clockSoundSettings.timeoutTone === 'custom') {
+      clockSoundSettings.timeoutTone = CLOCK_SOUND_DEFAULTS.timeoutTone;
+    } else if (id === 'overtime' && clockSoundSettings.overtimeTone === 'custom') {
+      clockSoundSettings.overtimeTone = CLOCK_SOUND_DEFAULTS.overtimeTone;
+    }
+
+    saveClockSoundSettings();
+    syncClockSoundSettingsUI();
+    if (typeof toast === 'function') toast('ลบไฟล์เสียงเรียบร้อย');
+  } catch (err) {
+    console.error('Failed to delete custom audio:', err);
+  }
+}
+
+async function clockHandleUpload(id, input) {
+  if (!input || !input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 20 * 1024 * 1024) {
+    alert('ขนาดไฟล์ใหญ่เกินไป (กรุณาใช้ไฟล์ไม่เกิน 20MB)');
+    input.value = '';
+    return;
+  }
+  await saveClockCustomAudio(id, file);
+  input.value = '';
+}
+
+function playAudioClip(id, loop = false) {
+  const ctx = getClockAudioContext();
+  const buffer = clockCustomAudioBuffers[id];
+
+  if (ctx && buffer) {
+    try {
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = loop;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.85, ctx.currentTime);
+      source.connect(gain);
+      gain.connect(ctx.destination);
+      source.start(0);
+      return { source, gain };
+    } catch (_) {}
+  }
+
+  // Fallback to HTMLAudioElement
+  const url = clockCustomAudioUrls[id];
+  if (url) {
+    try {
+      const audio = new Audio(url);
+      audio.loop = loop;
+      audio.play().catch(() => {});
+      return { htmlAudio: audio };
+    } catch (_) {}
+  }
+  return null;
+}
+
 // 1. เสียงเตือนตอน 10 วิ
 function play10sWarning(tone) {
+  if (tone === 'custom' || clockSoundSettings.warn10Tone === 'custom') {
+    if (playAudioClip('warn10', false)) return;
+  }
+
   const ctx = getClockAudioContext();
   if (!ctx) return;
   const now = ctx.currentTime;
@@ -88,6 +297,7 @@ function play10sWarning(tone) {
       osc.stop(now + idx * 0.1 + 0.1);
     });
   } else {
+    // Default High Beep
     [980, 980].forEach((freq, idx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -105,6 +315,10 @@ function play10sWarning(tone) {
 
 // 2. เสียงนับถอยหลัง 00:05 ถึง 00:01 วิ
 function playCountdownTick(second, tone) {
+  if (tone === 'custom' || clockSoundSettings.countdownTone === 'custom') {
+    if (playAudioClip('countdown', false)) return;
+  }
+
   const ctx = getClockAudioContext();
   if (!ctx) return;
   const now = ctx.currentTime;
@@ -134,6 +348,7 @@ function playCountdownTick(second, tone) {
     osc.start(now);
     osc.stop(now + 0.075);
   } else {
+    // Default Tick
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
@@ -150,6 +365,21 @@ function playCountdownTick(second, tone) {
 // 3. เสียงหมดเวลา 00:00 วิ ลากยาว (Continuous Timeout Buzzer)
 function startContinuousBuzzer(tone) {
   stopContinuousBuzzer();
+
+  if (tone === 'custom' || clockSoundSettings.timeoutTone === 'custom') {
+    const res = playAudioClip('timeout', true);
+    if (res) {
+      if (res.source) {
+        clockContinuousBuzzerSource = res.source;
+        clockContinuousBuzzerGain = res.gain;
+      }
+      if (res.htmlAudio) {
+        clockContinuousBuzzerHtmlAudio = res.htmlAudio;
+      }
+      return;
+    }
+  }
+
   const ctx = getClockAudioContext();
   if (!ctx) return;
 
@@ -183,6 +413,14 @@ function startContinuousBuzzer(tone) {
 
 // 4. หยุดเสียงลากยาวทันทีเมื่อกดข้ามฝั่ง หรือเวลา -00:01 วินาที
 function stopContinuousBuzzer() {
+  if (clockContinuousBuzzerHtmlAudio) {
+    try {
+      clockContinuousBuzzerHtmlAudio.pause();
+      clockContinuousBuzzerHtmlAudio.currentTime = 0;
+    } catch (_) {}
+    clockContinuousBuzzerHtmlAudio = null;
+  }
+
   if (clockContinuousBuzzerSource) {
     try {
       const ctx = getClockAudioContext();
@@ -200,7 +438,7 @@ function stopContinuousBuzzer() {
         clockContinuousBuzzerGain = null;
       }, 35);
     } catch (_) {
-      try { clockContinuousBuzzerSource.stop(); } catch (__) {}
+      try { clockContinuousBuzzerSource?.stop(); } catch (__) {}
       clockContinuousBuzzerSource = null;
       clockContinuousBuzzerGain = null;
     }
@@ -209,6 +447,17 @@ function stopContinuousBuzzer() {
 
 // 5. ฟีเจอร์พิเศษเมื่อติดลบถึงนาทีถัดไป (-1 ถึง -10 นาที)
 function playOvertimeSound(minute, tone) {
+  // Check if minute-specific custom audio exists (e.g. overtime_1, overtime_2)
+  const minKey = `overtime_${minute}`;
+  if (clockCustomAudioMeta[minKey] && playAudioClip(minKey, false)) {
+    return;
+  }
+
+  // Check general overtime custom audio
+  if ((tone === 'custom' || clockSoundSettings.overtimeTone === 'custom') && playAudioClip('overtime', false)) {
+    return;
+  }
+
   const ctx = getClockAudioContext();
   if (!ctx) return;
   const now = ctx.currentTime;
@@ -252,7 +501,7 @@ function playOvertimeSound(minute, tone) {
       osc.stop(now + idx * 0.07 + 0.065);
     });
   } else {
-    // 'double-beep'
+    // Default Double Beep
     [580, 580].forEach((freq, idx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -268,7 +517,7 @@ function playOvertimeSound(minute, tone) {
   }
 }
 
-function clockTestSound(type) {
+function clockTestSound(type, minute) {
   getClockAudioContext();
   if (type === '10s') {
     play10sWarning(clockSoundSettings.warn10Tone);
@@ -276,9 +525,9 @@ function clockTestSound(type) {
     playCountdownTick(3, clockSoundSettings.countdownTone);
   } else if (type === 'timeout') {
     startContinuousBuzzer(clockSoundSettings.timeoutTone);
-    setTimeout(() => stopContinuousBuzzer(), 900);
+    setTimeout(() => stopContinuousBuzzer(), 1500);
   } else if (type === 'overtime') {
-    playOvertimeSound(1, clockSoundSettings.overtimeTone);
+    playOvertimeSound(minute || 1, clockSoundSettings.overtimeTone);
   }
 }
 
@@ -288,19 +537,82 @@ function clockUpdateSoundSetting(key, value) {
   syncClockSoundSettingsUI();
 }
 
+function syncAlertRowUI(id, toggleId, selectId, badgeId, uploadTextId, enableKey, toneKey, defaultOptions) {
+  if (toggleId && enableKey) {
+    const toggle = document.getElementById(toggleId);
+    if (toggle) toggle.checked = !!clockSoundSettings[enableKey];
+  }
+
+  const select = document.getElementById(selectId);
+  const badge = document.getElementById(badgeId);
+  const uploadText = document.getElementById(uploadTextId);
+  const customMeta = clockCustomAudioMeta[id];
+
+  if (select) {
+    const currentVal = clockSoundSettings[toneKey];
+    let html = defaultOptions.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('');
+    if (customMeta) {
+      html += `<option value="custom">🎵 ${escapeHtml(customMeta.name)}</option>`;
+    }
+    select.innerHTML = html;
+    if (customMeta && currentVal === 'custom') {
+      select.value = 'custom';
+    } else {
+      select.value = currentVal || defaultOptions[0].value;
+    }
+  }
+
+  if (badge) {
+    if (customMeta) {
+      badge.style.display = 'inline-flex';
+      badge.innerHTML = `🎵 <span title="${escapeHtml(customMeta.name)}" style="max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(customMeta.name)}</span>
+        <button type="button" onclick="clockDeleteCustomAudio('${id}')" title="ลบไฟล์เสียงนี้">✕</button>`;
+    } else {
+      badge.style.display = 'none';
+      badge.innerHTML = '';
+    }
+  }
+
+  if (uploadText) {
+    uploadText.innerText = customMeta ? 'เปลี่ยนเสียง' : 'อัปโหลด';
+  }
+}
+
+function renderOvertimeMinuteList() {
+  const container = document.getElementById('clockOvertimePerMinuteList');
+  if (!container) return;
+  const maxM = clockSoundSettings.overtimeMaxMinutes || 10;
+  let html = '';
+  for (let m = 1; m <= 10; m++) {
+    const minKey = `overtime_${m}`;
+    const meta = clockCustomAudioMeta[minKey];
+    const isWithinRange = m <= maxM;
+    html += `
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:6px 8px; display:flex; flex-direction:column; gap:4px; opacity:${isWithinRange ? '1' : '0.5'};">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="mono" style="font-weight:700; font-size:11px; color:${isWithinRange ? 'var(--danger)' : 'var(--text2)'};">-${String(m).padStart(2,'0')}:00</span>
+          <button type="button" class="btn" style="padding:1px 5px; font-size:10px;" onclick="clockTestSound('overtime', ${m})" title="ทดสอบเสียงนาทีนี้">▶</button>
+        </div>
+        ${meta ? `
+          <div class="clock-file-badge" style="max-width:100%; font-size:10px; padding:1px 4px;">
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🎵 ${escapeHtml(meta.name)}</span>
+            <button type="button" onclick="clockDeleteCustomAudio('${minKey}')" title="ลบ">✕</button>
+          </div>
+        ` : `
+          <label class="btn" style="padding:2px 4px; font-size:10px; cursor:pointer; text-align:center;">
+            📁 อัปโหลด
+            <input type="file" accept="audio/*" style="display:none" onchange="clockHandleUpload('${minKey}', this)">
+          </label>
+        `}
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+}
+
 function syncClockSoundSettingsUI() {
   const master = document.getElementById('clockSoundMasterToggle');
-  const w10 = document.getElementById('clockWarn10Toggle');
-  const w10Sel = document.getElementById('clockWarn10Select');
-  const cd = document.getElementById('clockCountdownToggle');
-  const cdSel = document.getElementById('clockCountdownSelect');
-  const to = document.getElementById('clockTimeoutToggle');
-  const toSel = document.getElementById('clockTimeoutSelect');
-  const ot = document.getElementById('clockOvertimeToggle');
-  const otTone = document.getElementById('clockOvertimeToneSelect');
-  const otMax = document.getElementById('clockOvertimeMaxSelect');
   const wrapper = document.getElementById('clockSoundOptionsWrapper');
-  const otWrapper = document.getElementById('clockOvertimeCustomOptions');
 
   if (master) master.checked = !!clockSoundSettings.soundEnabled;
   if (wrapper) {
@@ -308,22 +620,50 @@ function syncClockSoundSettingsUI() {
     wrapper.style.pointerEvents = clockSoundSettings.soundEnabled ? 'auto' : 'none';
   }
 
-  if (w10) w10.checked = !!clockSoundSettings.warn10Enabled;
-  if (w10Sel) w10Sel.value = clockSoundSettings.warn10Tone || 'high-beep';
+  // 1. 10s Alert
+  syncAlertRowUI('warn10', 'clockWarn10Toggle', 'clockWarn10Select', 'clockWarn10Badge', 'clockWarn10UploadText', 'warn10Enabled', 'warn10Tone', [
+    { value: 'high-beep', label: 'High Beep' },
+    { value: 'chime', label: 'Chime' },
+    { value: 'two-tone', label: 'Two-Tone' }
+  ]);
 
-  if (cd) cd.checked = !!clockSoundSettings.countdownEnabled;
-  if (cdSel) cdSel.value = clockSoundSettings.countdownTone || 'tick';
+  // 2. Countdown 5s-1s
+  syncAlertRowUI('countdown', 'clockCountdownToggle', 'clockCountdownSelect', 'clockCountdownBadge', 'clockCountdownUploadText', 'countdownEnabled', 'countdownTone', [
+    { value: 'tick', label: 'Tick' },
+    { value: 'beep', label: 'Beep' },
+    { value: 'click', label: 'Wood Click' }
+  ]);
 
-  if (to) to.checked = !!clockSoundSettings.timeoutBuzzerEnabled;
-  if (toSel) toSel.value = clockSoundSettings.timeoutTone || 'buzzer';
+  // 3. Timeout Buzzer
+  syncAlertRowUI('timeout', 'clockTimeoutToggle', 'clockTimeoutSelect', 'clockTimeoutBadge', 'clockTimeoutUploadText', 'timeoutBuzzerEnabled', 'timeoutTone', [
+    { value: 'buzzer', label: 'Buzzer' },
+    { value: 'alarm-siren', label: 'Siren' }
+  ]);
 
+  // 4. Overtime
+  const ot = document.getElementById('clockOvertimeToggle');
+  const otMax = document.getElementById('clockOvertimeMaxSelect');
+  const otWrapper = document.getElementById('clockOvertimeCustomOptions');
   if (ot) ot.checked = !!clockSoundSettings.overtimeAlertEnabled;
-  if (otTone) otTone.value = clockSoundSettings.overtimeTone || 'double-beep';
   if (otMax) otMax.value = String(clockSoundSettings.overtimeMaxMinutes || 10);
   if (otWrapper) {
     otWrapper.style.opacity = clockSoundSettings.overtimeAlertEnabled ? '1' : '0.45';
     otWrapper.style.pointerEvents = clockSoundSettings.overtimeAlertEnabled ? 'auto' : 'none';
   }
+
+  syncAlertRowUI('overtime', null, 'clockOvertimeToneSelect', 'clockOvertimeBadge', 'clockOvertimeUploadText', null, 'overtimeTone', [
+    { value: 'double-beep', label: 'Double Beep' },
+    { value: 'triple-beep', label: 'Triple Beep' },
+    { value: 'low-bell', label: 'Low Bell' },
+    { value: 'pulse', label: 'Alarm Pulse' }
+  ]);
+
+  renderOvertimeMinuteList();
+}
+
+// Initialize Custom Audio from IndexedDB
+if (typeof window !== 'undefined') {
+  initClockCustomAudio();
 }
 
 let clockTurnTriggeredSeconds = new Set();
@@ -517,6 +857,7 @@ function clockToggleSettings() {
   if (!panel) return;
 
   panel.hidden = !panel.hidden;
+  panel.classList.toggle('open', !panel.hidden);
   if (panel.hidden) return;
 
   // Sync inputs with current base configuration when opening the settings modal.
@@ -558,13 +899,16 @@ function clockApplySettings() {
   clockReset();
 
   const panel = document.getElementById('clockSettings');
-  if (panel) panel.hidden = true;
+  if (panel) {
+    panel.hidden = true;
+    panel.classList.remove('open');
+  }
 }
 
 // Close settings modal when clicking outside card or pressing Escape
 document.addEventListener('click', (e) => {
   const panel = document.getElementById('clockSettings');
-  if (panel && !panel.hidden && e.target === panel) {
+  if (panel && (!panel.hidden || panel.classList.contains('open')) && e.target === panel) {
     clockToggleSettings();
   }
 });

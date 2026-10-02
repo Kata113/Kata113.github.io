@@ -101,15 +101,28 @@
 - **Badge แสดงชื่อไฟล์ & ปุ่มลบ**: แสดง badge ชื่อไฟล์ที่อัปโหลด พร้อมปุ่มลบ (✕) เพื่อย้อนกลับไปใช้เสียง Preset สังเคราะห์ได้ตลอดเวลา
 - **ซิงก์ฟีเจอร์สู่ `web/old`**: นำ Chess Clock และระบบ Custom Sound ทั้งหมดไปใส่ใน `web/old` โดยคงรูปแบบ UI ดั้งเดิม (ธีมสีเขียว Apple #34C759, ปุ่มการ์ด, และสไตล์เดิมของ old) ไว้อย่างสมบูรณ์ 100%
 
+## 14. Quiz Answer Probability Sorting, Custom Judge Sound & Full Screen, Scrabble Tile Loading Screen, Blue App Logo
+- **เรียงคำตอบที่ส่งใน Quiz ตาม Probability (#Prob 1, 2, 3...)**: คำตอบที่ผู้ใช้ส่งใน Quiz จะจัดเรียงตามลำดับความน่าจะเป็น (#Prob) จากน้อยไปมากทันที ไม่ได้เรียงตามเวลาที่พิมพ์ส่ง
+- **ระบบเสียง Custom Judge Sound**:
+  - Web Audio API + IndexedDB (`ZyzzyluClockAudioDB`) สำหรับเก็บและเล่นไฟล์เสียงผลการตัดสินคำศัพท์
+  - รองรับทั้งเสียง Preset (Chime, High Ding, Two-Tone สำหรับคำถูก / Buzzer, Thud, Error Tone สำหรับคำผิด) และปุ่มอัปโหลดไฟล์เสียงตนเอง (.mp3, .wav ฯลฯ)
+  - มีปุ่มทดสอบเสียง (▶) และปุ่มลบไฟล์เสียง (✕)
+- **หน้าจอแสดงผลการตัดสินแบบเต็มจอ (Full Screen)**:
+  - สัญลักษณ์ขนาดใหญ่และข้อความแสดงสถานะ (`✓ VALID` / `✕ NOT VALID`) ชัดเจนระดับมองเห็นข้ามโต๊ะแข่ง
+  - ปิดหน้าจอได้ทันทีด้วยการแตะ/คลิกตรงไหนก็ได้ของหน้าจอ หรือกดปุ่มใดก็ได้บนคีย์บอร์ด
+- **หน้าจอ Loading Screen เบี้ย Scrabble ตัว Z สีฟ้า**:
+  - เปลี่ยนจาก spinner วงกลมหมุนเป็นเบี้ย Scrabble สี่เหลี่ยมมน 3D สีฟ้า Royal Blue พร้อมตัวอักษร Z สีขาวและตัวห้อยคะแนน 10 ขยับลอยขึ้น-ลงนุ่มนวล
+- **โลโก้แอป (App Logo) พื้นหลังสีฟ้าตัวอักษรสีขาว**:
+  - เปลี่ยนไอคอน 192×192 และ 512×512 ทั้งหมดเป็นพื้นหลังสีฟ้า Royal Blue (#2073DB) พร้อมตัวอักษร Z สีขาวคมชัด
+
 ## ไฟล์ที่เปลี่ยน
 | ไฟล์ | สาเหตุ |
 |------|--------|
-| index.html | หลอดความคืบหน้า % ใน loadingScreen, UI ปรับแต่งเสียงและอัปโหลดไฟล์เสียงใน Modal ตั้งเวลา, asset versions (v=14, v=10, v=3) |
-| core.js | ฟังก์ชัน `formatWordPos()`, ฟังก์ชัน `setLoadingProgress()` ควบคุมหลอด %, อัปเดตการอ่านไฟล์และ parse CSW24 |
-| quiz_bridge.js | แสดง POS แทนคะแนนใต้คำและหัวตาราง, ระบบลากเบี้ยแบบ floating ghost tile ลอยตามมือและ smooth placeholder reorder |
-| clock.js | ระบบเสียงสังเคราะห์ Web Audio API + ระบบจัดเก็บ/ถอดรหัส/เล่น Custom Audio ผ่าน IndexedDB, ลากยาวเสียงที่ 00:00, หยุดที่ -00:01 หรือข้ามฝั่ง, Custom Overtime Sound (-01:00 ถึง -10:00) |
-| styles.css | เพิ่ม styling สำหรับ `.quiz-tile.is-floating`, `.quiz-tile.is-placeholder`, `touch-action: none`, `.clock-file-badge`, `.clock-file-upload-btn` |
-| sw.js | อัปเดต cache version เป็น v30 |
+| index.html | เบี้ย Scrabble ตัว Z ใน loadingScreen, การ์ดตั้งค่าเสียง Judge, overlay ตัดสินแบบเต็มจอ, asset versions (v=15, v=11, v=5) |
+| judge.js | ระบบเสียง Custom Sound ผ่าน Web Audio API และ IndexedDB, ตรรกะปิดหน้าจอเต็มจอเมื่อคลิกหรือกดปุ่มใดก็ได้ |
+| quiz_bridge.js | จัดเรียงคำตอบที่ส่งแล้วตาม Probability Rank (#Prob) จากน้อยไปมาก |
+| styles.css | สไตล์หน้าจอ Judge overlay แบบเต็มจอ (100vw × 100vh) พร้อม ambient backdrop |
+| sw.js | อัปเดต cache version เป็น v31 |
+| icons/ | อัปเดตไอคอนเป็นพื้นหลังสีฟ้าตัวอักษรสีขาว |
+| CHANGES.md | บันทึกรายละเอียดการเปลี่ยนแปลง v2.1 |
 
-## ไฟล์ที่ต้องเก็บจาก Zip เดิม (ไม่เปลี่ยน)
-- CSW24.txt

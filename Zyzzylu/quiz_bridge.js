@@ -626,8 +626,14 @@ function renderAnswersList(q) {
   };
 
   if (!q.checked) {
+    const sortedCorrect = [...q.userCorrectAnswers].sort((a, b) => {
+      const ra = probRankMap[a] ?? 9999999;
+      const rb = probRankMap[b] ?? 9999999;
+      if (ra !== rb) return ra - rb;
+      return a.localeCompare(b);
+    });
     const rows = [
-      ...q.userCorrectAnswers.map(w => hookRow(w, 'var(--accent)', '✓', true)),
+      ...sortedCorrect.map(w => hookRow(w, 'var(--accent)', '✓', true)),
       ...q.userIncorrectAnswers.map(w =>
         `<div style="padding:8px 4px;border-bottom:1px solid rgba(58,58,60,.3);opacity:.8;">
           <span class="mono" style="color:var(--danger);text-decoration:line-through;font-size:14px;">✕ ${w}</span>
@@ -640,8 +646,15 @@ function renderAnswersList(q) {
   let cr = { answers: [], incorrectAnswers: [] };
   try { const s = Module.checkAnswers(); if (s && s !== '{}') cr = JSON.parse(s); } catch(_) {}
 
+  const sortedAnswers = [...(cr.answers || [])].sort((a, b) => {
+    const ra = probRankMap[a.word] ?? 9999999;
+    const rb = probRankMap[b.word] ?? 9999999;
+    if (ra !== rb) return ra - rb;
+    return (a.word || '').localeCompare(b.word || '');
+  });
+
   const rows = [
-    ...(cr.answers || []).map(a => {
+    ...sortedAnswers.map(a => {
       const ok = a.status === 'correct';
       return hookRow(a.word, ok ? 'var(--accent)' : 'var(--danger)', ok ? '✓' : '⊘ MISSED', ok);
     }),

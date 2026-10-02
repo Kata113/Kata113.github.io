@@ -88,8 +88,44 @@
       font-family: 'JetBrains Mono', monospace;
       line-height: 1.4;
     }
-    .spinner { width:38px; height:38px; border:3px solid var(--surface2); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
-    @keyframes spin { to { transform:rotate(360deg); } }
+    .loading-scrabble-tile {
+      width: 58px;
+      height: 58px;
+      background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 12px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4), inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+      animation: tileFloat 2s ease-in-out infinite;
+    }
+    @keyframes tileFloat {
+      0%, 100% { transform: translateY(0); box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4); }
+      50% { transform: translateY(-6px); box-shadow: 0 14px 30px rgba(37, 99, 235, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4); }
+    }
+    .loading-tile-letter {
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      color: #FFFFFF;
+      line-height: 1;
+      margin-left: -4px;
+      margin-top: -2px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    .loading-tile-score {
+      position: absolute;
+      bottom: 5px;
+      right: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 800;
+      color: #FFFFFF;
+      line-height: 1;
+      opacity: 0.9;
+    }
 
     header { position:sticky; top:0; z-index:100; background:rgba(0,0,0,.85); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:16px; display:flex; justify-content:flex-end; }
     nav.bottom-nav { position:fixed; bottom:0; left:0; right:0; height:68px; background:var(--surface); border-top:1px solid var(--border); display:flex; z-index:1000; padding-bottom:env(safe-area-inset-bottom); }
@@ -160,7 +196,7 @@
     .calc-op  { color:var(--orange); border-color:rgba(255,149,0,.35); }
     .calc-eq  { background:var(--accent); color:#000; border:none; }
   </style>
-  <link rel="stylesheet" href="styles.css?v=13">
+  <link rel="stylesheet" href="styles.css?v=15">
 </head>
 <body>
 
@@ -168,7 +204,10 @@
 
   <div id="loadingScreen" role="status" aria-live="polite">
     <div class="loading-container">
-      <div class="spinner"></div>
+      <div class="loading-scrabble-tile" aria-hidden="true">
+        <span class="loading-tile-letter">Z</span>
+        <span class="loading-tile-score">10</span>
+      </div>
       <div class="loading-title">ZYZZYLU</div>
       <div class="loading-bar-wrapper">
         <div class="loading-bar-track">
@@ -316,6 +355,65 @@
             placeholder="Enter words…"
             onkeydown="if(event.key==='Enter')chkChal()">
           <button type="button" class="btn btn-p" onclick="chkChal()">Check words</button>
+        </div>
+      </div>
+
+      <!-- Judge Sound Settings -->
+      <div class="card" style="margin-top:14px; padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-weight:700; font-size:14px; color:var(--text); display:flex; align-items:center; gap:6px;">
+            <span>🔊 เสียงผลการตัดสิน (Judge Sounds)</span>
+          </div>
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:var(--text2);">
+            <input type="checkbox" id="judgeSoundEnabled" onchange="toggleJudgeSoundEnabled(this.checked)" checked>
+            <span>เปิดเสียง</span>
+          </label>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <!-- Valid sound row -->
+          <div class="clock-setting-row" style="flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:6px; min-width:130px;">
+              <span style="color:var(--accent); font-weight:700;">✓ คำถูกต้อง</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; flex:1; flex-wrap:wrap; justify-content:flex-end;">
+              <select id="judgeValidToneSelect" class="input-field" style="padding:6px 10px; font-size:12px; width:auto; min-width:110px;" onchange="onJudgeToneChange('valid', this.value)">
+                <option value="chime">Chime</option>
+                <option value="high-ding">High Ding</option>
+                <option value="two-tone">Two-Tone</option>
+                <option value="custom">Custom (ไฟล์เสียง)</option>
+                <option value="none">ไม่มีเสียง (None)</option>
+              </select>
+              <button type="button" class="btn" style="padding:6px 10px; font-size:12px;" onclick="testJudgeSound('valid')" title="ทดสอบเสียง">▶</button>
+              <div id="judgeValidFileBadge" class="clock-file-badge" style="display:none;"></div>
+              <label class="btn clock-file-upload-btn" style="padding:6px 10px; font-size:12px; cursor:pointer;" title="อัปโหลดไฟล์เสียงตนเอง">
+                📁 อัปโหลด
+                <input type="file" accept="audio/*" style="display:none" onchange="judgeHandleUpload('judge_valid', this)">
+              </label>
+            </div>
+          </div>
+
+          <!-- Invalid sound row -->
+          <div class="clock-setting-row" style="flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:6px; min-width:130px;">
+              <span style="color:var(--danger); font-weight:700;">✕ คำไม่ถูกต้อง</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; flex:1; flex-wrap:wrap; justify-content:flex-end;">
+              <select id="judgeInvalidToneSelect" class="input-field" style="padding:6px 10px; font-size:12px; width:auto; min-width:110px;" onchange="onJudgeToneChange('invalid', this.value)">
+                <option value="buzzer">Buzzer (บัซเซอร์)</option>
+                <option value="thud">Double Thud</option>
+                <option value="descending">Error Tone</option>
+                <option value="custom">Custom (ไฟล์เสียง)</option>
+                <option value="none">ไม่มีเสียง (None)</option>
+              </select>
+              <button type="button" class="btn" style="padding:6px 10px; font-size:12px;" onclick="testJudgeSound('invalid')" title="ทดสอบเสียง">▶</button>
+              <div id="judgeInvalidFileBadge" class="clock-file-badge" style="display:none;"></div>
+              <label class="btn clock-file-upload-btn" style="padding:6px 10px; font-size:12px; cursor:pointer;" title="อัปโหลดไฟล์เสียงตนเอง">
+                📁 อัปโหลด
+                <input type="file" accept="audio/*" style="display:none" onchange="judgeHandleUpload('judge_invalid', this)">
+              </label>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -556,13 +654,13 @@
     </div>
   </div>
 
-  <!-- Judge overlay -->
-  <div class="judge-overlay" id="jOverlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="jStatus" tabindex="-1" onclick="closeJudgeOverlay(event)">
-    <div class="judge-result-card">
+  <!-- Judge full-screen overlay -->
+  <div class="judge-overlay" id="jOverlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="jStatus" tabindex="-1" onclick="closeJudgeOverlay()">
+    <div class="judge-fullscreen-content">
       <div class="judge-symbol" id="jSymbol" aria-hidden="true">✓</div>
-      <div class="judge-status-text" id="jStatus">Valid</div>
+      <div class="judge-status-text" id="jStatus">VALID</div>
       <div class="mono judge-sub-list" id="jSubList"></div>
-      <button type="button" class="btn" onclick="closeJudgeOverlay()">Close</button>
+      <div class="judge-dismiss-hint">แตะหรือกดปุ่มใดก็ได้เพื่อปิด · Tap anywhere to close</div>
     </div>
   </div>
 
@@ -640,8 +738,8 @@
   <script src="core.js?v=13"></script>
   <script src="search.js?v=8"></script>
   <script src="zyzzylu_cpp_engine.js"></script>
-  <script src="quiz_bridge.js?v=10"></script>
-  <script src="judge.js?v=4"></script>
+  <script src="quiz_bridge.js?v=11"></script>
+  <script src="judge.js?v=5"></script>
   <script>
     // ── CALCULATOR ─────────────────────────────────────────────────────
     let calcExpr     = '';   // full expression string

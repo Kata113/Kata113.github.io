@@ -1,9 +1,13 @@
 // --- GLOBAL STATES ---
-let dict = [], dictSet = new Set(), wordsByL = {}, wordMetadata = new Map(), lexiconMetadataCache = new Map();
+const DICTIONARY_URL = './CSW24.txt';
+let dict = [], dictSet = new Set(), wordsByL = {}, wordMetadata = new Map();
+let lexiconMetadataCache = new Map(), anagramCache = new Map(), wordExtensionCache = new Map();
 let saved = JSON.parse(localStorage.getItem('zyz_sv') || '[]');
 let sFilters = [], qFilters = [], fId = 0;
 let currentResultsList = [], currentWordIndex = -1;
 let activeSearchMode = 'subanagram';
+let modalReturnFocus = null;
+let toastTimer = null;
 
 const letterScores = { A:1,E:1,I:1,O:1,U:1,L:1,N:1,S:1,T:1,R:1, D:2,G:2, B:3,C:3,M:3,P:3, F:4,H:4,V:4,W:4,Y:4, K:5, J:8,X:8, Q:10,Z:10 };
 const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -15,31 +19,87 @@ const letterFrequencies = {
 };
 
 function choose(n, k) {
-  if (k < 0 || k > n) return 0;
-  if (k === 0 || k === n) return 1;
+  if (k < 0 || k > n) return 0n;
+  if (k === 0 || k === n) return 1n;
   if (k > n / 2) k = n - k;
-  let r = 1;
-  for (let i = 1; i <= k; i++) r = r * (n-i+1) / i;
+  let r = 1n;
+  for (let i = 1; i <= k; i++) {
+    r = r * BigInt(n - i + 1) / BigInt(i);
+  }
   return r;
 }
+
+function getProbabilityWaysForBlankCount(entries, index, blanksRemaining) {
+  if (index === entries.length) return blanksRemaining === 0 ? 1n : 0n;
+
+  const [letter, count] = entries[index];
+  let total = 0n;
+  const maxBlanksForLetter = Math.min(count, blanksRemaining);
+  for (let blanksForLetter = 0; blanksForLetter <= maxBlanksForLetter; blanksForLetter++) {
+    const tileWays = choose(letterFrequencies[letter] || 0, count - blanksForLetter);
+    if (tileWays === 0n) continue;
+    total += tileWays * getProbabilityWaysForBlankCount(
+      entries,
+      index + 1,
+      blanksRemaining - blanksForLetter
+    );
+  }
+  return total;
+}
+
 function getProbabilityScore(w) {
-  let c = {};
-  for (let ch of w) c[ch] = (c[ch]||0)+1;
-  let s = 1;
-  for (let ch in c) s *= choose(letterFrequencies[ch]||0, c[ch]);
-  return s;
+  const counts = {};
+  for (const ch of w) counts[ch] = (counts[ch] || 0) + 1;
+  const entries = Object.entries(counts);
+  let total = 0n;
+
+  // Zyzzyva probability uses the full 100-tile bag. Count racks containing
+  // exactly 0, 1, and 2 blanks, then add those combination counts together.
+  for (let blanksUsed = 0; blanksUsed <= 2; blanksUsed++) {
+    total += choose(2, blanksUsed)
+      * getProbabilityWaysForBlankCount(entries, 0, blanksUsed);
+  }
+  return total;
 }
 
 let probCache = {}, probRankMap = {};
 function initProbabilityCache() {
   probCache = {}; probRankMap = {};
-  const sc = {};
-  for (let w of dict) sc[w] = getProbabilityScore(w);
-  for (let w of dict) { let l=w.length; (probCache[l]=probCache[l]||[]).push(w); }
-  for (let l in probCache) {
-    let wl = probCache[l];
-    wl.sort((a,b) => sc[b]!==sc[a] ? sc[b]-sc[a] : (a<b?-1:1));
-    for (let i=0; i<wl.length; i++) probRankMap[wl[i]] = i+1;
+  const wordsByAlphagram = new Map();
+  const alphagramsByLength = {};
+  const scores = new Map();
+
+  // Probability is calculated from the full 100-tile bag with its two blanks:
+  // add the ways to draw the rack with 0, 1, or 2 blanks.  The score belongs
+  // to a rack, but Probability Order belongs to an individual word.  Therefore
+  // anagrams are expanded into alphabetic word order before ranks are assigned.
+  for (const word of dict) {
+    const alphagram = [...word].sort().join('');
+    if (!wordsByAlphagram.has(alphagram)) {
+      wordsByAlphagram.set(alphagram, []);
+      (alphagramsByLength[word.length] = alphagramsByLength[word.length] || []).push(alphagram);
+      scores.set(alphagram, getProbabilityScore(alphagram));
+    }
+    wordsByAlphagram.get(alphagram).push(word);
+  }
+
+  for (const length in alphagramsByLength) {
+    const alphagrams = alphagramsByLength[length];
+    alphagrams.sort((a, b) => {
+      const scoreA = scores.get(a);
+      const scoreB = scores.get(b);
+      if (scoreA !== scoreB) return scoreA > scoreB ? -1 : 1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    });
+    // Keep this cache as the ordered rack list for callers that need it, but
+    // give every word its own consecutive position.  For example, MO and OM
+    // have the same rack score but receive adjacent ranks in alphabetic order.
+    probCache[length] = alphagrams;
+    let rank = 1;
+    for (const alphagram of alphagrams) {
+      const words = wordsByAlphagram.get(alphagram).sort();
+      for (const word of words) probRankMap[word] = rank++;
+    }
   }
 }
 
@@ -52,7 +112,7 @@ function getHooksAndDots(w) {
     if (dictSet.has(alpha[i]+w)) f+=alpha[i];
     if (dictSet.has(w+alpha[i])) b+=alpha[i];
   }
-  return { f:f||'-', b:b||'-',
+  return { f, b,
     dotF:(w.length>2&&dictSet.has(w.slice(1)))?'•':'&nbsp;',
     dotB:(w.length>2&&dictSet.has(w.slice(0,-1)))?'•':'&nbsp;' };
 }
@@ -69,19 +129,22 @@ function getFullHookWords(w) {
 
 // Multi-letter extensions: words = (2-5 letters) + W  or  W + (2-5 letters)
 function getWordExtensions(w) {
+  if (wordExtensionCache.has(w)) return wordExtensionCache.get(w);
+
   const prefix = [], suffix = [];
-  for (const x of dict) {
-    if (x === w) continue;
-    const d = x.length - w.length;
-    if (d < 2 || d > 5) continue;
-    if (x.endsWith(w))   prefix.push(x);
-    if (x.startsWith(w)) suffix.push(x);
+  for (let length = w.length + 2; length <= w.length + 5; length++) {
+    for (const x of wordsByL[length] || []) {
+      if (x.endsWith(w))   prefix.push(x);
+      if (x.startsWith(w)) suffix.push(x);
+    }
   }
   const byLen = (a, b) => a.length !== b.length ? a.length - b.length : (a < b ? -1 : 1);
-  return {
+  const result = {
     prefix: prefix.sort(byLen).slice(0, 20),
     suffix: suffix.sort(byLen).slice(0, 20)
   };
+  wordExtensionCache.set(w, result);
+  return result;
 }
 
 function getLexiconMetadata(w) {
@@ -102,6 +165,28 @@ function getLexiconMetadata(w) {
   const result = { definition, pos:partsOfSpeech.join(' · ') };
   lexiconMetadataCache.set(w, result);
   return result;
+}
+
+function getWordMetadata(w) {
+  const signature = [...w].sort().join('');
+  if (!anagramCache.has(signature)) {
+    anagramCache.set(signature, (wordsByL[w.length] || []).filter(
+      candidate => [...candidate].sort().join('') === signature
+    ));
+  }
+  const ana = anagramCache.get(signature).filter(candidate => candidate !== w);
+  const inf = ['S','ES','ED','ING'].filter(s=>dictSet.has(w+s)).map(s=>w+s);
+  const lexicon = getLexiconMetadata(w);
+  let p="n.";
+  if(w.endsWith('ED')||w.endsWith('ING'))p="v.";
+  else if(w.endsWith('LY'))p="adv.";
+  else if(w.endsWith('ABLE')||w.endsWith('FUL'))p="adj.";
+  return {
+    pos:lexicon.pos || p,
+    def:lexicon.definition,
+    anagrams:ana.join(', ')||'None',
+    inflections:inf.join(', ')||'None'
+  };
 }
 
 function formatWordPos(w) {
@@ -132,17 +217,6 @@ function formatWordPos(w) {
   });
 
   return [...new Set(formatted)].slice(0, 3).join(' ');
-}
-
-function getWordMetadata(w) {
-  let ana = dict.filter(x=>x.length===w.length&&x!==w&&[...x].sort().join('')===[...w].sort().join(''));
-  let inf = ['S','ES','ED','ING'].filter(s=>dictSet.has(w+s)).map(s=>w+s);
-  const lexicon = getLexiconMetadata(w);
-  let p="n.";
-  if(w.endsWith('ED')||w.endsWith('ING'))p="v.";
-  else if(w.endsWith('LY'))p="adv.";
-  else if(w.endsWith('ABLE')||w.endsWith('FUL'))p="adj.";
-  return {pos:lexicon.pos || p,def:lexicon.definition || "",anagrams:ana.join(', ')||'None',inflections:inf.join(', ')||'None'};
 }
 
 // ─── Dictionary loading ───────────────────────────────────────────────
@@ -178,6 +252,8 @@ async function processDictText(text) {
   dict = nextDict;
   wordMetadata = nextMetadata;
   lexiconMetadataCache = new Map();
+  anagramCache = new Map();
+  wordExtensionCache = new Map();
   dictSet = new Set(dict);
   wordsByL = {};
   dict.forEach(w => { (wordsByL[w.length]=wordsByL[w.length]||[]).push(w); });
@@ -186,24 +262,33 @@ async function processDictText(text) {
   initProbabilityCache();
 
   setLoadingProgress(100, 'พร้อมใช้งาน!');
-  document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " Words";
+  document.getElementById('wCnt').innerText = dict.length.toLocaleString() + " words";
+  document.body.classList.add('is-ready');
+
   const ls = document.getElementById('loadingScreen');
-  if (ls) ls.style.display = 'none';
+  if (ls) {
+    ls.style.opacity = '0';
+    ls.style.transition = 'opacity 0.25s ease';
+    setTimeout(() => { ls.style.display = 'none'; }, 260);
+  }
   renderSaved();
   if (typeof tryInitCppEngine === 'function') tryInitCppEngine();
 }
 
 function showDictFallback(reason) {
   const ls = document.getElementById('loadingScreen');
+  if (!ls) return;
+  ls.style.opacity = '1';
+  ls.style.display = 'flex';
   ls.innerHTML = `
     <div style="text-align:center; padding:24px; max-width:320px;">
       <div style="font-size:32px; margin-bottom:12px;">📖</div>
       <div class="mono" style="font-size:14px; color:var(--text); margin-bottom:8px; font-weight:700;">
-        ไม่พบ CSW24.txt
+        ไม่พบไฟล์พจนานุกรม
       </div>
       <div class="mono" style="font-size:12px; color:var(--text2); margin-bottom:20px; line-height:1.6;">
         ${reason}<br><br>
-        วางไฟล์ <strong style="color:var(--accent);">CSW24.txt</strong> ไว้ในโฟลเดอร์เดียวกับ index.html<br>
+        กรุณาตรวจว่า <strong style="color:var(--accent);">CSW24.txt</strong> อยู่ในโฟลเดอร์เดียวกับ index.html<br>
         แล้วเปิดผ่าน web server<br><br>
         <em>หรือโหลดไฟล์เองด้านล่าง:</em>
       </div>
@@ -217,7 +302,7 @@ function showDictFallback(reason) {
           onchange="loadDictFromFile(event)">
       </label>
       <div class="mono" style="font-size:11px; color:var(--text2); margin-top:16px;">
-        ไฟล์จะไม่ถูกอัปโหลดไปที่ใด — โหลดในเบราว์เซอร์เท่านั้น
+        ไฟล์จะไม่ถูกอัปโหลดไปที่ใด
       </div>
     </div>`;
 }
@@ -226,17 +311,28 @@ async function loadDictFromFile(event) {
   const file = event.target.files[0];
   if (!file) return;
   const ls = document.getElementById('loadingScreen');
-  ls.innerHTML = `
-    <div class="spinner"></div>
-    <div style="width:240px; height:6px; background:var(--surface2); border:1px solid var(--border); border-radius:999px; overflow:hidden; margin:8px 0;">
-      <div id="loadingBarFill" style="width:30%; height:100%; background:var(--accent); border-radius:999px; transition:width .15s ease-out;"></div>
-    </div>
-    <div class="mono" id="loadingPercent" style="font-size:14px; font-weight:700; color:var(--accent);">30%</div>
-    <div class="mono" id="loadingStatus" style="font-size:12px; color:var(--text2)">กำลังอ่านไฟล์...</div>`;
+  if (ls) {
+    ls.style.opacity = '1';
+    ls.style.display = 'flex';
+    ls.innerHTML = `
+      <div class="loading-container">
+        <div class="spinner"></div>
+        <div class="loading-title">ZYZZYLU</div>
+        <div class="loading-bar-wrapper">
+          <div class="loading-bar-track">
+            <div class="loading-bar-fill" id="loadingBarFill" style="width: 25%;"></div>
+          </div>
+        </div>
+        <div class="loading-info mono">
+          <span id="loadingPercent" class="loading-percent">25%</span>
+          <span id="loadingStatus" class="loading-status">กำลังอ่านไฟล์…</span>
+        </div>
+      </div>`;
+  }
   try {
-    setLoadingProgress(45, "กำลังอ่านไฟล์...");
+    setLoadingProgress(35, "กำลังอ่านไฟล์…");
     const text = await file.text();
-    setLoadingProgress(75, "กำลังประมวลผลคำศัพท์...");
+    setLoadingProgress(70, "กำลังประมวลผลคำศัพท์…");
     await processDictText(text);
   } catch(e) {
     showDictFallback("อ่านไฟล์ไม่ได้: " + e.message);
@@ -245,15 +341,17 @@ async function loadDictFromFile(event) {
 
 window.onload = async () => {
   try {
-    setLoadingProgress(0, "กำลังเชื่อมต่อ...");
-    const resp = await fetch('CSW24.txt');
+    setLoadingProgress(0, "กำลังเชื่อมต่อเพื่อโหลด CSW24.txt…");
+    const resp = await fetch(DICTIONARY_URL);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
     const headerTotal = parseInt(resp.headers.get('content-length') || '0', 10);
-    const total = headerTotal > 0 ? headerTotal : 3119425;
+    const total = headerTotal > 0 ? headerTotal : 10299304;
+
     const reader = resp.body.getReader();
     const chunks = [];
     let loaded = 0;
+
     while (true) {
       const {done, value} = await reader.read();
       if (done) break;
@@ -264,13 +362,14 @@ window.onload = async () => {
       const totalMB = (total / (1024 * 1024)).toFixed(1);
       setLoadingProgress(pct, `กำลังดาวน์โหลด… ${loadedMB} / ${totalMB} MB`);
     }
+
     setLoadingProgress(89, "กำลังเตรียมข้อมูล…");
     const blob = new Blob(chunks);
     const text = await blob.text();
     await processDictText(text);
 
   } catch(e) {
-    console.warn("fetch('CSW24.txt') failed:", e.message);
+    console.warn(`fetch('${DICTIONARY_URL}') failed:`, e.message);
     showDictFallback(
       window.location.protocol === 'file:'
         ? "เปิดผ่าน file:// ไม่สามารถโหลดอัตโนมัติได้"
@@ -281,13 +380,31 @@ window.onload = async () => {
 
 // ─── COMMON UI ────────────────────────────────────────────────────────
 function tab(idx, b) {
-  document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
-  b.classList.add('active');
-  document.querySelectorAll('.section').forEach((s,i)=>s.classList.toggle('active',i===idx));
+  document.querySelectorAll('.nav-item').forEach((item, itemIdx) => {
+    const active = itemIdx === idx;
+    item.classList.toggle('active', active);
+    item.setAttribute('aria-current', active ? 'page' : 'false');
+  });
+  document.querySelectorAll('.section').forEach((section, sectionIdx) => {
+    const active = sectionIdx === idx;
+    section.classList.toggle('active', active);
+    section.setAttribute('aria-hidden', active ? 'false' : 'true');
+  });
+  if (b) b.blur();
+  window.scrollTo({ top:0, behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
+
+function toggleSearchFilters(button) {
+  const drawer = document.getElementById('sDrw');
+  const open = drawer.classList.toggle('open');
+  drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+  button.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 function toast(m, cls='') {
   let t=document.getElementById('tst'); t.innerText=m; t.className='toast show '+cls;
-  setTimeout(()=>t.classList.remove('show'),2000);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'),2600);
 }
 
 // ─── FILTER INFRASTRUCTURE ────────────────────────────────────────────
@@ -443,28 +560,34 @@ function renderFilters(mode) {
               style="${warn ? 'border-color:rgba(255,59,48,.5);' : ''}">
       <div style="display:flex;gap:6px;align-items:center;flex:1;min-width:0;">
         <button class="btn-not ${f.not?'active':''}"
+                type="button"
+                aria-pressed="${f.not ? 'true' : 'false'}"
                 onclick="toggleNot('${mode}',${f.id})">NOT</button>
         <span class="mono" style="color:var(--accent);font-size:11px;white-space:nowrap;">
           ${lbl[f.type]||f.type}</span>${badge}
         ${isR
           ? `<input type="number"
+               aria-label="Minimum ${lbl[f.type]||f.type}"
                style="width:52px;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px;"
                value="${f.v1}"
-               onchange="updateFilterVal('${mode}',${f.id},'v1',this.value)">
+               oninput="updateFilterVal('${mode}',${f.id},'v1',this.value)">
              <span style="color:var(--text2)">–</span>
              <input type="number"
+               aria-label="Maximum ${lbl[f.type]||f.type}"
                style="width:52px;background:var(--bg);color:#fff;border:1px solid var(--border);padding:2px;"
                value="${f.v2}"
-               onchange="updateFilterVal('${mode}',${f.id},'v2',this.value)">`
+               oninput="updateFilterVal('${mode}',${f.id},'v2',this.value)">`
           : `<input type="text" placeholder="${ph[f.type]||''}"
+               aria-label="${lbl[f.type]||f.type}"
                style="flex:1;min-width:0;background:var(--bg);color:#fff;
                       border:1px solid var(--border);padding:2px;"
                value="${f.v1}"
                oninput="updateFilterVal('${mode}',${f.id},'v1',this.value)">`
         }
       </div>
-      <span style="cursor:pointer;color:var(--danger);padding-left:6px;flex-shrink:0;"
-            onclick="deleteFilter('${mode}',${f.id})">✕</span>
+      <button type="button" class="filter-delete"
+              aria-label="Remove ${lbl[f.type]||f.type} filter"
+              onclick="deleteFilter('${mode}',${f.id})">×</button>
     </div>`;
   }).join('');
 }
@@ -527,6 +650,8 @@ function applyLimitFilters(res, filters) {
 function openUlu(idx) {
   if(idx<0||idx>=currentResultsList.length)return;
   currentWordIndex=idx;
+  const modal = document.getElementById('uluModal');
+  if (!modal.classList.contains('open')) modalReturnFocus = document.activeElement;
   const w   = currentResultsList[idx];
   const hk  = getHooksAndDots(w);
   const meta= getWordMetadata(w);
@@ -538,15 +663,19 @@ function openUlu(idx) {
   document.getElementById('mPos').innerText    = meta.pos;
   document.getElementById('mScore').innerText  = getWordScore(w);
   document.getElementById('mDef').innerText    = meta.def || '—';
-  document.getElementById('mFavBtn').innerText = saved.includes(w) ? '⭐' : '☆';
+  const favButton = document.getElementById('mFavBtn');
+  const isSaved = saved.includes(w);
+  favButton.innerText = isSaved ? '★' : '☆';
+  favButton.setAttribute('aria-label', isSaved ? 'Remove saved word' : 'Save word');
+  favButton.title = isSaved ? 'Remove saved word' : 'Save word';
 
   // Hook letters (single-letter, compact)
-  document.getElementById('mFHooks').innerText = hk.f !== '-' ? hk.f.split('').join(' ') : '—';
-  document.getElementById('mBHooks').innerText = hk.b !== '-' ? hk.b.split('').join(' ') : '—';
+  document.getElementById('mFHooks').innerText = hk.f ? hk.f.split('').join(' ') : '';
+  document.getElementById('mBHooks').innerText = hk.b ? hk.b.split('').join(' ') : '';
 
   // Full hook words
-  document.getElementById('mFHookWords').innerText = hw.front.length ? hw.front.join('  ') : '—';
-  document.getElementById('mBHookWords').innerText = hw.back.length  ? hw.back.join('  ')  : '—';
+  document.getElementById('mFHookWords').innerText = hw.front.join('  ');
+  document.getElementById('mBHookWords').innerText = hw.back.join('  ');
 
   // Multi-letter prefix / suffix extensions
   const fmtExt = (arr) => arr.length
@@ -563,9 +692,57 @@ function openUlu(idx) {
   document.getElementById('mAnagrams').innerText    = meta.anagrams;
   document.getElementById('mInflections').innerText = meta.inflections;
 
-  document.getElementById('uluModal').classList.add('open');
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  requestAnimationFrame(() => modal.focus());
 }
-const closeUlu = () => document.getElementById('uluModal').classList.remove('open');
+
+function closeUlu() {
+  const modal = document.getElementById('uluModal');
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  if (modalReturnFocus && typeof modalReturnFocus.focus === 'function') modalReturnFocus.focus();
+  modalReturnFocus = null;
+}
+
+function handleModalBackdrop(event) {
+  if (event.target === event.currentTarget) closeUlu();
+}
+
+function trapOverlayFocus(event, overlay) {
+  const focusable = [...overlay.querySelectorAll(
+    'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )].filter(element => element.offsetParent !== null);
+  if (!focusable.length) return;
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (document.activeElement === overlay) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  } else if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+document.addEventListener('keydown', event => {
+  const overlay = document.querySelector('.modal-overlay.open, .judge-overlay.open');
+  if (!overlay) return;
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (overlay.id === 'uluModal') closeUlu();
+    else if (typeof closeJudgeOverlay === 'function') closeJudgeOverlay();
+  } else if (event.key === 'Tab') {
+    trapOverlayFocus(event, overlay);
+  }
+});
+
 function navWord(dir){let n=currentWordIndex+dir;if(n>=0&&n<currentResultsList.length)openUlu(n);}
 function favWord(){
   let w=currentResultsList[currentWordIndex];
@@ -575,11 +752,13 @@ function favWord(){
 
 // ─── BOOKMARKS ────────────────────────────────────────────────────────
 function renderSaved(){
-  document.getElementById('bList').innerHTML=saved.map(w=>`
+  const list = document.getElementById('bList');
+  if (!list) return;
+  list.innerHTML=saved.map(w=>`
     <div class="item-row">
       <span class="mono" style="font-size:18px;font-weight:700;">${w}</span>
-      <button class="btn" style="padding:4px 8px;color:var(--danger);border-color:transparent;" onclick="toggleSave('${w}')">🗑️</button>
-    </div>`).join('')||'<p style="text-align:center;color:var(--text2);padding-top:16px;">No saved items</p>';
+      <button type="button" class="btn destructive-action" aria-label="Remove ${w} from saved words" onclick="toggleSave('${w}')">Remove</button>
+    </div>`).join('')||'<p class="empty-state">No saved words yet. Save one from a search result whenever it feels useful.</p>';
 }
 function toggleSave(w){
   saved=saved.includes(w)?saved.filter(x=>x!==w):[...saved,w];

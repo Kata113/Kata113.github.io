@@ -345,8 +345,11 @@
 
     <!-- ── JUDGE ─────────────────────────────────────────────────── -->
     <section class="section" id="t2" aria-labelledby="judgeTitle" aria-hidden="true">
-      <div class="section-heading">
-        <p class="eyebrow">Word judge</p>
+      <div class="section-heading" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <p class="eyebrow" id="judgeTitle" style="margin-bottom:0;">Word judge</p>
+        <button type="button" class="btn" onclick="openJudgeSoundSettingsModal()" style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:6px 12px; border-radius:8px;">
+          <span>⚙️ ตั้งค่าเสียง</span>
+        </button>
       </div>
       <div class="card judge-card">
         <label class="field-label" for="cInp">Words to check</label>
@@ -355,65 +358,6 @@
             placeholder="Enter words…"
             onkeydown="if(event.key==='Enter')chkChal()">
           <button type="button" class="btn btn-p" onclick="chkChal()">Check words</button>
-        </div>
-      </div>
-
-      <!-- Judge Sound Settings -->
-      <div class="card" style="margin-top:14px; padding:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <div style="font-weight:700; font-size:14px; color:var(--text); display:flex; align-items:center; gap:6px;">
-            <span>🔊 เสียงผลการตัดสิน (Judge Sounds)</span>
-          </div>
-          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:var(--text2);">
-            <input type="checkbox" id="judgeSoundEnabled" onchange="toggleJudgeSoundEnabled(this.checked)" checked>
-            <span>เปิดเสียง</span>
-          </label>
-        </div>
-
-        <div style="display:flex; flex-direction:column; gap:12px;">
-          <!-- Valid sound row -->
-          <div class="clock-setting-row" style="flex-wrap:wrap; gap:8px;">
-            <div style="display:flex; align-items:center; gap:6px; min-width:130px;">
-              <span style="color:var(--accent); font-weight:700;">✓ คำถูกต้อง</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:6px; flex:1; flex-wrap:wrap; justify-content:flex-end;">
-              <select id="judgeValidToneSelect" class="input-field" style="padding:6px 10px; font-size:12px; width:auto; min-width:110px;" onchange="onJudgeToneChange('valid', this.value)">
-                <option value="chime">Chime</option>
-                <option value="high-ding">High Ding</option>
-                <option value="two-tone">Two-Tone</option>
-                <option value="custom">Custom (ไฟล์เสียง)</option>
-                <option value="none">ไม่มีเสียง (None)</option>
-              </select>
-              <button type="button" class="btn" style="padding:6px 10px; font-size:12px;" onclick="testJudgeSound('valid')" title="ทดสอบเสียง">▶</button>
-              <div id="judgeValidFileBadge" class="clock-file-badge" style="display:none;"></div>
-              <label class="btn clock-file-upload-btn" style="padding:6px 10px; font-size:12px; cursor:pointer;" title="อัปโหลดไฟล์เสียงตนเอง">
-                📁 อัปโหลด
-                <input type="file" accept="audio/*" style="display:none" onchange="judgeHandleUpload('judge_valid', this)">
-              </label>
-            </div>
-          </div>
-
-          <!-- Invalid sound row -->
-          <div class="clock-setting-row" style="flex-wrap:wrap; gap:8px;">
-            <div style="display:flex; align-items:center; gap:6px; min-width:130px;">
-              <span style="color:var(--danger); font-weight:700;">✕ คำไม่ถูกต้อง</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:6px; flex:1; flex-wrap:wrap; justify-content:flex-end;">
-              <select id="judgeInvalidToneSelect" class="input-field" style="padding:6px 10px; font-size:12px; width:auto; min-width:110px;" onchange="onJudgeToneChange('invalid', this.value)">
-                <option value="buzzer">Buzzer (บัซเซอร์)</option>
-                <option value="thud">Double Thud</option>
-                <option value="descending">Error Tone</option>
-                <option value="custom">Custom (ไฟล์เสียง)</option>
-                <option value="none">ไม่มีเสียง (None)</option>
-              </select>
-              <button type="button" class="btn" style="padding:6px 10px; font-size:12px;" onclick="testJudgeSound('invalid')" title="ทดสอบเสียง">▶</button>
-              <div id="judgeInvalidFileBadge" class="clock-file-badge" style="display:none;"></div>
-              <label class="btn clock-file-upload-btn" style="padding:6px 10px; font-size:12px; cursor:pointer;" title="อัปโหลดไฟล์เสียงตนเอง">
-                📁 อัปโหลด
-                <input type="file" accept="audio/*" style="display:none" onchange="judgeHandleUpload('judge_invalid', this)">
-              </label>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -526,6 +470,28 @@
         </div>
 
         <div id="clockSoundOptionsWrapper" style="display:flex; flex-direction:column; gap:10px;">
+          <!-- Tap / Press Clock -->
+          <div class="clock-sound-row">
+            <label class="clock-sound-label">
+              <input type="checkbox" id="clockTapToggle" checked onchange="clockUpdateSoundSetting('tapSoundEnabled', this.checked)">
+              <span>เสียงกดสลับเวลา (Clock Tap)</span>
+            </label>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+              <span id="clockTapBadge" class="clock-file-badge" style="display:none;"></span>
+              <select class="input-field mono" id="clockTapSelect" onchange="clockUpdateSoundSetting('tapTone', this.value)" style="padding:4px 8px; font-size:11px;">
+                <option value="click">Mechanical Click</option>
+                <option value="wood-tap">Wood Tap</option>
+                <option value="digital-beep">Digital Beep</option>
+                <option value="soft">Soft Tick</option>
+              </select>
+              <label class="btn clock-file-upload-btn" title="อัปโหลดไฟล์เสียง (.mp3, .wav, etc.)">
+                📁<span id="clockTapUploadText">อัปโหลด</span>
+                <input type="file" accept="audio/*" style="display:none" onchange="clockHandleUpload('tap', this)">
+              </label>
+              <button type="button" class="btn" style="padding:4px 8px; font-size:11px;" onclick="clockTestSound('tap')" title="ทดสอบเสียง">▶</button>
+            </div>
+          </div>
+
           <!-- 10s Alert -->
           <div class="clock-sound-row">
             <label class="clock-sound-label">
@@ -654,6 +620,76 @@
     </div>
   </div>
 
+  <!-- Judge Sound Settings Modal -->
+  <div class="modal-overlay" id="judgeSoundSettingsModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="judgeSoundSettingsTitle" tabindex="-1" onclick="handleJudgeModalBackdrop(event)">
+    <div class="modal-card" role="document" style="max-width:480px;">
+      <div class="modal-header" style="align-items:center;">
+        <h3 id="judgeSoundSettingsTitle" style="font-size:16px; font-weight:700; margin:0; display:flex; align-items:center; gap:8px;">
+          <span>🔊 ตั้งค่าเสียงการตัดสิน (Judge Sounds)</span>
+        </h3>
+        <button type="button" class="btn" onclick="closeJudgeSoundSettingsModal()" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" style="padding:18px; display:flex; flex-direction:column; gap:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:1px solid var(--border);">
+          <div>
+            <div style="font-weight:700; font-size:13px; color:var(--text);">เปิดเสียงการตัดสิน</div>
+            <div style="font-size:11px; color:var(--text2);">เล่นเสียงผลลัพธ์ทันทีเมื่อตรวจสอบคำ</div>
+          </div>
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" id="judgeSoundEnabled" onchange="toggleJudgeSoundEnabled(this.checked)" checked style="width:16px; height:16px; accent-color:var(--accent);">
+          </label>
+        </div>
+
+        <!-- Valid sound row -->
+        <div class="clock-sound-row" style="flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:6px; min-width:110px;">
+            <span style="color:var(--accent); font-weight:700; font-size:13px;">✓ คำถูกต้อง</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; flex:1; flex-wrap:wrap; justify-content:flex-end;">
+            <select id="judgeValidToneSelect" class="input-field" style="padding:6px 10px; font-size:12px; width:auto; min-width:115px;" onchange="onJudgeToneChange('valid', this.value)">
+              <option value="chime">Chime</option>
+              <option value="high-ding">High Ding</option>
+              <option value="two-tone">Two-Tone</option>
+              <option value="custom">Custom (ไฟล์เสียง)</option>
+              <option value="none">ไม่มีเสียง (None)</option>
+            </select>
+            <button type="button" class="btn" style="padding:6px 10px; font-size:12px;" onclick="testJudgeSound('valid')" title="ทดสอบเสียง">▶</button>
+            <div id="judgeValidFileBadge" class="clock-file-badge" style="display:none;"></div>
+            <label class="btn clock-file-upload-btn" style="padding:6px 10px; font-size:12px; cursor:pointer;" title="อัปโหลดไฟล์เสียงตนเอง">
+              📁 อัปโหลด
+              <input type="file" accept="audio/*" style="display:none" onchange="judgeHandleUpload('judge_valid', this)">
+            </label>
+          </div>
+        </div>
+
+        <!-- Invalid sound row -->
+        <div class="clock-sound-row" style="flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:6px; min-width:110px;">
+            <span style="color:var(--danger); font-weight:700; font-size:13px;">✕ คำไม่ถูกต้อง</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; flex:1; flex-wrap:wrap; justify-content:flex-end;">
+            <select id="judgeInvalidToneSelect" class="input-field" style="padding:6px 10px; font-size:12px; width:auto; min-width:115px;" onchange="onJudgeToneChange('invalid', this.value)">
+              <option value="buzzer">Buzzer (บัซเซอร์)</option>
+              <option value="thud">Double Thud</option>
+              <option value="descending">Error Tone</option>
+              <option value="custom">Custom (ไฟล์เสียง)</option>
+              <option value="none">ไม่มีเสียง (None)</option>
+            </select>
+            <button type="button" class="btn" style="padding:6px 10px; font-size:12px;" onclick="testJudgeSound('invalid')" title="ทดสอบเสียง">▶</button>
+            <div id="judgeInvalidFileBadge" class="clock-file-badge" style="display:none;"></div>
+            <label class="btn clock-file-upload-btn" style="padding:6px 10px; font-size:12px; cursor:pointer;" title="อัปโหลดไฟล์เสียงตนเอง">
+              📁 อัปโหลด
+              <input type="file" accept="audio/*" style="display:none" onchange="judgeHandleUpload('judge_invalid', this)">
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:flex-end;">
+        <button type="button" class="btn btn-p" onclick="closeJudgeSoundSettingsModal()">เรียบร้อย (Done)</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Judge full-screen overlay -->
   <div class="judge-overlay" id="jOverlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="jStatus" tabindex="-1" onclick="closeJudgeOverlay()">
     <div class="judge-fullscreen-content">
@@ -735,11 +771,11 @@
   <div class="toast" id="tst" role="status" aria-live="polite" aria-atomic="true"></div>
   <input type="file" id="fInp" style="display:none" accept=".zzq,.txt,text/plain,application/xml,text/xml,*/*" onchange="loadZzq(event)">
 
-  <script src="core.js?v=13"></script>
+  <script src="core.js?v=14"></script>
   <script src="search.js?v=8"></script>
   <script src="zyzzylu_cpp_engine.js"></script>
   <script src="quiz_bridge.js?v=11"></script>
-  <script src="judge.js?v=5"></script>
+  <script src="judge.js?v=6"></script>
   <script>
     // ── CALCULATOR ─────────────────────────────────────────────────────
     let calcExpr     = '';   // full expression string
@@ -876,7 +912,7 @@
     // Init history display
     calcRenderHistory();
   </script>
-  <script src="clock.js?v=2"></script>
+  <script src="clock.js?v=3"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {

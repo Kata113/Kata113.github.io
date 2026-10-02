@@ -456,9 +456,34 @@ function closeJudgeOverlay() {
   judgeReturnFocus = null;
 }
 
-function handleJudgeGlobalKey(e) {
-  // Any keypress dismisses the overlay
-  closeJudgeOverlay();
+let judgeSettingsModalReturnFocus = null;
+
+function openJudgeSoundSettingsModal() {
+  const modal = document.getElementById('judgeSoundSettingsModal');
+  if (!modal) return;
+  judgeSettingsModalReturnFocus = document.activeElement;
+  syncJudgeSoundSettingsUI();
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  const closeBtn = modal.querySelector('button');
+  if (closeBtn) closeBtn.focus();
+}
+
+function closeJudgeSoundSettingsModal() {
+  const modal = document.getElementById('judgeSoundSettingsModal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  if (judgeSettingsModalReturnFocus && typeof judgeSettingsModalReturnFocus.focus === 'function') {
+    judgeSettingsModalReturnFocus.focus();
+  }
+  judgeSettingsModalReturnFocus = null;
+}
+
+function handleJudgeModalBackdrop(event) {
+  if (event.target && event.target.id === 'judgeSoundSettingsModal') {
+    closeJudgeSoundSettingsModal();
+  }
 }
 
 // Initialize custom audio on document load

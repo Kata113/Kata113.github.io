@@ -17,6 +17,8 @@ let clockContinuousBuzzerHtmlAudio = null;
 
 const CLOCK_SOUND_DEFAULTS = {
   soundEnabled: true,
+  tapSoundEnabled: true,
+  tapTone: 'click',            // 'click', 'wood-tap', 'digital-beep', 'soft', or 'custom'
   warn10Enabled: true,
   warn10Tone: 'high-beep',     // 'high-beep', 'chime', 'two-tone', or 'custom'
   countdownEnabled: true,
@@ -164,7 +166,8 @@ async function saveClockCustomAudio(id, file) {
     }
 
     // Automatically switch the setting to custom
-    if (id === 'warn10') clockSoundSettings.warn10Tone = 'custom';
+    if (id === 'tap') clockSoundSettings.tapTone = 'custom';
+    else if (id === 'warn10') clockSoundSettings.warn10Tone = 'custom';
     else if (id === 'countdown') clockSoundSettings.countdownTone = 'custom';
     else if (id === 'timeout') clockSoundSettings.timeoutTone = 'custom';
     else if (id === 'overtime') clockSoundSettings.overtimeTone = 'custom';
@@ -199,7 +202,9 @@ async function deleteClockCustomAudio(id) {
     delete clockCustomAudioMeta[id];
 
     // Revert settings to default presets if was set to custom
-    if (id === 'warn10' && clockSoundSettings.warn10Tone === 'custom') {
+    if (id === 'tap' && clockSoundSettings.tapTone === 'custom') {
+      clockSoundSettings.tapTone = CLOCK_SOUND_DEFAULTS.tapTone;
+    } else if (id === 'warn10' && clockSoundSettings.warn10Tone === 'custom') {
       clockSoundSettings.warn10Tone = CLOCK_SOUND_DEFAULTS.warn10Tone;
     } else if (id === 'countdown' && clockSoundSettings.countdownTone === 'custom') {
       clockSoundSettings.countdownTone = CLOCK_SOUND_DEFAULTS.countdownTone;
@@ -258,6 +263,81 @@ function playAudioClip(id, loop = false) {
     } catch (_) {}
   }
   return null;
+}
+
+// 0. เสียงกดสลับเวลา (Clock Tap / Switch Sound)
+function playClockTapSound(tone) {
+  if (!clockSoundSettings.soundEnabled || !clockSoundSettings.tapSoundEnabled) return;
+
+  if (tone === 'custom' || clockSoundSettings.tapTone === 'custom') {
+    if (playAudioClip('tap', false)) return;
+  }
+
+  const ctx = getClockAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  if (tone === 'wood-tap') {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(650, now);
+    osc.frequency.exponentialRampToValueAtTime(160, now + 0.045);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.05);
+  } else if (tone === 'digital-beep') {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1350, now);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.035);
+  } else if (tone === 'soft') {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(900, now);
+    osc.frequency.exponentialRampToValueAtTime(250, now + 0.022);
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.022);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.025);
+  } else {
+    // Default: 'click' - authentic mechanical chess clock switch sound
+    const oscLow = ctx.createOscillator();
+    const gainLow = ctx.createGain();
+    oscLow.type = 'triangle';
+    oscLow.frequency.setValueAtTime(240, now);
+    oscLow.frequency.exponentialRampToValueAtTime(70, now + 0.038);
+    gainLow.gain.setValueAtTime(0.35, now);
+    gainLow.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+    oscLow.connect(gainLow);
+    gainLow.connect(ctx.destination);
+    oscLow.start(now);
+    oscLow.stop(now + 0.045);
+
+    const oscHigh = ctx.createOscillator();
+    const gainHigh = ctx.createGain();
+    oscHigh.type = 'sine';
+    oscHigh.frequency.setValueAtTime(2200, now);
+    oscHigh.frequency.exponentialRampToValueAtTime(450, now + 0.018);
+    gainHigh.gain.setValueAtTime(0.28, now);
+    gainHigh.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+    oscHigh.connect(gainHigh);
+    gainHigh.connect(ctx.destination);
+    oscHigh.start(now);
+    oscHigh.stop(now + 0.025);
+  }
 }
 
 // 1. เสียงเตือนตอน 10 วิ
@@ -519,7 +599,9 @@ function playOvertimeSound(minute, tone) {
 
 function clockTestSound(type, minute) {
   getClockAudioContext();
-  if (type === '10s') {
+  if (type === 'tap') {
+    playClockTapSound(clockSoundSettings.tapTone);
+  } else if (type === '10s') {
     play10sWarning(clockSoundSettings.warn10Tone);
   } else if (type === 'countdown') {
     playCountdownTick(3, clockSoundSettings.countdownTone);
@@ -619,6 +701,14 @@ function syncClockSoundSettingsUI() {
     wrapper.style.opacity = clockSoundSettings.soundEnabled ? '1' : '0.45';
     wrapper.style.pointerEvents = clockSoundSettings.soundEnabled ? 'auto' : 'none';
   }
+
+  // 0. Tap / Press Clock
+  syncAlertRowUI('tap', 'clockTapToggle', 'clockTapSelect', 'clockTapBadge', 'clockTapUploadText', 'tapSoundEnabled', 'tapTone', [
+    { value: 'click', label: 'Mechanical Click' },
+    { value: 'wood-tap', label: 'Wood Tap' },
+    { value: 'digital-beep', label: 'Digital Beep' },
+    { value: 'soft', label: 'Soft Tick' }
+  ]);
 
   // 1. 10s Alert
   syncAlertRowUI('warn10', 'clockWarn10Toggle', 'clockWarn10Select', 'clockWarn10Badge', 'clockWarn10UploadText', 'warn10Enabled', 'warn10Tone', [
@@ -825,6 +915,7 @@ function clockStart(side) {
 // Pressing your own clock side completes your turn and starts the opponent's timer.
 function clockPressSide(side) {
   resetTurnAudioState();
+  playClockTapSound(clockSoundSettings.tapTone);
   clockStart(side === 0 ? 1 : 0);
   clockHaptic();
 }
@@ -837,6 +928,7 @@ function clockTogglePause() {
     resetTurnAudioState();
   } else {
     // If not started yet, start Player 1 (side 0), otherwise resume the active side
+    playClockTapSound(clockSoundSettings.tapTone);
     clockStart(clockActiveSide >= 0 ? clockActiveSide : 0);
   }
   clockRender();
@@ -931,6 +1023,7 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
     e.preventDefault();
     if (!clockRunning && clockActiveSide < 0) {
+      playClockTapSound(clockSoundSettings.tapTone);
       clockStart(0);
     } else {
       clockPressSide(clockActiveSide >= 0 ? clockActiveSide : 0);

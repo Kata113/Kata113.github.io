@@ -737,6 +737,7 @@ document.addEventListener('keydown', event => {
     event.preventDefault();
     event.stopImmediatePropagation();
     if (overlay.id === 'uluModal') closeUlu();
+    else if (overlay.id === 'judgeSoundSettingsModal' && typeof closeJudgeSoundSettingsModal === 'function') closeJudgeSoundSettingsModal();
     else if (typeof closeJudgeOverlay === 'function') closeJudgeOverlay();
   } else if (event.key === 'Tab') {
     trapOverlayFocus(event, overlay);

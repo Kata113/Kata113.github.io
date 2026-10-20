@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Arctic">
+  <meta name="theme-color" content="#141618">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <title>Arctic</title>
+  <style>
+    :root {
+      --bg: #141618; --surface: #1B1E22; --surface2: #22262B;
+      --border: #343A42; --accent: #90E0F7; --danger: #DCA0A5;
+      --orange: #C8B69A; --text: #E4E6E8; --text2: #AAB0B7;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent; }
+    body { background:var(--bg); color:var(--text); min-height:100vh; padding-bottom:90px; }
+    .mono { font-family:'JetBrains Mono',monospace; }
+    mark { background:#FFE600; color:#000; border-radius:2px; padding:0 1px; font-weight:700; }
+
+    #loadingScreen {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      transition: opacity .25s ease;
+    }
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 320px;
+      text-align: center;
+      gap: 18px;
+    }
+    .loading-loop {
+      width: 52px;
+      height: 52px;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .loading-loop-svg {
+      width: 100%;
+      height: 100%;
+      transform-origin: center center;
+      animation: loopRotate 1.4s linear infinite;
+    }
+    .loading-loop-track {
+      stroke: var(--surface2, #22262B);
+    }
+    .loading-loop-indicator {
+      stroke: var(--accent, #90E0F7);
+      stroke-linecap: round;
+      stroke-dasharray: 90, 150;
+      stroke-dashoffset: 0;
+      animation: loopDash 1.4s ease-in-out infinite;
+    }
+    @keyframes loopRotate {
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes loopDash {
+      0% {
+        stroke-dasharray: 1, 150;
+        stroke-dashoffset: 0;
+      }
+      50% {
+        stroke-dasharray: 90, 150;
+        stroke-dashoffset: -35;
+      }
+      100% {
+        stroke-dasharray: 90, 150;
+        stroke-dashoffset: -125;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .loading-loop-svg,
+      .loading-loop-indicator {
+        animation-duration: 4s;
+      }
+    }
+    .loading-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+    }
+    .loading-status {
+      font-size: 13px;
+      color: var(--text2);
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.5;
+      letter-spacing: .2px;
+    }
+
+    header { position:sticky; top:0; z-index:100; background:rgba(0,0,0,.85); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:16px; display:flex; justify-content:flex-end; }
+    nav.bottom-nav { position:fixed; bottom:0; left:0; right:0; height:68px; background:var(--surface); border-top:1px solid var(--border); display:flex; z-index:1000; padding-bottom:env(safe-area-inset-bottom); }
+    .nav-item { flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px; font-size:10px; font-weight:600; color:var(--text2); border:none; background:none; cursor:pointer; }
+    .nav-item.active { color:var(--accent); }
+    main { padding:16px; max-width:650px; margin:0 auto; }
+    .section { display:none; }
+    .section.active { display:block; }
+
+    .capsule-wrapper { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:30px; padding:4px; display:flex; margin-bottom:14px; }
+    .capsule-btn { flex:1; background:none; border:none; color:var(--text2); font-size:13px; font-weight:600; padding:8px 0; cursor:pointer; border-radius:25px; transition:.2s; text-align:center; }
+    .capsule-btn.active { background:var(--text); color:var(--bg); }
+
+    .search-box { display:flex; width:100%; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:4px 8px; align-items:center; margin-bottom:14px; }
+    .search-box input { flex:1; background:transparent; border:none; outline:none; color:var(--text); font-size:16px; padding:10px 12px; text-transform:uppercase; }
+    .search-btn { width:48px; height:48px; border-radius:10px; background:var(--accent); border:none; color:var(--accent-ink, #0c1c26); cursor:pointer; font-weight:700; font-size:19px; }
+    .drawer { height:0; overflow:hidden; transition:.25s ease-in-out; background:var(--surface); border-radius:12px; }
+    .drawer.open { height:auto; padding:14px; border:1px solid var(--border); margin-bottom:14px; }
+    .f-row { display:flex; gap:8px; margin-bottom:10px; align-items:center; }
+    .f-stack { max-height:150px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; }
+    .f-item { display:flex; align-items:center; justify-content:space-between; background:var(--surface2); border:1px solid var(--border); padding:6px 12px; border-radius:8px; font-size:13px; }
+    .btn { background:var(--surface); border:1px solid var(--border); color:var(--text); padding:10px 16px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:500; }
+    .btn-p { background:var(--accent); border:none; color:var(--accent-ink, #0c1c26); font-weight:700; }
+    .btn-not { padding:4px 8px; font-size:11px; font-weight:700; border:1px solid var(--border); background:none; color:var(--text2); border-radius:4px; cursor:pointer; }
+    .btn-not.active { color:var(--danger); border-color:var(--danger); background:rgba(255,59,48,.1); }
+    .input-field { width:100%; padding:14px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:15px; outline:none; }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+    .shake-input { animation:shake .35s ease-in-out; border-color:var(--danger)!important; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; position:relative; }
+
+    .item-row { border-bottom:1px solid rgba(58,58,60,.5); padding:12px 4px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .hook-box { color:var(--text2); font-size:12px; padding:2px 4px; background:rgba(44,44,46,.5); border-radius:4px; max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .word-core { font-weight:700; color:var(--text); cursor:pointer; font-size:20px; letter-spacing:.5px; }
+    .word-core:hover { color:var(--accent); }
+    .dot-indicator { color:var(--danger); font-weight:700; margin:0 1px; font-size:16px; }
+    .score-badge { font-size:14px; font-weight:700; color:var(--orange); }
+
+    .q-clean-layout { display:flex; flex-direction:column; gap:16px; }
+    .quiz-history-pane { max-height:200px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; background:rgba(0,0,0,.3); padding:10px; border-radius:8px; border:1px solid var(--border); }
+    .quiz-rack { flex-wrap:nowrap !important; width:100%; max-width:100%; }
+    .quiz-tile { width:var(--tile-w, 52px); height:var(--tile-h, 56px); flex:0 0 var(--tile-w, 52px); }
+
+    .judge-overlay { position:fixed; inset:0; background:rgba(0,0,0,.95); z-index:5000; display:none; flex-direction:column; justify-content:center; align-items:center; padding:24px; text-align:center; cursor:pointer; }
+    .judge-overlay.open { display:flex; }
+    .judge-symbol { font-size:96px; font-weight:bold; margin-bottom:10px; line-height:1; }
+    .judge-status-text { font-size:32px; font-weight:800; text-transform:uppercase; margin-bottom:24px; }
+    .judge-sub-list { font-size:14px; color:var(--text2); max-width:80%; overflow-y:auto; max-height:30vh; }
+
+    .toast { position:fixed; bottom:84px; left:50%; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:12px 20px; border-radius:10px; font-size:13px; font-weight:600; opacity:0; transition:.2s; pointer-events:none; z-index:9999; }
+    .toast.show { opacity:1; }
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.85); backdrop-filter:blur(10px); z-index:2000; display:none; justify-content:center; align-items:center; padding:16px; }
+    .modal-overlay.open { display:flex; }
+    .modal-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; width:100%; max-width:480px; overflow:hidden; }
+    .modal-header { padding:20px; background:var(--surface2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
+    .modal-body { padding:20px; display:flex; flex-direction:column; gap:16px; max-height:55vh; overflow-y:auto; }
+    .modal-footer { padding:14px 16px; background:var(--surface2); border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+    .info-label { font-size:11px; color:var(--text2); text-transform:uppercase; font-weight:700; margin-bottom:4px; }
+    .info-val { font-size:14px; color:var(--text); }
+    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    /* Calculator */
+    .calc-key { background:var(--surface2); border:1px solid var(--border); color:var(--text);
+                font-size:20px; font-weight:600; padding:18px 0; border-radius:10px;
+                cursor:pointer; font-family:'Inter',sans-serif; transition:.12s;
+                -webkit-tap-highlight-color:transparent; }
+    .calc-key:active { transform:scale(.94); opacity:.8; }
+    .calc-fn  { background:var(--surface); color:var(--text2); }
+    .calc-op  { color:var(--orange); border-color:rgba(255,149,0,.35); }
+    .calc-eq  { background:var(--accent); color:var(--accent-ink, #0c1c26); border:none; }
+  </style>
+  <link rel="stylesheet" href="styles.css?v=18">
+</head>
+<body>
+
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+
+  <div id="loadingScreen" role="status" aria-live="polite">
+    <div class="loading-container">
+      <div class="loading-loop" aria-hidden="true">
+        <svg class="loading-loop-svg" viewBox="0 0 50 50">
+          <circle class="loading-loop-track" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
+          <circle class="loading-loop-indicator" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
+        </svg>
+      </div>
+      <div class="loading-info mono">
+        <span id="loadingStatus" class="loading-status">กำลังโหลดพจนานุกรม…</span>
+      </div>
+    </div>
+  </div>
+
+  <header class="dictionary-status" aria-live="polite">
+    <span class="status-dot" aria-hidden="true"></span>
+    <span class="status-copy">
+      <span class="status-label">Dictionary</span>
+      <span class="mono" id="wCnt">0 words</span>
+    </span>
+  </header>
+
+  <nav class="bottom-nav" aria-label="Primary">
+    <button type="button" class="nav-item active" id="nb-0" aria-controls="t0" aria-current="page" onclick="tab(0, this)"><span class="nav-glyph" aria-hidden="true">Aa</span><span>Search</span></button>
+    <button type="button" class="nav-item" id="nb-1" aria-controls="t1" aria-current="false" onclick="tab(1, this)"><span class="nav-glyph" aria-hidden="true">?</span><span>Quiz</span></button>
+    <button type="button" class="nav-item" id="nb-2" aria-controls="t2" aria-current="false" onclick="tab(2, this)"><span class="nav-glyph" aria-hidden="true">✓</span><span>Judge</span></button>
+    <button type="button" class="nav-item" id="nb-3" aria-controls="t3" aria-current="false" onclick="tab(3, this)"><span class="nav-glyph" aria-hidden="true">±</span><span>Calc</span></button>
+    <button type="button" class="nav-item" id="nb-4" aria-controls="t4" aria-current="false" onclick="tab(4, this)"><span class="nav-glyph" aria-hidden="true">◷</span><span>Clock</span></button>
+  </nav>
+
+  <main id="mainContent" tabindex="-1">
+    <!-- ── SEARCH ─────────────────────────────────────────────────── -->
+    <section class="section active" id="t0" aria-labelledby="searchTitle" aria-hidden="false">
+      <div class="section-heading">
+        <p class="eyebrow">Word search</p>
+      </div>
+      <div class="capsule-wrapper mono" role="group" aria-label="Search mode">
+        <button type="button" class="capsule-btn active" id="sm-subanagram" aria-pressed="true" onclick="setSearchMode('subanagram')">Subanagram</button>
+        <button type="button" class="capsule-btn" id="sm-anagram" aria-pressed="false" onclick="setSearchMode('anagram')">Anagram</button>
+        <button type="button" class="capsule-btn" id="sm-pattern" aria-pressed="false" onclick="setSearchMode('pattern')">Pattern</button>
+      </div>
+      <label class="field-label" for="sInp">Rack or pattern</label>
+      <div class="search-box">
+        <input class="mono" id="sInp" type="text" autocomplete="off" aria-describedby="searchHint" placeholder="Enter letters (use . for blanks)…" onkeydown="if(event.key==='Enter')search()">
+        <button type="button" class="search-btn" id="sBtn" aria-label="Search words" title="Search words" onclick="search()">→</button>
+      </div>
+      <p class="field-hint" id="searchHint">Use a full stop for a blank tile. Pattern mode also accepts * for any number of letters.</p>
+      <button type="button" class="btn filter-toggle" aria-expanded="false" aria-controls="sDrw" onclick="toggleSearchFilters(this)">
+        <span>Advanced filters</span><span class="toggle-mark" aria-hidden="true">+</span>
+      </button>
+      <div class="drawer" id="sDrw" aria-hidden="true">
+        <div class="f-row">
+          <label class="sr-only" for="sFType">Filter type</label>
+          <select class="input-field" id="sFType">
+            <option value="length">Length Range</option>
+            <option value="point_value">Point Value Range</option>
+            <option value="num_vowels">Number of Vowels</option>
+            <option value="begins">Begins With</option>
+            <option value="ends">Ends With</option>
+            <option value="probability_order">Probability Order</option>
+            <option value="limit_probability_order">Limit by Probability Order</option>
+          </select>
+          <button type="button" class="btn btn-p" onclick="addFilter('S')">Add filter</button>
+        </div>
+        <div class="f-stack" id="sStack"></div>
+      </div>
+      <div id="sRes"></div>
+    </section>
+
+    <!-- ── QUIZ ──────────────────────────────────────────────────── -->
+    <section class="section" id="t1" aria-labelledby="quizTitle" aria-hidden="true">
+      <div class="section-heading">
+        <p class="eyebrow">Practice</p>
+      </div>
+      <div class="card" id="qBox">
+        <div id="qSettingsPane">
+          <div class="settings-heading">
+            <div>
+              <h2>Quiz settings</h2>
+              <p>Build a focused set or use the whole dictionary.</p>
+            </div>
+            <button type="button" class="btn quiet-action" onclick="handleLoadQuizClick()">Load</button>
+          </div>
+          <div class="f-row filter-builder">
+            <label class="sr-only" for="qFType">Quiz filter type</label>
+            <select class="input-field" id="qFType">
+              <option value="length">Length Range</option>
+              <option value="point_value">Point Value Range</option>
+              <option value="num_vowels">Number of Vowels</option>
+              <option value="includes">Includes Letters</option>
+              <option value="begins">Begins With</option>
+              <option value="ends">Ends With</option>
+              <option value="anagram_match">Anagram Match</option>
+              <option value="subanagram_match">Subanagram Match</option>
+              <option value="pattern_match">Pattern Match</option>
+              <option value="probability_order">Probability Order</option>
+              <option value="limit_probability_order">Limit by Probability Order</option>
+            </select>
+            <button type="button" class="btn" onclick="addFilter('Q')">Add filter</button>
+          </div>
+          <div class="f-stack quiz-filter-stack" id="qStack"></div>
+          <div class="parameter-grid">
+            <div class="field-group">
+              <label class="field-label" for="qTypeSelect">Quiz type</label>
+              <select class="input-field" id="qTypeSelect">
+                <option value="0">Anagrams</option>
+                <option value="1">Anagrams with Hooks</option>
+                <option value="2">Build Quiz</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="qOrderSelect">Question order</label>
+              <select class="input-field" id="qOrderSelect">
+                <option value="1">Random</option>
+                <option value="0">Alphabetical</option>
+                <option value="2">Probability</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group timer-field">
+            <label class="field-label" for="qTimerSelect">Timer</label>
+            <select class="input-field" id="qTimerSelect">
+              <option value="0">No timer (Unlimited)</option>
+              <option value="15">15 seconds per question</option>
+              <option value="30">30 seconds per question</option>
+              <option value="60">60 seconds per question</option>
+              <option value="120">120 seconds per question</option>
+            </select>
+          </div>
+          <button type="button" class="btn btn-p primary-action" id="qStartBtn" aria-describedby="qReadyHint" disabled onclick="startQuiz()">Start quiz</button>
+          <p class="field-hint" id="qReadyHint">The quiz engine becomes available as soon as the dictionary is ready.</p>
+        </div>
+        <div id="qEnginePane" style="display:none;"></div>
+      </div>
+    </section>
+
+    <!-- ── JUDGE ─────────────────────────────────────────────────── -->
+    <section class="section" id="t2" aria-labelledby="judgeTitle" aria-hidden="true">
+      <div class="section-heading" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <p class="eyebrow" id="judgeTitle" style="margin-bottom:0;">Word judge</p>
+        <button type="button" class="btn" onclick="openJudgeSoundSettingsModal()" style="display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:6px 12px; border-radius:8px;">
+          <span>⚙️ ตั้งค่าเสียง</span>
+        </button>
+      </div>
+      <div class="card judge-card">
+        <label class="field-label" for="cInp">Words to check</label>
+        <div class="judge-entry">
+          <input type="text" id="cInp" class="input-field mono" autocomplete="off"
+            placeholder="Enter words…"
+            onkeydown="if(event.key==='Enter')chkChal()">
+          <button type="button" class="btn btn-p" onclick="chkChal()">Check words</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CALCULATOR ──────────────────────────────────────────────────── -->
+    <section class="section" id="t3" aria-labelledby="calcTitle" aria-hidden="true">
+      <div class="section-heading">
+        <p class="eyebrow">Calculator</p>
+      </div>
+      <!-- Display -->
+      <div class="card calc-display-card">
+        <div id="calcExpr" style="min-height:28px;padding:12px 16px 4px;font-family:'JetBrains Mono',monospace;
+             font-size:13px;color:var(--text2);text-align:right;word-break:break-all;"></div>
+        <div id="calcDisplay" style="padding:4px 16px 16px;font-family:'JetBrains Mono',monospace;
+             font-size:36px;font-weight:700;text-align:right;color:var(--text);word-break:break-all;">0</div>
+      </div>
+
+      <!-- Keypad -->
+      <div class="calc-grid" aria-label="Calculator keypad">
+        <button class="calc-key calc-fn" onclick="calcFn('C')">C</button>
+        <button class="calc-key calc-fn" onclick="calcFn('⌫')" style="font-size:20px;">⌫</button>
+        <button class="calc-key calc-fn" onclick="calcFn('%')">%</button>
+        <button class="calc-key calc-op" onclick="calcFn('/')">÷</button>
+
+        <button class="calc-key" onclick="calcFn('7')">7</button>
+        <button class="calc-key" onclick="calcFn('8')">8</button>
+        <button class="calc-key" onclick="calcFn('9')">9</button>
+        <button class="calc-key calc-op" onclick="calcFn('*')">×</button>
+
+        <button class="calc-key" onclick="calcFn('4')">4</button>
+        <button class="calc-key" onclick="calcFn('5')">5</button>
+        <button class="calc-key" onclick="calcFn('6')">6</button>
+        <button class="calc-key calc-op" onclick="calcFn('-')">−</button>
+
+        <button class="calc-key" onclick="calcFn('1')">1</button>
+        <button class="calc-key" onclick="calcFn('2')">2</button>
+        <button class="calc-key" onclick="calcFn('3')">3</button>
+        <button class="calc-key calc-op" onclick="calcFn('+')">+</button>
+
+        <button class="calc-key" onclick="calcFn('+/-')" style="font-size:16px;">+/−</button>
+        <button class="calc-key" onclick="calcFn('0')">0</button>
+        <button class="calc-key" onclick="calcFn('.')">.</button>
+        <button class="calc-key calc-eq" onclick="calcFn('=')">=</button>
+      </div>
+
+      <!-- History -->
+      <div class="section-toolbar compact-toolbar">
+        <h2>History</h2>
+        <button type="button" class="btn destructive-action"
+                onclick="calcClearHistory()">Clear</button>
+      </div>
+      <div id="calcHistory" class="calc-history"></div>
+    </section>
+
+    <!-- ── CHESS CLOCK ───────────────────────────────────────────────── -->
+    <section class="section" id="t4" aria-label="Two-sided timer" aria-hidden="true">
+      <div class="clock-board" id="clockBoard">
+        <button type="button" class="clock-side" id="clockSide0" onclick="clockPressSide(0)" aria-label="Start player one clock">
+          <span class="clock-player-label">PLAYER 1</span>
+          <span class="clock-display mono" id="clockDisplay0">25:00</span>
+        </button>
+        <div class="clock-controls" aria-label="Clock controls">
+          <button type="button" class="btn clock-pause-btn is-running" id="clockPauseBtn" onclick="clockTogglePause()" aria-label="หยุดเวลา">
+            <span class="clock-pause-icon" aria-hidden="true"></span>
+            <span class="clock-pause-label">หยุดเวลา</span>
+          </button>
+          <button type="button" class="btn" onclick="clockToggleSettings()">ตั้งค่าเวลา</button>
+          <button type="button" class="btn destructive-action" onclick="clockReset()">รีเซ็ตเวลา</button>
+        </div>
+        <button type="button" class="clock-side" id="clockSide1" onclick="clockPressSide(1)" aria-label="Start player two clock">
+          <span class="clock-player-label">PLAYER 2</span>
+          <span class="clock-display mono" id="clockDisplay1">25:00</span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <div class="clock-modal" id="clockSettings" role="dialog" aria-modal="true" aria-labelledby="clockSettingsTitle" hidden>
+    <div class="clock-modal-card">
+      <div class="section-toolbar compact-toolbar">
+        <h2 id="clockSettingsTitle">ตั้งเวลา</h2>
+        <button type="button" class="btn" onclick="clockToggleSettings()" aria-label="Close clock settings">ปิด</button>
+      </div>
+      <p class="field-hint">ตั้งเวลาเริ่มต้นแยกทั้งสองฝั่ง แล้วกดใช้เวลา</p>
+      <div class="clock-setting-grid">
+        <label class="field-label">PLAYER 1
+          <span class="clock-time-pair">
+            <input class="input-field mono" id="clockMinutes0" aria-label="Player 1 minutes" type="number" min="0" max="180" step="1" value="25" inputmode="numeric">
+            <input class="input-field mono" id="clockSeconds0" aria-label="Player 1 seconds" type="number" min="0" max="59" step="1" value="0" inputmode="numeric">
+          </span>
+          <span class="field-hint">นาที : วินาที</span>
+        </label>
+        <label class="field-label">PLAYER 2
+          <span class="clock-time-pair">
+            <input class="input-field mono" id="clockMinutes1" aria-label="Player 2 minutes" type="number" min="0" max="180" step="1" value="25" inputmode="numeric">
+            <input class="input-field mono" id="clockSeconds1" aria-label="Player 2 seconds" type="number" min="0" max="59" step="1" value="0" inputmode="numeric">
+          </span>
+          <span class="field-hint">นาที : วินาที</span>
+        </label>
+      </div>
+
+      <!-- Sound Alert Settings Section -->
+      <div class="clock-sound-settings-section" style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span style="font-weight:700; font-size:13px; color:var(--text);">🔊 เสียงเตือนนาฬิกา</span>
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:var(--text2);">
+            <input type="checkbox" id="clockSoundMasterToggle" checked onchange="clockUpdateSoundSetting('soundEnabled', this.checked)">
+            <span>เปิดเสียง</span>
+          </label>
+        </div>
+
+        <div id="clockSoundOptionsWrapper" style="display:flex; flex-direction:column; gap:10px;">
+          <!-- Tap / Press Clock -->
+          <div class="clock-sound-row">
+            <label class="clock-sound-label">
+              <input type="checkbox" id="clockTapToggle" checked onchange="clockUpdateSoundSetting('tapSoundEnabled', this.checked)">
+              <span>เสียงกดสลับเวลา (Clock Tap)</span>
+            </label>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+              <span id="clockTapBadge" class="clock-file-badge" style="display:none;"></span>
+              <select class="input-field mono" id="clockTapSelect" onchange="clockUpdateSoundSetting('tapTone', this.value)" style="padding:4px 8px; font-size:11px;">
+                <option value="click">Mechanical Click</option>
+                <option value="wood-tap">Wood Tap</option>
+                <option value="digital-beep">Digital Beep</option>
+                <option value="soft">Soft Tick</option>
+              </select>
+              <label class="btn clock-file-upload-btn" title="อัปโหลดไฟล์เสียง (.mp3, .wav, etc.)">
+                📁<span id="clockTapUploadText">อัปโหลด</span>
+                <input type="file" accept="audio/*" style="display:none" onchange="clockHandleUpload('tap', this)">
+              </label>
+              <button type="button" class="btn" style="padding:4px 8px; font-size:11px;" onclick="clockTestSound('tap')" title="ทดสอบเสียง">▶</button>
+            </div>
+          </div>
+
+          <!-- 10s Alert -->
+          <div class="clock-sound-row">
+            <label class="clock-sound-label">
+              <input type="checkbox" id="clockWarn10Toggle" checked onchange="clockUpdateSoundSetting('warn10Enabled', this.checked)">
+              <span>เตือนเมื่อเหลือ 10 วินาที</span>
+            </label>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+              <span id="clockWarn10Badge" class="clock-file-badge" style="display:none;"></span>
+              <select class="input-field mono" id="clockWarn10Select" onchange="clockUpdateSoundSetting('warn10Tone', this.value)" style="padding:4px 8px; font-size:11px;">
+                <option value="high-beep">High Beep</option>
+                <option value="chime">Chime</option>
+                <option value="two-tone">Two-Tone</option>
+              </select>
+              <label class="btn clock-file-upload-btn" title="อัปโหลดไฟล์เสียง (.mp3, .wav, etc.)">
+                📁<span id="clockWarn10UploadText">อัปโหลด</span>
+                <input type="file" accept="audio/*" style="display:none" onchange="clockHandleUpload('warn10', this)">
+              </label>
+              <button type="button" class="btn" style="padding:4px 8px; font-size:11px;" onclick="clockTestSound('10s')" title="ทดสอบเสียง">▶</button>
+            </div>
+          </div>
+
+          <!-- 5s-1s Countdown -->
+          <div class="clock-sound-row">
+            <label class="clock-sound-label">
+              <input type="checkbox" id="clockCountdownToggle" checked onchange="clockUpdateSoundSetting('countdownEnabled', this.checked)">
+              <span>นับถอยหลัง 00:05 – 00:01</span>
+            </label>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+              <span id="clockCountdownBadge" class="clock-file-badge" style="display:none;"></span>
+              <select class="input-field mono" id="clockCountdownSelect" onchange="clockUpdateSoundSetting('countdownTone', this.value)" style="padding:4px 8px; font-size:11px;">
+                <option value="tick">Tick</option>
+                <option value="beep">Beep</option>
+                <option value="click">Wood Click</option>
+              </select>
+              <label class="btn clock-file-upload-btn" title="อัปโหลดไฟล์เสียง (.mp3, .wav, etc.)">
+                📁<span id="clockCountdownUploadText">อัปโหลด</span>
+                <input type="file" accept="audio/*" style="display:none" onchange="clockHandleUpload('countdown', this)">
+              </label>
+              <button type="button" class="btn" style="padding:4px 8px; font-size:11px;" onclick="clockTestSound('countdown')" title="ทดสอบเสียง">▶</button>
+            </div>
+          </div>
+
+          <!-- 00:00 Timeout Buzzer -->
+          <div class="clock-sound-row">
+            <div>
+              <label class="clock-sound-label">
+                <input type="checkbox" id="clockTimeoutToggle" checked onchange="clockUpdateSoundSetting('timeoutBuzzerEnabled', this.checked)">
+                <span>หมดเวลา 00:00 (ลากยาว)</span>
+              </label>
+              <div style="font-size:10px; color:var(--text2); margin-left:22px;">หยุดเมื่อกดข้ามฝั่งหรือ -00:01</div>
+            </div>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+              <span id="clockTimeoutBadge" class="clock-file-badge" style="display:none;"></span>
+              <select class="input-field mono" id="clockTimeoutSelect" onchange="clockUpdateSoundSetting('timeoutTone', this.value)" style="padding:4px 8px; font-size:11px;">
+                <option value="buzzer">Buzzer</option>
+                <option value="alarm-siren">Siren</option>
+              </select>
+              <label class="btn clock-file-upload-btn" title="อัปโหลดไฟล์เสียง (.mp3, .wav, etc.)">
+                📁<span id="clockTimeoutUploadText">อัปโหลด</span>
+                <input type="file" accept="audio/*" style="display:none" onchange="clockHandleUpload('timeout', this)">
+              </label>
+              <button type="button" class="btn" style="padding:4px 8px; font-size:11px;" onclick="clockTestSound('timeout')" title="ทดสอบเสียง">▶</button>
+            </div>
+          </div>
+
+          <!-- Special Overtime Feature (-1 ถึง -10 นาที) -->
+          <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px; margin-top:2px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div>
+                <span style="font-weight:700; font-size:12px; color:var(--orange);">⚡ ฟีเจอร์พิเศษ: เตือนเวลาติดลบ</span>
+                <div style="font-size:10px; color:var(--text2);">เตือนทุกครั้งที่ติดลบครบนาที: -01:00, -02:00, ..., -10:00 (ปกติไม่มีเสียง)</div>
+              </div>
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="checkbox" id="clockOvertimeToggle" onchange="clockUpdateSoundSetting('overtimeAlertEnabled', this.checked)">
+                <span style="font-size:11px; font-weight:600; color:var(--text);">เปิดเสียงติดลบ</span>
+              </label>
+            </div>
+
+            <div id="clockOvertimeCustomOptions" style="display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                <label style="font-size:11px; color:var(--text2); display:flex; align-items:center; gap:4px;">
+                  เสียงหลัก:
+                  <select class="input-field mono" id="clockOvertimeToneSelect" onchange="clockUpdateSoundSetting('overtimeTone', this.value)" style="padding:4px 8px; font-size:11px;">
+                    <option value="double-beep">Double Beep</option>
+                    <option value="triple-beep">Triple Beep</option>
+                    <option value="low-bell">Low Bell</option>
+                    <option value="pulse">Alarm Pulse</option>
+                  </select>
+                </label>
+
+                <span id="clockOvertimeBadge" class="clock-file-badge" style="display:none;"></span>
+
+                <label class="btn clock-file-upload-btn" title="อัปโหลดไฟล์เสียงเวลาติดลบ (.mp3, .wav, etc.)">
+                  📁<span id="clockOvertimeUploadText">อัปโหลดเสียง</span>
+                  <input type="file" accept="audio/*" style="display:none" onchange="clockHandleUpload('overtime', this)">
+                </label>
+
+                <label style="font-size:11px; color:var(--text2); display:flex; align-items:center; gap:4px;">
+                  เตือนถึง:
+                  <select class="input-field mono" id="clockOvertimeMaxSelect" onchange="clockUpdateSoundSetting('overtimeMaxMinutes', Number(this.value))" style="padding:4px 8px; font-size:11px;">
+                    <option value="1">-1 นาที</option>
+                    <option value="3">-3 นาที</option>
+                    <option value="5">-5 นาที</option>
+                    <option value="10" selected>-10 นาที</option>
+                  </select>
+                </label>
+
+                <button type="button" class="btn" style="padding:4px 8px; font-size:11px;" onclick="clockTestSound('overtime')" title="ทดสอบเสียง">▶ ลองฟัง</button>
+              </div>
+
+              <!-- Minute-by-minute custom sound details -->
+              <details style="font-size:11px; color:var(--text2); margin-top:2px;">
+                <summary style="cursor:pointer; font-weight:600; color:var(--text); padding:2px 0;">⚙️ ตั้งค่าเสียงแยกรายนาที (-01:00 ถึง -10:00)</summary>
+                <div id="clockOvertimePerMinuteList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(135px, 1fr)); gap:6px; margin-top:8px;"></div>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="clock-modal-actions" style="margin-top:16px;">
+        <button type="button" class="btn" onclick="clockAdjust(-1)" aria-label="Decrease both times">− 1 นาทีทั้งคู่</button>
+        <button type="button" class="btn" onclick="clockAdjust(1)" aria-label="Increase both times">+ 1 นาทีทั้งคู่</button>
+        <button type="button" class="btn btn-p" onclick="clockApplySettings()">ใช้เวลานี้</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Judge Sound Settings Modal -->
+  <div class="modal-overlay" id="judgeSoundSettingsModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="judgeSoundSettingsTitle" tabindex="-1" onclick="handleJudgeModalBackdrop(event)">
+    <div class="modal-card" role="document" style="max-width:480px;">
+      <div class="modal-header" style="align-items:center;">
+        <h3 id="judgeSoundSettingsTitle" style="font-size:16px; font-weight:700; margin:0; display:flex; align-items:center; gap:8px;">
+          <span>🔊 ตั้งค่าเสียงการตัดสิน (Judge Sounds)</span>
+        </h3>
+        <button type="button" class="btn" onclick="closeJudgeSoundSettingsModal()" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" style="padding:18px; display:flex; flex-direction:column; gap:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:1px solid var(--border);">
+          <div>
+            <div style="font-weight:700; font-size:13px; color:var(--text);">เปิดเสียงการตัดสิน</div>
+            <div style="font-size:11px; color:var(--text2);">เล่นเสียงผลลัพธ์ทันทีเมื่อตรวจสอบคำ</div>
+          </div>
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" id="judgeSoundEnabled" onchange="toggleJudgeSoundEnabled(this.checked)" checked style="width:16px; height:16px; accent-color:var(--accent);">
+          </label>
+        </div>
+
+        <!-- Valid sound row -->
+        <div class="clock-sound-row" style="flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:6px; min-width:110px;">
+            <span style="color:var(--accent); font-weight:700; font-size:13px;">✓ คำถูกต้อง</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; flex:1; flex-wrap:wrap; justify-content:flex-end;">
+            <select id="judgeValidToneSelect" class="input-field" style="padding:6px 10px; font-size:12px; width:auto; min-width:115px;" onchange="onJudgeToneChange('valid', this.value)">
+              <option value="chime">Chime</option>
+              <option value="high-ding">High Ding</option>
+              <option value="two-tone">Two-Tone</option>
+              <option value="custom">Custom (ไฟล์เสียง)</option>
+              <option value="none">ไม่มีเสียง (None)</option>
+            </select>
+            <button type="button" class="btn" style="padding:6px 10px; font-size:12px;" onclick="testJudgeSound('valid')" title="ทดสอบเสียง">▶</button>
+            <div id="judgeValidFileBadge" class="clock-file-badge" style="display:none;"></div>
+            <label class="btn clock-file-upload-btn" style="padding:6px 10px; font-size:12px; cursor:pointer;" title="อัปโหลดไฟล์เสียงตนเอง">
+              📁 อัปโหลด
+              <input type="file" accept="audio/*" style="display:none" onchange="judgeHandleUpload('judge_valid', this)">
+            </label>
+          </div>
+        </div>
+
+        <!-- Invalid sound row -->
+        <div class="clock-sound-row" style="flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:6px; min-width:110px;">
+            <span style="color:var(--danger); font-weight:700; font-size:13px;">✕ คำไม่ถูกต้อง</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; flex:1; flex-wrap:wrap; justify-content:flex-end;">
+            <select id="judgeInvalidToneSelect" class="input-field" style="padding:6px 10px; font-size:12px; width:auto; min-width:115px;" onchange="onJudgeToneChange('invalid', this.value)">
+              <option value="buzzer">Buzzer (บัซเซอร์)</option>
+              <option value="thud">Double Thud</option>
+              <option value="descending">Error Tone</option>
+              <option value="custom">Custom (ไฟล์เสียง)</option>
+              <option value="none">ไม่มีเสียง (None)</option>
+            </select>
+            <button type="button" class="btn" style="padding:6px 10px; font-size:12px;" onclick="testJudgeSound('invalid')" title="ทดสอบเสียง">▶</button>
+            <div id="judgeInvalidFileBadge" class="clock-file-badge" style="display:none;"></div>
+            <label class="btn clock-file-upload-btn" style="padding:6px 10px; font-size:12px; cursor:pointer;" title="อัปโหลดไฟล์เสียงตนเอง">
+              📁 อัปโหลด
+              <input type="file" accept="audio/*" style="display:none" onchange="judgeHandleUpload('judge_invalid', this)">
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:flex-end;">
+        <button type="button" class="btn btn-p" onclick="closeJudgeSoundSettingsModal()">เรียบร้อย (Done)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Judge full-screen overlay -->
+  <div class="judge-overlay" id="jOverlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="jStatus" tabindex="-1" onclick="closeJudgeOverlay()">
+    <div class="judge-fullscreen-content">
+      <div class="judge-symbol" id="jSymbol" aria-hidden="true">✓</div>
+      <div class="judge-status-text" id="jStatus">VALID</div>
+      <div class="mono judge-sub-list" id="jSubList"></div>
+      <div class="judge-dismiss-hint">แตะหรือกดปุ่มใดก็ได้เพื่อปิด · Tap anywhere to close</div>
+    </div>
+  </div>
+
+  <!-- Word detail modal -->
+  <div class="modal-overlay" id="uluModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="mWord" tabindex="-1" onclick="handleModalBackdrop(event)">
+    <div class="modal-card" role="document">
+      <div class="modal-header">
+        <div>
+          <h2 class="mono" id="mWord" style="font-size:32px; font-weight:700;">WORD</h2>
+          <span class="mono" id="mPos" style="font-size:13px; color:var(--accent);">n.</span>
+        </div>
+        <div style="text-align:right;">
+          <div class="mono" id="mScore" style="font-size:28px; font-weight:700; color:var(--orange)">00</div>
+          <span style="font-size:10px; color:var(--text2);">BASE SCORE</span>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="definition-block"><div class="info-label">Definition</div><div class="info-val" id="mDef"></div></div>
+
+        <!-- Hook letters row -->
+        <div class="hook-detail">
+          <div class="hook-detail-grid">
+            <div>
+              <div class="info-label" style="text-align:right;">Front Hook Letters</div>
+              <div class="mono" id="mFHooks" style="color:var(--accent);font-size:14px;font-weight:700;letter-spacing:4px;text-align:right;"></div>
+            </div>
+            <div class="mono" id="mWordCenter" style="font-size:22px;font-weight:800;color:var(--text);padding:0 8px;white-space:nowrap;"></div>
+            <div>
+              <div class="info-label" style="text-align:left;">Back Hook Letters</div>
+              <div class="mono" id="mBHooks" style="color:var(--accent);font-size:14px;font-weight:700;letter-spacing:4px;text-align:left;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full hook words -->
+        <div>
+          <div class="info-label">Front Hook Words</div>
+          <div class="mono" id="mFHookWords" style="color:var(--accent);font-size:13px;line-height:1.9;word-break:break-word;"></div>
+        </div>
+        <div>
+          <div class="info-label">Back Hook Words</div>
+          <div class="mono" id="mBHookWords" style="color:var(--accent);font-size:13px;line-height:1.9;word-break:break-word;"></div>
+        </div>
+
+        <!-- Multi-letter extensions -->
+        <div>
+          <div class="info-label">Prefix Extensions <span style="color:var(--border);font-weight:400;">___+WORD</span></div>
+          <div class="mono" id="mPrefixExt" style="font-size:13px;line-height:2;word-break:break-word;"></div>
+        </div>
+        <div>
+          <div class="info-label">Suffix Extensions <span style="color:var(--border);font-weight:400;">WORD+___</span></div>
+          <div class="mono" id="mSuffixExt" style="font-size:13px;line-height:2;word-break:break-word;"></div>
+        </div>
+
+        <!-- Anagrams & Inflections -->
+        <div><div class="info-label">Anagrams</div><div class="info-val mono" id="mAnagrams" style="color:var(--text2)">None</div></div>
+        <div><div class="info-label">Inflections</div><div class="info-val mono" id="mInflections" style="color:var(--orange)">None</div></div>
+      </div>
+      <div class="modal-footer">
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn" aria-label="Previous word" title="Previous word" onclick="navWord(-1)">←</button>
+          <button type="button" class="btn" aria-label="Next word" title="Next word" onclick="navWord(1)">→</button>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn" id="mFavBtn" aria-label="Save word" title="Save word" onclick="favWord()">☆</button>
+          <button type="button" class="btn quiet-action" onclick="closeUlu()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="tst" role="status" aria-live="polite" aria-atomic="true"></div>
+  <input type="file" id="fInp" style="display:none" accept=".zzq,.txt,text/plain,application/xml,text/xml,*/*" onchange="loadZzq(event)">
+
+  <script src="core.js?v=16"></script>
+  <script src="search.js?v=8"></script>
+  <script src="arctic_cpp_engine.js"></script>
+  <script src="quiz_bridge.js?v=13"></script>
+  <script src="judge.js?v=7"></script>
+  <script>
+    // ── CALCULATOR ─────────────────────────────────────────────────────
+    let calcExpr     = '';   // full expression string
+    let calcCurrent  = '0';  // display number
+    let calcOperator = '';   // pending operator
+    let calcPrev     = null; // previous value
+    let calcNewNum   = true; // next digit starts a fresh number
+    let calcResult   = false;// last action was =
+    let calcHistory  = JSON.parse(localStorage.getItem('arctic_calc_hist') || localStorage.getItem('zyz_calc_hist') || '[]');
+
+    function calcSaveHistory() {
+      localStorage.setItem('arctic_calc_hist', JSON.stringify(calcHistory.slice(-50)));
+    }
+    function calcRenderHistory() {
+      const el = document.getElementById('calcHistory');
+      if (!el) return;
+      el.innerHTML = [...calcHistory].reverse().map(h =>
+        `<div class="card" style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div style="font-size:12px;color:var(--text2);font-family:'JetBrains Mono',monospace;
+                      flex:1;word-break:break-all;">${h.expr}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;
+                      color:var(--orange);white-space:nowrap;">${h.result}</div>
+         </div>`
+      ).join('') || '<p style="text-align:center;color:var(--text2);font-size:13px;padding:12px;">No history yet</p>';
+    }
+    function calcUpdate() {
+      document.getElementById('calcDisplay').innerText = calcCurrent;
+      document.getElementById('calcExpr').innerText    = calcExpr;
+    }
+    function calcFn(key) {
+      const digits = '0123456789';
+      if (digits.includes(key)) {
+        if (calcResult) { calcExpr = ''; calcResult = false; }
+        if (calcNewNum || calcCurrent === '0') {
+          calcCurrent = key;
+          calcNewNum  = false;
+        } else {
+          if (calcCurrent.replace('-','').replace('.','').length < 15)
+            calcCurrent += key;
+        }
+      } else if (key === '.') {
+        if (calcResult) { calcCurrent = '0'; calcExpr = ''; calcResult = false; }
+        if (calcNewNum) { calcCurrent = '0.'; calcNewNum = false; }
+        else if (!calcCurrent.includes('.')) calcCurrent += '.';
+      } else if (key === '+/-') {
+        if (calcCurrent !== '0')
+          calcCurrent = calcCurrent.startsWith('-') ? calcCurrent.slice(1) : '-' + calcCurrent;
+      } else if (key === 'CE') {
+        calcCurrent = '0';
+        calcNewNum  = true;
+      } else if (key === '⌫') {
+        if (!calcNewNum && calcCurrent !== '0') {
+          calcCurrent = calcCurrent.length > 1 ? calcCurrent.slice(0, -1) : '0';
+          if (calcCurrent === '-') calcCurrent = '0';
+          calcNewNum = calcCurrent === '0';
+        }
+      } else if (key === 'C') {
+        calcCurrent = '0'; calcExpr = ''; calcOperator = ''; calcPrev = null;
+        calcNewNum = true; calcResult = false;
+      } else if (key === '%') {
+        const v = parseFloat(calcCurrent);
+        calcCurrent = String(calcPrev !== null ? calcPrev * v / 100 : v / 100);
+        calcNewNum  = true;
+      } else if (['+', '-', '*', '/'].includes(key)) {
+        if (calcOperator && !calcNewNum) {
+          const a = calcPrev, b = parseFloat(calcCurrent);
+          calcPrev    = calcCompute(a, b, calcOperator);
+          calcCurrent = calcFormat(calcPrev);
+          calcExpr    = calcCurrent + ' ' + calcOpSym(key) + ' ';
+        } else {
+          calcPrev = parseFloat(calcCurrent);
+          calcExpr = calcCurrent + ' ' + calcOpSym(key) + ' ';
+        }
+        calcOperator = key;
+        calcNewNum   = true;
+        calcResult   = false;
+      } else if (key === '=') {
+        if (calcOperator && calcPrev !== null) {
+          const a = calcPrev, b = parseFloat(calcCurrent);
+          const expr = calcExpr + calcCurrent;
+          const res  = calcCompute(a, b, calcOperator);
+          calcCurrent  = calcFormat(res);
+          calcHistory.push({ expr, result: calcCurrent });
+          calcSaveHistory();
+          calcRenderHistory();
+          calcExpr     = '';
+          calcOperator = '';
+          calcPrev     = null;
+          calcNewNum   = true;
+          calcResult   = true;
+        }
+      }
+      calcUpdate();
+    }
+    function calcCompute(a, b, op) {
+      switch(op) {
+        case '+': return a + b;
+        case '-': return a - b;
+        case '*': return a * b;
+        case '/': return b !== 0 ? a / b : (b === 0 ? Infinity : NaN);
+      }
+      return b;
+    }
+    function calcFormat(n) {
+      if (!isFinite(n)) return isNaN(n) ? 'Error' : '∞';
+      // Avoid floating point garbage: round to 12 sig figs
+      const s = parseFloat(n.toPrecision(12));
+      return String(s);
+    }
+    function calcOpSym(op) {
+      return {'+':'+','-':'−','*':'×','/':'÷'}[op] || op;
+    }
+    function calcClearHistory() {
+      if (confirm('ล้างประวัติเครื่องคิดเลขทั้งหมด?')) {
+        calcHistory = [];
+        calcSaveHistory();
+        calcRenderHistory();
+      }
+    }
+    // Keyboard support for calculator tab
+    document.addEventListener('keydown', e => {
+      const calcSection = document.getElementById('t3');
+      if (!calcSection?.classList.contains('active')) return;
+      if (e.key >= '0' && e.key <= '9') calcFn(e.key);
+      else if (e.key === '+') calcFn('+');
+      else if (e.key === '-') calcFn('-');
+      else if (e.key === '*') calcFn('*');
+      else if (e.key === 'x') calcFn('*');
+      else if (e.key === '/') { e.preventDefault(); calcFn('/'); }
+      else if (e.key === '.' || e.key === ',') calcFn('.');
+      else if (e.key === 'Enter' || e.key === '=') calcFn('=');
+      else if (e.key === 'Backspace') { e.preventDefault(); calcFn('⌫'); } else if (e.key === 'Escape') calcFn('C');
+    });
+    // Init history display
+    calcRenderHistory();
+  </script>
+  <script src="clock.js?v=3"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('SW registered:', reg.scope))
+          .catch(err => console.error('SW failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

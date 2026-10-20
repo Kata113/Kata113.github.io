@@ -41,30 +41,43 @@ function tryInitCppEngine() {
   }
 }
 
-// ── MWC RNG — Zyzzyva's Marsaglia MWC algorithm ───────────────────────
-// Ref: QuizEngine.cpp + Rand class
-// z = 36969*(z & 0xffff) + (z >> 16)
-// w = 18000*(w & 0xffff) + (w >> 16)
-// return (z << 16) + (w & 0xffff)
+// ── MWC PRNG ตาม Zyzzyva (Rand::znew, Rand::wnew, Rand::mwc, Rand::rand) ──
 function createMwcRandom(s1, s2) {
   let z = (Number(s1) >>> 0) || 1;
   let w = (Number(s2) >>> 0) || 1;
-  return () => {
-    z = (36969 * (z & 0xffff) + (z >>> 16)) >>> 0;
-    w = (18000 * (w & 0xffff) + (w >>> 16)) >>> 0;
-    return ((z << 16) + (w & 0xffff)) >>> 0;
-  };
+  function mwc() {
+    z = ((36969 * (z & 0xffff)) + (z >>> 16)) >>> 0;
+    w = ((18000 * (w & 0xffff)) + (w >>> 16)) >>> 0;
+    // ไม่มี & 0xffff ครอบ w: นำ 32-bit ทั้งหมดมาบวกกัน
+    return (((z << 16) >>> 0) + w) >>> 0;
+  }
+  // Zyzzyva Rand::rand(unsigned int max) -> สุ่ม [0..max] แบบ Bucket Division
+  function rand(max) {
+    if (max <= 0) return 0;
+    const raw = mwc();
+    const n = (max + 1) >>> 0;
+    const bucket = Math.floor(0xffffffff / n) + 1;
+    return Math.floor(raw / bucket);
+  }
+  return { mwc, rand };
 }
 
-// Fisher-Yates shuffle matching Zyzzyva's loop exactly:
-//   for i in 0..num-2: swap(i, i + rng.rand(num-i-1))
-// where rand(n) returns [0..n] inclusive = rng() % (n+1) = rng() % (num-i)
+// Fisher-Yates shuffle ตรงตาม QuizEngine::newQuiz
 function shuffleMwc(arr, s1, s2) {
   const rng = createMwcRandom(s1, s2);
-  const a   = [...arr];
-  for (let i = 0; i < a.length - 1; i++) {
-    const j = i + (rng() % (a.length - i));
-    [a[i], a[j]] = [a[j], a[i]];
+  const a = [...arr];
+  let remaining = a.length - 1;
+  let i = 0;
+  while (remaining > 0) {
+    const offset = rng.rand(remaining);
+    const j = i + offset;
+    if (j !== i) {
+      const temp = a[i];
+      a[i] = a[j];
+      a[j] = temp;
+    }
+    i++;
+    remaining--;
   }
   return a;
 }
@@ -268,19 +281,10 @@ function startQuiz() {
   loadCurrentQuestion();
 }
 
-// Build word pool in the same question-order as Zyzzyva would produce
-// for a given seed pair. Reference: QuizEngine::newQuiz, RandomOrder case.
-//
-// Zyzzyva's steps for Anagram quizzes:
-//  1. questionWords = wordEngine->search(…)  → alphabetically sorted
-//  2. questions     = wordEngine->alphagrams(questionWords)
-//                     → unique alphagrams in FIRST-APPEARANCE order
-//                       (NOT sorted by alphagram string)
-//  3. rng.srand(seed, getPid())
-//  4. for i in 0..num-2: swap(i, i + rng.rand(num-i-1))
+// สร้าง Question Pool ตรงตามลำดับของ Zyzzyva 100%
 function buildOrderedPool(pool, quizType, order, s1, s2) {
   if (order === 2) {
-    // Probability order follows each alphagram set's first line in CSW24.txt.
+    // Probability order
     return [...pool].sort((a, b) => {
       const ra = probRankMap[a] || 9999999;
       const rb = probRankMap[b] || 9999999;
@@ -288,28 +292,24 @@ function buildOrderedPool(pool, quizType, order, s1, s2) {
     });
   }
   if (order === 0) return [...pool].sort(); // Alphabetical
-  if (quizType === 2) return shuffleMwc(pool, s1, s2);  // Build quiz: words directly
+  if (quizType === 2) return shuffleMwc([...pool].sort(), s1, s2); // Build quiz
 
-  // Step 1: alphabetical sort (matches search() output)
-  const sorted = [...pool].sort();
-
-  // Step 2: alphagrams in first-appearance order from sorted words
-  //   e.g. "ARTS" (alphagram ARST) appears before "BAKE" (ABEK) alphabetically,
-  //   so ARST leads even though ABEK < ARST as strings.
-  const seen    = new Set();
-  const alphaOrder = [];
+  // 1. จัดกลุ่มคำตาม Alphagram
   const byAlpha = {};
-  for (const w of sorted) {
+  for (const w of pool) {
     const a = [...w].sort().join('');
     (byAlpha[a] = byAlpha[a] || []).push(w);
-    if (!seen.has(a)) { seen.add(a); alphaOrder.push(a); }
   }
-
-  // Step 3+4: MWC-shuffle the alphagram list
-  const shuffled = shuffleMwc(alphaOrder, s1, s2);
-
-  // Expand back to words; WASM receives with order=3 (PreserveOrder)
-  return shuffled.flatMap(a => byAlpha[a]);
+  // คำในแต่ละ Alphagram ต้องเรียงตามตัวอักษร
+  for (const a in byAlpha) {
+    byAlpha[a].sort();
+  }
+  // 2. ดึง Unique Alphagrams และ "SORT ตามตัวอักษร" ก่อนสับ (ตรงตาม std::sort ใน Zyzzyva)
+  const sortedAlphagrams = Object.keys(byAlpha).sort();
+  // 3. สับลำดับ Alphagram ด้วย MWC + Fisher-Yates
+  const shuffledAlphagrams = shuffleMwc(sortedAlphagrams, s1, s2);
+  // 4. ขยายกลับเป็นลิสต์คำศัพท์ส่งให้ Engine
+  return shuffledAlphagrams.flatMap(a => byAlpha[a]);
 }
 
 function loadCurrentQuestion() {

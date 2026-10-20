@@ -1059,6 +1059,36 @@ main {
   opacity: .88;
 }
 
+.quiz-rack.is-solved {
+  cursor: default;
+}
+
+.quiz-rack.is-solved .quiz-tile {
+  cursor: default;
+  border-color: rgba(52, 199, 89, 0.55);
+  box-shadow: 0 var(--tile-shadow-y, 4px) 0 var(--tile-shadow), 0 4px 16px rgba(52, 199, 89, 0.25);
+}
+
+.quiz-rack.is-solved .quiz-tile:hover {
+  transform: none;
+  background: var(--tile);
+}
+
+@keyframes tileWaveFlip {
+  0% {
+    transform: translateY(0) scale(1) rotateX(0deg);
+    opacity: 0.65;
+  }
+  45% {
+    transform: translateY(-8px) scale(1.06) rotateX(20deg);
+    box-shadow: 0 var(--tile-shadow-y, 4px) 0 var(--tile-shadow), 0 12px 22px rgba(52, 199, 89, 0.35);
+  }
+  100% {
+    transform: translateY(0) scale(1) rotateX(0deg);
+    opacity: 1;
+  }
+}
+
 .quiz-tile-letter {
   pointer-events: none;
   font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;

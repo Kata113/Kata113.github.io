@@ -11,6 +11,12 @@ let quizRackQuestionKey = '';
 let quizRackLetters = [];
 let quizRackDragState = null;
 let activeQuizSessionId = '';
+let isQuizSaved = true;
+let pendingQuitAfterSave = false;
+let rackCycleTimer = null;
+let rackCycleIndex = 0;
+let rackCycleWords = [];
+let rackCycleQuestionKey = '';
 
 // seed2 mirrors Zyzzyva's getPid() — constant per process/session
 // Linux PIDs are quint16 range (1–65535); generated once per page load
@@ -305,6 +311,66 @@ function trackWrongGuess(w) {
 }
 
 // ── QUIZ RACK ─────────────────────────────────────────────────────────
+function stopRackCycleTimer() {
+  if (rackCycleTimer !== null) {
+    clearInterval(rackCycleTimer);
+    rackCycleTimer = null;
+  }
+  rackCycleWords = [];
+  rackCycleQuestionKey = '';
+  const rack = document.getElementById('quizRack');
+  if (rack) rack.classList.remove('is-solved');
+}
+
+function startRackCycle(words, qKey) {
+  if (!Array.isArray(words) || words.length === 0) return;
+
+  // If already cycling this exact question with the same words, avoid restarting timer
+  if (rackCycleQuestionKey === qKey && rackCycleWords.join('|') === words.join('|') && rackCycleTimer !== null) {
+    return;
+  }
+
+  stopRackCycleTimer();
+  rackCycleWords = words;
+  rackCycleQuestionKey = qKey;
+  rackCycleIndex = 0;
+
+  // Initial wave animation on the first word
+  triggerRackWaveAnimation();
+
+  // If there's more than 1 word, start the continuous loop
+  if (words.length > 1) {
+    rackCycleTimer = setInterval(() => {
+      const rack = document.getElementById('quizRack');
+      const enginePane = document.getElementById('qEnginePane');
+      if (!rack || !enginePane || enginePane.style.display === 'none') {
+        stopRackCycleTimer();
+        return;
+      }
+
+      rackCycleIndex = (rackCycleIndex + 1) % rackCycleWords.length;
+      const nextWord = rackCycleWords[rackCycleIndex];
+      quizRackLetters = [...nextWord];
+      rack.innerHTML = renderQuizRackTiles();
+      rack.classList.add('is-solved');
+      triggerRackWaveAnimation();
+      announceQuizRack();
+    }, 2000);
+  }
+}
+
+function triggerRackWaveAnimation() {
+  const rack = document.getElementById('quizRack');
+  if (!rack) return;
+  rack.classList.add('is-solved');
+  const tiles = rack.querySelectorAll('.quiz-tile');
+  tiles.forEach((t, i) => {
+    t.style.animation = 'none';
+    t.offsetHeight; // force reflow
+    t.style.animation = `tileWaveFlip 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) ${i * 0.05}s both`;
+  });
+}
+
 function syncQuizRack(questionText, questionNumber) {
   const nextKey = `${activeSeed1}:${questionNumber}:${questionText}`;
   if (quizRackQuestionKey !== nextKey) {
@@ -355,7 +421,7 @@ function beginQuizTileDrag(event) {
   if (event.pointerType === 'mouse' && event.button !== 0) return;
   const tile = event.currentTarget;
   const rack = tile.closest('.quiz-rack');
-  if (!rack) return;
+  if (!rack || rack.classList.contains('is-solved')) return;
 
   clearQuizTileDrag();
 
@@ -539,6 +605,9 @@ function clearQuizTileDrag() {
 }
 
 function handleQuizTileKey(event) {
+  const rack = document.getElementById('quizRack');
+  if (rack && rack.classList.contains('is-solved')) return;
+
   const fromIndex = Number(event.currentTarget.dataset.rackIndex);
   let toIndex = fromIndex;
   if (event.key === 'ArrowLeft') toIndex = Math.max(0, fromIndex - 1);
@@ -551,7 +620,6 @@ function handleQuizTileKey(event) {
   if (toIndex === fromIndex) return;
   const [letter] = quizRackLetters.splice(fromIndex, 1);
   quizRackLetters.splice(toIndex, 0, letter);
-  const rack = document.getElementById('quizRack');
   if (!rack) return;
   rack.innerHTML = renderQuizRackTiles();
   requestAnimationFrame(() => rack.querySelector(`[data-rack-index="${toIndex}"]`)?.focus());
@@ -565,6 +633,10 @@ function startQuiz() {
   let pool = dict.filter(w => matchFilters(w, qFilters));
   pool = applyLimitFilters(pool, qFilters);
   if (!pool.length) { toast('No words match the selected filters!'); return; }
+
+  stopRackCycleTimer();
+  isQuizSaved = false;
+  pendingQuitAfterSave = false;
 
   // Zyzzyva: seed = QDateTime::currentDateTime().toTime_t()  (Unix seconds)
   //          seed2 = Auxil::getPid()  (process ID, constant per session)
@@ -621,6 +693,7 @@ function buildOrderedPool(pool, quizType, order, s1, s2) {
 
 function loadCurrentQuestion() {
   stopTimer();
+  stopRackCycleTimer();
   const q = parseQ();
   if (!q) { endQuiz(); return; }
 
@@ -639,6 +712,8 @@ function loadCurrentQuestion() {
 
 function handleCheck() {
   stopTimer();
+  stopRackCycleTimer();
+  isQuizSaved = false;
   const qBefore = parseQ();
   qBefore?.userIncorrectAnswers?.forEach(w => {
     if (w && !sessionIncorrect[w]) trackWrongGuess(w);
@@ -668,17 +743,80 @@ function handleCheck() {
 }
 
 function handleNext() {
+  stopRackCycleTimer();
+  isQuizSaved = false;
   Module.nextQuestion() ? loadCurrentQuestion() : endQuiz();
 }
 
 function quitQuiz() {
+  if (!isQuizSaved && currentQuizPool?.length) {
+    showQuitConfirmModal();
+    return;
+  }
+  forceQuitQuiz();
+}
+
+function forceQuitQuiz() {
   stopTimer();
+  stopRackCycleTimer();
+  isQuizSaved = true;
+  pendingQuitAfterSave = false;
   document.getElementById('qEnginePane').style.display   = 'none';
   document.getElementById('qSettingsPane').style.display = 'block';
 }
 
+function showQuitConfirmModal() {
+  stopTimer();
+  const content = `
+    <div class="zyz-modal-header">
+      <div style="display:flex;align-items:center;gap:10px">
+        <h3 class="zyz-modal-title" style="color:var(--orange)">⚠️ ยังไม่ได้บันทึกแบบฝึกหัด</h3>
+      </div>
+      <button type="button" class="zyz-modal-close-btn" aria-label="Close" onclick="closeStorageModal()">✕</button>
+    </div>
+    <div class="zyz-modal-body">
+      <p style="font-size:14px;color:var(--text);margin:4px 0 16px;line-height:1.5;">
+        คุณยังไม่ได้บันทึกความคืบหน้าของแบบฝึกหัดนี้ หากออกจากแบบฝึกหัด ข้อมูลการตอบคำถามล่าสุดอาจสูญหายได้
+      </p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button type="button" class="zyz-choice-btn" id="zyzQuitSaveFirstBtn" style="border-color:var(--orange);background:rgba(255,149,0,0.06)">
+          <div class="zyz-choice-icon" style="color:var(--orange)">💾</div>
+          <div class="zyz-choice-content">
+            <div class="zyz-choice-title" style="color:var(--orange)">บันทึกก่อนออก (Save & Exit)</div>
+            <div class="zyz-choice-desc">บันทึกความคืบหน้าลงในเครื่องหรือดาวน์โหลดไฟล์ .zzq ก่อนออกจากแบบฝึกหัด</div>
+          </div>
+        </button>
+        <button type="button" class="zyz-choice-btn" id="zyzQuitForceBtn" style="border-color:rgba(255,59,48,0.3);background:rgba(255,59,48,0.04)">
+          <div class="zyz-choice-icon" style="color:var(--danger)">🚪</div>
+          <div class="zyz-choice-content">
+            <div class="zyz-choice-title" style="color:var(--danger)">ออกโดยไม่บันทึก (Quit without saving)</div>
+            <div class="zyz-choice-desc">ละทิ้งความคืบหน้าล่าสุดและกลับไปยังหน้าตั้งค่าแบบฝึกหัด</div>
+          </div>
+        </button>
+        <button type="button" class="btn" id="zyzQuitCancelBtn" style="width:100%;padding:12px;margin-top:4px;font-size:14px">
+          ทำแบบฝึกหัดต่อ (Resume Quiz)
+        </button>
+      </div>
+    </div>
+  `;
+  openStorageModal(content, (card) => {
+    card.querySelector('#zyzQuitSaveFirstBtn')?.addEventListener('click', () => {
+      pendingQuitAfterSave = true;
+      showSaveChoiceModal();
+    });
+    card.querySelector('#zyzQuitForceBtn')?.addEventListener('click', () => {
+      closeStorageModal();
+      forceQuitQuiz();
+    });
+    card.querySelector('#zyzQuitCancelBtn')?.addEventListener('click', () => {
+      closeStorageModal();
+    });
+  });
+}
+
 function endQuiz() {
   stopTimer();
+  stopRackCycleTimer();
   const prog = parseProg();
   const totalIncorrect = Math.max(
     prog.totalIncorrect || 0,
@@ -779,7 +917,31 @@ function renderQuizUI(q, prog) {
   const pane = document.getElementById('qEnginePane');
   if (!pane) return;
   const pct       = (prog.currentQuestion / prog.totalQuestions) * 100;
-  syncQuizRack(q.questionText, prog.currentQuestion);
+
+  // Fully solved = user found all possible correct words (e.g. 1/1, 2/2, 3/3, 4/4)
+  const isFullySolved = (q.totalAnswers > 0) && (q.correctAnswersCount === q.totalAnswers);
+  let solvedWords = [];
+  if (isFullySolved) {
+    if (Array.isArray(q.userCorrectAnswers) && q.userCorrectAnswers.length > 0) {
+      solvedWords = [...q.userCorrectAnswers];
+    } else {
+      try {
+        const cr = JSON.parse(Module.checkAnswers());
+        if (cr && Array.isArray(cr.answers)) {
+          solvedWords = cr.answers.filter(a => a.status === 'correct').map(a => a.word);
+        }
+      } catch (_) {}
+    }
+    if (solvedWords.length > 0) {
+      const currentWord = (rackCycleWords.length > 0 && rackCycleWords[rackCycleIndex])
+        ? rackCycleWords[rackCycleIndex]
+        : solvedWords[0];
+      quizRackLetters = [...currentWord];
+    }
+  } else {
+    syncQuizRack(q.questionText, prog.currentQuestion);
+  }
+
   const tiles     = renderQuizRackTiles();
   const isChecked = q.checked;
 
@@ -803,7 +965,7 @@ function renderQuizUI(q, prog) {
         <div style="height:100%;width:${pct}%;background:var(--accent);transition:width .3s"></div>
       </div>
 
-      <div class="quiz-rack" id="quizRack" aria-label="Rearrangeable letter tiles">
+      <div class="quiz-rack ${isFullySolved ? 'is-solved' : ''}" id="quizRack" aria-label="Rearrangeable letter tiles">
         ${tiles}
       </div>
       <p class="quiz-rack-hint" id="quizRackHint">Drag tiles to rearrange · use Left and Right arrow keys</p>
@@ -842,32 +1004,22 @@ function renderQuizUI(q, prog) {
         <button class="btn" style="flex:1;min-width:64px;color:#0A84FF"
                 onclick="showAnalysis()">Analyze</button>
         ${isChecked
-          ? `<button class="btn" style="flex:1;min-width:105px;color:var(--accent)"
-                     onclick="handleMarkCorrect()">Mark Correct ✓</button>
-             <button class="btn btn-p" style="flex:2;min-width:120px"
+          ? `<button class="btn btn-p" style="flex:2;min-width:120px"
                      onclick="handleNext()">Next → <small style="opacity:.7">(Enter)</small></button>`
           : `<button class="btn btn-p" id="qActionButton" style="flex:2;min-width:140px"
                      onclick="handleCheck()">Check Answers ✓</button>`}
       </div>
     </div>`;
 
+  if (isFullySolved && solvedWords.length > 0) {
+    const qKey = `${activeSeed1}:${prog.currentQuestion}:${q.questionText}`;
+    startRackCycle(solvedWords, qKey);
+  } else {
+    stopRackCycleTimer();
+  }
+
   if (quizTimeLimit > 0) updateTimerDisplay();
 }
-
-function handleMarkCorrect() {
-  const q = parseQ();
-  if (!q || !q.checked) return;
-  let cr;
-  try { cr = JSON.parse(Module.checkAnswers()); } catch(_) {}
-  if (!cr?.answers) return;
-  const allAnswers = cr.answers.map(a => a.word);
-  const userCorrect = q.userCorrectAnswers || [];
-  const userIncorrect = q.userIncorrectAnswers || [];
-  quizAnalyzer.onMarkQuestionCorrect(allAnswers, userCorrect, userIncorrect);
-  toast('Marked question as correct ✓');
-  renderQuizUI(parseQ(), parseProg());
-}
-window.handleMarkCorrect = handleMarkCorrect;
 
 function renderAnswersList(q) {
   // Shared helper: render one word as 3-column hook row
@@ -964,6 +1116,7 @@ function submitUserAnswer() {
   const prevWrong = q.userIncorrectAnswers?.length || 0;
   const prevCorrect = q.userCorrectAnswers?.length || 0;
   inp.value = '';
+  isQuizSaved = false;
   Module.submitAnswer(val);
 
   const afterQ = parseQ();
@@ -1302,7 +1455,14 @@ function saveCurrentZzq() {
   const safeName = baseName.replace(/[^a-zA-Z0-9_\-\u0E00-\u0E7F]/g, '_');
   activeQuizSessionId = `file_${safeName}_${activeSeed1}_${activeSeed2}`;
   saveSessionIncorrect();
+  isQuizSaved = true;
   toast(`Saved ${fileName}`);
+  if (pendingQuitAfterSave) {
+    pendingQuitAfterSave = false;
+    closeStorageModal();
+    forceQuitQuiz();
+    toast('บันทึกและออกจากแบบฝึกหัดเรียบร้อย');
+  }
 }
 
 function handleSaveQuizClick() {
@@ -1402,8 +1562,15 @@ function saveQuizToLocalStorage(customName) {
     // 3. Switch active session to this new local save and persist session data under its key
     activeQuizSessionId = 'local_' + id;
     saveSessionIncorrect();
+    isQuizSaved = true;
 
     toast('บันทึกลงเครื่องสำเร็จ');
+    if (pendingQuitAfterSave) {
+      pendingQuitAfterSave = false;
+      closeStorageModal();
+      forceQuitQuiz();
+      toast('บันทึกและออกจากแบบฝึกหัดเรียบร้อย');
+    }
     return true;
   } catch (err) {
     console.error('LocalStorage save error:', err);
@@ -1524,8 +1691,14 @@ function overwriteLocalSave(id) {
     saveLocalSavesMeta(metaList);
     activeQuizSessionId = 'local_' + id;
     saveSessionIncorrect();
+    isQuizSaved = true;
     toast(`บันทึกทับ "${targetSave.name}" สำเร็จ`);
     closeStorageModal();
+    if (pendingQuitAfterSave) {
+      pendingQuitAfterSave = false;
+      forceQuitQuiz();
+      toast('บันทึกและออกจากแบบฝึกหัดเรียบร้อย');
+    }
     return true;
   } catch (err) {
     console.error('LocalStorage overwrite error:', err);
@@ -1942,6 +2115,7 @@ function handleStorageModalKeydown(e) {
 let storageModalCloseTimer = null;
 
 function closeStorageModal() {
+  pendingQuitAfterSave = false;
   const overlay = document.getElementById('zyzStorageModalOverlay');
   if (overlay) {
     overlay.classList.remove('open');
@@ -2181,6 +2355,9 @@ window.buildZzqXmlString = buildZzqXmlString;
 window.saveCurrentZzq = saveCurrentZzq;
 window.openLocalSavesModal = openLocalSavesModal;
 window.closeStorageModal = closeStorageModal;
+window.quitQuiz = quitQuiz;
+window.forceQuitQuiz = forceQuitQuiz;
+window.showQuitConfirmModal = showQuitConfirmModal;
 
 // ── LOAD .zzq ──────────────────────────────────────────────────────────
 function loadZzq(event) {
@@ -2210,6 +2387,9 @@ function loadPlainWordList(content, fileName = 'words') {
   sessionIncorrect = {};
   saveSessionIncorrect();
   currentQuizPool  = words;
+  stopRackCycleTimer();
+  isQuizSaved = false;
+  pendingQuitAfterSave = false;
   Module.generateQuiz(sel('qTypeSelect'), words.join(' '), 3);
   showQuizPane();
   loadCurrentQuestion();
@@ -2390,6 +2570,10 @@ function loadXmlZzq(content, source = '.zzq', sessionContextId = '') {
   // Also merge with any session data in localStorage under this session's isolated key
   loadSessionIncorrect();
   saveSessionIncorrect();
+
+  stopRackCycleTimer();
+  isQuizSaved = true;
+  pendingQuitAfterSave = false;
 
   showQuizPane();
   loadCurrentQuestion();

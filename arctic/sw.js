@@ -1,14 +1,14 @@
-const CACHE_NAME = 'arctic-v4';
+const CACHE_NAME = 'arctic-v6';
 
 // Phase 1 — pre-cached during install (small, fast).
 // Keeps SW install well under mobile timeout so PWA can be installed.
 const SHELL_ASSETS = [
   './',
   './index.html',
-  './styles.css?v=18',
+  './styles.css?v=19',
   './core.js?v=16',
   './search.js?v=8',
-  './quiz_bridge.js?v=13',
+  './quiz_bridge.js?v=15',
   './judge.js?v=7',
   './clock.js?v=3',
   './manifest.json?v=4',

@@ -20,6 +20,190 @@ const SESSION_SEED2 = Math.floor(Math.random() * 65534) + 1;
 // Persisted in localStorage keyed by active quiz session ID (unique per file/save)
 let sessionIncorrect = {};
 
+// ── ZYZZYVA QUIZ ANALYZE ENGINE ──────────────────────────────────────────
+/**
+ * Zyzzyva Quiz Analyze Engine (100% Native Compatible)
+ */
+class ZyzzyvaQuizAnalyzer {
+  constructor() {
+    this.reset();
+  }
+  reset() {
+    this.totalWords = 0;       // [QuizEngine+0x70]: ผลรวมจำนวนคำเฉลยทั้งหมดของข้อที่เปิดมาแล้ว
+    this.correctCount = 0;     // [QuizEngine+0x74]: จำนวนคำที่ตอบถูกสะสม
+    this.incorrectCount = 0;   // [QuizEngine+0x78]: จำนวนครั้งที่เดาผิดสะสม
+    
+    // สำหรับแสดงผลในตาราง Analyze (Unique Words)
+    this.missedWords = new Set();
+    this.incorrectWords = new Set();
+    
+    // สำหรับเก็บสถิติความถี่ลง .zzq XML (<missed-responses>, <incorrect-responses>)
+    this.missedFrequency = new Map();     // word -> count
+    this.incorrectFrequency = new Map();  // word -> count
+
+    this.preparedQuestionKeys = new Set();
+    this.completedQuestionKeys = new Set();
+  }
+  /**
+   * เรียกเมื่อเปิดข้อใหม่ (ตรงกับ QuizEngine::prepareQuestion)
+   * @param {string[]} questionAnswers รายการคำเฉลยทั้งหมดของข้อนั้น
+   */
+  onPrepareQuestion(questionAnswers) {
+    if (Array.isArray(questionAnswers)) {
+      this.totalWords += questionAnswers.length;
+    }
+  }
+  /**
+   * เรียกเมื่อผู้ใช้พิมพ์ตอบถูก 1 คำ (ตรงกับ QuizEngine::addQuestionCorrect)
+   * @param {string} word 
+   */
+  onWordCorrect(word) {
+    this.correctCount++;
+    // ถ้าคำนี้เคยถูก Mark ว่า Missed มาก่อน ให้เอาออกจากตาราง Missed
+    this.missedWords.delete(word.toUpperCase());
+  }
+  /**
+   * เรียกเมื่อผู้ใช้พิมพ์ตอบผิด (ตรงกับ QuizEngine::addQuestionIncorrect)
+   * @param {string} word 
+   */
+  onWordIncorrect(word) {
+    const w = word.toUpperCase();
+    this.incorrectCount++;
+    this.incorrectWords.add(w);
+    this.incorrectFrequency.set(w, (this.incorrectFrequency.get(w) || 0) + 1);
+  }
+  /**
+   * เรียกเมื่อจบข้อ / กดยืนยันข้อนั้น (ตรงกับ QuizEngine::nextQuestion / checkResponse)
+   * @param {string[]} allAnswers คำเฉลยทั้งหมดของข้อนี้
+   * @param {Set<string>|string[]} userCorrectWords คำที่ผู้ใช้ตอบถูกในข้อนี้
+   */
+  onCompleteQuestion(allAnswers, userCorrectWords) {
+    const userCorrectSet = new Set(Array.from(userCorrectWords).map(w => w.toUpperCase()));
+    for (const ans of allAnswers) {
+      const w = ans.toUpperCase();
+      if (!userCorrectSet.has(w)) {
+        this.missedWords.add(w);
+        this.missedFrequency.set(w, (this.missedFrequency.get(w) || 0) + 1);
+      }
+    }
+  }
+  /**
+   * เรียกเมื่อผู้ใช้กด "Mark Correct" (ตรงกับ QuizFunction::markCorrect)
+   * @param {string[]} allAnswers คำเฉลยทั้งหมดของข้อนี้
+   * @param {string[]} userCorrectWords คำที่ผู้ใช้ตอบถูกไปแล้ว
+   * @param {string[]} userIncorrectWords คำที่ผู้ใช้ตอบผิดในข้อนี้
+   */
+  onMarkQuestionCorrect(allAnswers, userCorrectWords, userIncorrectWords) {
+    // 1. คืนค่า incorrect attempts ของข้อนี้
+    this.incorrectCount -= userIncorrectWords.length;
+    for (const w of userIncorrectWords) {
+      this.incorrectWords.delete(w.toUpperCase());
+    }
+    // 2. ปรับคำที่เหลือในข้อนี้ให้เป็นถูกทั้งหมด
+    const userCorrectSet = new Set(userCorrectWords.map(w => w.toUpperCase()));
+    for (const ans of allAnswers) {
+      const w = ans.toUpperCase();
+      if (!userCorrectSet.has(w)) {
+        this.correctCount++;
+        this.missedWords.delete(w);
+      }
+    }
+  }
+  /**
+   * คำนวณสตริงสถิติตามฟอร์แมตของ Zyzzyva percentString(int, int)
+   */
+  _formatPercentString(n, d) {
+    let pct = 0.0;
+    if (d > 0) {
+      pct = (n * 100.0) / d;
+    }
+    // Zyzzyva ใช้ทศนิยม 1 ตำแหน่ง (%.1f) เสมอ
+    return `${n} / ${d} (${pct.toFixed(1)}%)`;
+  }
+  /**
+   * ส่งออกสถิติสำหรับหน้า UI Analyze Tab (ตรงกับ AnalyzeQuizFunction properties)
+   */
+  getStats() {
+    const totalAttempts = this.correctCount + this.incorrectCount;
+    return {
+      // 1. Recall
+      recallPercent: this.totalWords > 0 ? (this.correctCount * 100.0) / this.totalWords : 0.0,
+      recallText: `Recall: ${this._formatPercentString(this.correctCount, this.totalWords)}`,
+      
+      // 2. Precision
+      precisionPercent: totalAttempts > 0 ? (this.correctCount * 100.0) / totalAttempts : 0.0,
+      precisionText: `Precision: ${this._formatPercentString(this.correctCount, totalAttempts)}`,
+      // 3. Counts & Word Lists
+      missedCount: this.missedWords.size,
+      missedText: `Missed: ${this.missedWords.size} word(s)`,
+      missedWords: Array.from(this.missedWords).sort(),
+      incorrectCount: this.incorrectWords.size,
+      incorrectText: `Incorrect: ${this.incorrectWords.size} word(s)`,
+      incorrectWords: Array.from(this.incorrectWords).sort(),
+      // Raw counters
+      raw: {
+        totalWords: this.totalWords,
+        correctCount: this.correctCount,
+        incorrectCount: this.incorrectCount,
+        totalAttempts: totalAttempts,
+      }
+    };
+  }
+  /**
+   * แปลงเป็น XML Nodes สำหรับใส่ลงในไฟล์ .zzq
+   */
+  toZzqXmlSections() {
+    const lines = [];
+    if (this.incorrectFrequency.size > 0) {
+      lines.push('  <incorrect-responses>');
+      for (const [w, cnt] of this.incorrectFrequency.entries()) {
+        lines.push(`   <response word="${w}" count="${cnt}"/>`);
+      }
+      lines.push('  </incorrect-responses>');
+    }
+    if (this.missedFrequency.size > 0) {
+      lines.push('  <missed-responses>');
+      for (const [w, cnt] of this.missedFrequency.entries()) {
+        lines.push(`   <response word="${w}" count="${cnt}"/>`);
+      }
+      lines.push('  </missed-responses>');
+    }
+    return lines.join('\n');
+  }
+}
+
+const quizAnalyzer = new ZyzzyvaQuizAnalyzer();
+if (typeof window !== 'undefined') {
+  window.ZyzzyvaQuizAnalyzer = ZyzzyvaQuizAnalyzer;
+  window.quizAnalyzer = quizAnalyzer;
+}
+
+function getQuestionAllAnswers(q) {
+  if (!q || !q.questionText) return [];
+  const qType = sel('qTypeSelect');
+  const txt = q.questionText.toUpperCase();
+  if (qType === 0 || qType === 1) {
+    const sorted = [...txt].sort().join('');
+    const matches = (wordsByL[txt.length] || []).filter(w => [...w].sort().join('') === sorted);
+    if (matches.length) return matches;
+  } else if (qType === 2) {
+    const txtChars = {};
+    for (const c of txt) txtChars[c] = (txtChars[c] || 0) + 1;
+    const matches = (wordsByL[txt.length + 1] || []).filter(w => {
+      const wChars = {};
+      for (const c of w) wChars[c] = (wChars[c] || 0) + 1;
+      let diff = 0;
+      for (const c in wChars) {
+        if (wChars[c] > (txtChars[c] || 0)) diff += wChars[c] - (txtChars[c] || 0);
+        if (diff > 1) return false;
+      }
+      return diff === 1;
+    });
+    if (matches.length) return matches;
+  }
+  return new Array(q.totalAnswers || 1).fill('');
+}
+
 // ── WASM INIT ──────────────────────────────────────────────────────────
 if (typeof Module !== 'undefined')
   Module.onRuntimeInitialized = () => tryInitCppEngine();
@@ -174,11 +358,39 @@ function beginQuizTileDrag(event) {
   if (!rack) return;
 
   clearQuizTileDrag();
-  quizRackDragState = { pointerId:event.pointerId, tile, rack };
-  tile.setPointerCapture?.(event.pointerId);
-  tile.classList.add('is-dragging');
+
+  const rect = tile.getBoundingClientRect();
+  const grabOffsetX = event.clientX - rect.left;
+  const grabOffsetY = event.clientY - rect.top;
+
+  // Create floating drag clone
+  const floating = tile.cloneNode(true);
+  floating.classList.add('is-floating');
+  floating.removeAttribute('id');
+  floating.setAttribute('aria-hidden', 'true');
+  floating.style.width = `${rect.width}px`;
+  floating.style.height = `${rect.height}px`;
+  floating.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0) scale(1.08) rotate(1.5deg)`;
+  document.body.appendChild(floating);
+
+  tile.classList.add('is-placeholder');
   rack.classList.add('is-dragging');
-  window.addEventListener('pointermove', moveQuizTileDrag, { passive:false });
+
+  tile.setPointerCapture?.(event.pointerId);
+
+  quizRackDragState = {
+    pointerId: event.pointerId,
+    tile,
+    rack,
+    floating,
+    grabOffsetX,
+    grabOffsetY,
+    startX: event.clientX,
+    startY: event.clientY,
+    hasMoved: false
+  };
+
+  window.addEventListener('pointermove', moveQuizTileDrag, { passive: false });
   window.addEventListener('pointerup', endQuizTileDrag);
   window.addEventListener('pointercancel', endQuizTileDrag);
   event.preventDefault();
@@ -188,18 +400,83 @@ function moveQuizTileDrag(event) {
   const state = quizRackDragState;
   if (!state || state.pointerId !== event.pointerId) return;
 
-  const hit = document.elementFromPoint(event.clientX, event.clientY);
-  const target = hit?.closest?.('.quiz-tile');
-  if (!target || target === state.tile || target.closest('.quiz-rack') !== state.rack) return;
+  const dist = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
+  if (dist > 3) state.hasMoved = true;
 
-  // Insert at the pointer's actual position.  Using the target midpoint lets
-  // a tile jump across several letters in one drag instead of stepping one
-  // neighbour at a time.
-  const rect = target.getBoundingClientRect();
-  const insertAfter = event.clientX > rect.left + rect.width / 2;
-  if (insertAfter) target.after(state.tile);
-  else target.before(state.tile);
-  updateQuizRackFromDom(state.rack);
+  const x = event.clientX - state.grabOffsetX;
+  const y = event.clientY - state.grabOffsetY;
+  if (state.floating) {
+    state.floating.style.transform = `translate3d(${x}px, ${y}px, 0) scale(1.08) rotate(1.5deg)`;
+  }
+
+  const siblings = [...state.rack.querySelectorAll('.quiz-tile:not(.is-floating)')];
+  let target = null;
+  let insertAfter = false;
+
+  for (const sibling of siblings) {
+    if (sibling === state.tile) continue;
+    const r = sibling.getBoundingClientRect();
+    if (event.clientX >= r.left && event.clientX <= r.right &&
+        event.clientY >= r.top - 50 && event.clientY <= r.bottom + 50) {
+      target = sibling;
+      insertAfter = event.clientX > r.left + r.width / 2;
+      break;
+    }
+  }
+
+  if (!target && siblings.length > 1) {
+    const firstSibling = siblings.find(s => s !== state.tile);
+    const lastSibling = [...siblings].reverse().find(s => s !== state.tile);
+    if (firstSibling) {
+      const rFirst = firstSibling.getBoundingClientRect();
+      if (event.clientX < rFirst.left && event.clientY >= rFirst.top - 50 && event.clientY <= rFirst.bottom + 50) {
+        target = firstSibling;
+        insertAfter = false;
+      }
+    }
+    if (!target && lastSibling) {
+      const rLast = lastSibling.getBoundingClientRect();
+      if (event.clientX > rLast.right && event.clientY >= rLast.top - 50 && event.clientY <= rLast.bottom + 50) {
+        target = lastSibling;
+        insertAfter = true;
+      }
+    }
+  }
+
+  if (target) {
+    const isAlreadyBefore = target.previousElementSibling === state.tile;
+    const isAlreadyAfter = target.nextElementSibling === state.tile;
+    const needsMove = (insertAfter && !isAlreadyAfter) || (!insertAfter && !isAlreadyBefore);
+
+    if (needsMove) {
+      const siblingTiles = siblings.filter(s => s !== state.tile);
+      const firstRects = new Map(siblingTiles.map(s => [s, s.getBoundingClientRect()]));
+
+      if (insertAfter) target.after(state.tile);
+      else target.before(state.tile);
+
+      siblingTiles.forEach(s => {
+        const first = firstRects.get(s);
+        const last = s.getBoundingClientRect();
+        const dx = first.left - last.left;
+        if (Math.abs(dx) > 0.5) {
+          s.style.transition = 'none';
+          s.style.transform = `translateX(${dx}px)`;
+          s.offsetHeight;
+          s.style.transition = 'transform 0.18s cubic-bezier(0.2, 0, 0, 1)';
+          s.style.transform = '';
+          const onEnd = () => {
+            s.removeEventListener('transitionend', onEnd);
+            s.style.transition = '';
+          };
+          s.addEventListener('transitionend', onEnd);
+        }
+      });
+
+      updateQuizRackFromDom(state.rack);
+    }
+  }
+
   event.preventDefault();
 }
 
@@ -207,25 +484,54 @@ function endQuizTileDrag(event) {
   const state = quizRackDragState;
   if (!state || (event.pointerId != null && state.pointerId !== event.pointerId)) return;
 
-  state.tile.classList.remove('is-dragging');
-  state.rack.classList.remove('is-dragging');
-  updateQuizRackFromDom(state.rack);
   window.removeEventListener('pointermove', moveQuizTileDrag);
   window.removeEventListener('pointerup', endQuizTileDrag);
   window.removeEventListener('pointercancel', endQuizTileDrag);
-  quizRackDragState = null;
+
   if (state.tile.hasPointerCapture?.(state.pointerId)) {
-    state.tile.releasePointerCapture(state.pointerId);
+    try { state.tile.releasePointerCapture(state.pointerId); } catch (_) {}
   }
-  announceQuizRack();
+
+  const floating = state.floating;
+  const tile = state.tile;
+  const rack = state.rack;
+
+  if (floating && state.hasMoved) {
+    const targetRect = tile.getBoundingClientRect();
+    floating.style.transition = 'transform 0.16s cubic-bezier(0.2, 0, 0, 1), opacity 0.16s ease';
+    floating.style.transform = `translate3d(${targetRect.left}px, ${targetRect.top}px, 0) scale(1) rotate(0deg)`;
+
+    setTimeout(() => {
+      if (floating.parentNode) floating.remove();
+      tile.classList.remove('is-placeholder', 'is-dragging');
+      rack.classList.remove('is-dragging');
+      updateQuizRackFromDom(rack);
+      announceQuizRack();
+    }, 160);
+  } else {
+    if (floating && floating.parentNode) floating.remove();
+    tile.classList.remove('is-placeholder', 'is-dragging');
+    rack.classList.remove('is-dragging');
+    updateQuizRackFromDom(rack);
+    announceQuizRack();
+  }
+
+  quizRackDragState = null;
 }
 
 function clearQuizTileDrag() {
   const state = quizRackDragState;
   if (state) {
-    state.tile?.classList.remove('is-dragging');
-    state.rack?.classList.remove('is-dragging');
+    if (state.floating && state.floating.parentNode) state.floating.remove();
+    if (state.tile) {
+      state.tile.classList.remove('is-placeholder', 'is-dragging');
+      state.tile.style.transform = '';
+      state.tile.style.transition = '';
+    }
+    if (state.rack) state.rack.classList.remove('is-dragging');
   }
+  document.querySelectorAll('.quiz-tile.is-floating').forEach(el => el.remove());
+  document.querySelectorAll('.quiz-tile.is-placeholder').forEach(el => el.classList.remove('is-placeholder'));
   window.removeEventListener('pointermove', moveQuizTileDrag);
   window.removeEventListener('pointerup', endQuizTileDrag);
   window.removeEventListener('pointercancel', endQuizTileDrag);
@@ -267,6 +573,7 @@ function startQuiz() {
   activeQuizSessionId = `new_${activeSeed1}_${activeSeed2}_${Date.now()}`;
   sessionIncorrect = {};
   quizHistory = [];
+  quizAnalyzer.reset();
   saveSessionIncorrect();
 
   const quizType  = sel('qTypeSelect');
@@ -316,14 +623,24 @@ function loadCurrentQuestion() {
   stopTimer();
   const q = parseQ();
   if (!q) { endQuiz(); return; }
-  renderQuizUI(q, parseProg());
+
+  const prog = parseProg();
+  const qKey = `${activeSeed1}:${prog.currentQuestion}:${q.questionText}`;
+  if (!quizAnalyzer.preparedQuestionKeys.has(qKey)) {
+    quizAnalyzer.preparedQuestionKeys.add(qKey);
+    const answers = getQuestionAllAnswers(q);
+    quizAnalyzer.onPrepareQuestion(answers.length ? answers : new Array(q.totalAnswers || 1));
+  }
+
+  renderQuizUI(q, prog);
   if (!q.checked) startTimer();
   setTimeout(() => document.getElementById('qAnswerInput')?.focus(), 80);
 }
 
 function handleCheck() {
   stopTimer();
-  parseQ()?.userIncorrectAnswers?.forEach(w => {
+  const qBefore = parseQ();
+  qBefore?.userIncorrectAnswers?.forEach(w => {
     if (w && !sessionIncorrect[w]) trackWrongGuess(w);
   });
   const resultStr = Module.checkAnswers();
@@ -336,6 +653,15 @@ function handleCheck() {
           quizHistory.push({ word: a.word, status: a.status });
         }
       });
+
+      const prog = parseProg();
+      const qKey = `${activeSeed1}:${prog.currentQuestion}:${cr.questionText || qBefore?.questionText}`;
+      if (!quizAnalyzer.completedQuestionKeys.has(qKey)) {
+        quizAnalyzer.completedQuestionKeys.add(qKey);
+        const allAnswers = (cr.answers || []).map(a => a.word);
+        const userCorrectWords = (cr.answers || []).filter(a => a.status === 'correct').map(a => a.word);
+        quizAnalyzer.onCompleteQuestion(allAnswers, userCorrectWords);
+      }
     }
   } catch(_) {}
   renderQuizUI(parseQ(), parseProg());
@@ -371,7 +697,7 @@ function endQuiz() {
   const wordRow = ({ word, status }) => {
     const hk    = getHooksAndDots(word);
     const prob  = probRankMap[word];
-    const score = getWordScore(word);
+    const pos   = typeof formatWordPos === 'function' ? formatWordPos(word) : '';
     const ok    = status === 'correct';
     const col   = ok ? 'var(--accent)' : 'var(--danger)';
     const fH    = hk.f
@@ -388,7 +714,7 @@ function endQuiz() {
         <div style="font-size:10px;color:${col};font-weight:700;margin-bottom:1px;">${ok?'✓':'⊘'}</div>
         <span class="mono" style="font-size:18px;font-weight:700;color:${col};">${word}</span>
         <div style="font-size:10px;color:var(--text2);margin-top:2px;">
-          <span style="color:var(--orange);font-weight:700;">${score}</span>pts
+          <span style="color:var(--orange);font-weight:600;">${pos}</span>
           ${prob ? `<span style="margin-left:4px;">#${prob}</span>` : ''}
         </div>
       </div>
@@ -503,7 +829,7 @@ function renderQuizUI(q, prog) {
                     padding:5px 4px;border-bottom:1px solid var(--border);
                     background:var(--surface);border-radius:8px 8px 0 0;position:sticky;top:0;">
           <span style="text-align:right;">Front</span>
-          <span style="text-align:center;padding:0 4px;">Word · Pts · #Prob</span>
+          <span style="text-align:center;padding:0 4px;">Word · POS · #Prob</span>
           <span style="text-align:left;">Back</span>
         </div>
         ${renderAnswersList(q)}
@@ -516,7 +842,9 @@ function renderQuizUI(q, prog) {
         <button class="btn" style="flex:1;min-width:64px;color:#0A84FF"
                 onclick="showAnalysis()">Analyze</button>
         ${isChecked
-          ? `<button class="btn btn-p" style="flex:2;min-width:140px"
+          ? `<button class="btn" style="flex:1;min-width:105px;color:var(--accent)"
+                     onclick="handleMarkCorrect()">Mark Correct ✓</button>
+             <button class="btn btn-p" style="flex:2;min-width:120px"
                      onclick="handleNext()">Next → <small style="opacity:.7">(Enter)</small></button>`
           : `<button class="btn btn-p" id="qActionButton" style="flex:2;min-width:140px"
                      onclick="handleCheck()">Check Answers ✓</button>`}
@@ -526,12 +854,27 @@ function renderQuizUI(q, prog) {
   if (quizTimeLimit > 0) updateTimerDisplay();
 }
 
+function handleMarkCorrect() {
+  const q = parseQ();
+  if (!q || !q.checked) return;
+  let cr;
+  try { cr = JSON.parse(Module.checkAnswers()); } catch(_) {}
+  if (!cr?.answers) return;
+  const allAnswers = cr.answers.map(a => a.word);
+  const userCorrect = q.userCorrectAnswers || [];
+  const userIncorrect = q.userIncorrectAnswers || [];
+  quizAnalyzer.onMarkQuestionCorrect(allAnswers, userCorrect, userIncorrect);
+  toast('Marked question as correct ✓');
+  renderQuizUI(parseQ(), parseProg());
+}
+window.handleMarkCorrect = handleMarkCorrect;
+
 function renderAnswersList(q) {
   // Shared helper: render one word as 3-column hook row
   const hookRow = (word, statusColor, statusIcon, showStar) => {
     const hk    = getHooksAndDots(word);
     const prob  = probRankMap[word];
-    const score = getWordScore(word);
+    const pos   = typeof formatWordPos === 'function' ? formatWordPos(word) : '';
     const star  = saved.includes(word);
     const fH = hk.f
       ? `<span style="color:var(--accent);letter-spacing:3px;">${hk.f.split('').join(' ')}</span>`
@@ -556,7 +899,7 @@ function renderAnswersList(q) {
                    color:${star?'var(--orange)':'var(--text2)'}">${star?'★':'☆'}</button>` : ''}
         </div>
         <div style="font-size:10px;color:var(--text2);margin-top:1px;">
-          <span style="color:var(--orange);font-weight:700;">${score}</span>pts
+          <span style="color:var(--orange);font-weight:600;">${pos}</span>
           ${prob ? `<span style="margin-left:4px;">#${prob}</span>` : ''}
         </div>
       </div>
@@ -619,12 +962,17 @@ function submitUserAnswer() {
   }
 
   const prevWrong = q.userIncorrectAnswers?.length || 0;
+  const prevCorrect = q.userCorrectAnswers?.length || 0;
   inp.value = '';
   Module.submitAnswer(val);
 
   const afterQ = parseQ();
-  if ((afterQ.userIncorrectAnswers?.length || 0) > prevWrong)
+  if ((afterQ.userIncorrectAnswers?.length || 0) > prevWrong) {
     trackWrongGuess(val);
+    quizAnalyzer.onWordIncorrect(val);
+  } else if ((afterQ.userCorrectAnswers?.length || 0) > prevCorrect) {
+    quizAnalyzer.onWordCorrect(val);
+  }
 
   renderQuizUI(afterQ, parseProg());
   document.getElementById('qAnswerInput')?.focus();
@@ -671,6 +1019,15 @@ function showAnalysis() {
   try { cr = JSON.parse(Module.checkAnswers()); } catch(_) {}
   if (!cr?.answers) { toast('No analysis data'); return; }
 
+  const prog = parseProg();
+  const qKey = `${activeSeed1}:${prog.currentQuestion}:${cr.questionText || q.questionText}`;
+  if (!quizAnalyzer.completedQuestionKeys.has(qKey)) {
+    quizAnalyzer.completedQuestionKeys.add(qKey);
+    const allAnswers = (cr.answers || []).map(a => a.word);
+    const userCorrectWords = (cr.answers || []).filter(a => a.status === 'correct').map(a => a.word);
+    quizAnalyzer.onCompleteQuestion(allAnswers, userCorrectWords);
+  }
+
   // Sync any incorrect answers into session tracking immediately
   (cr.incorrectAnswers || []).forEach(w => { if (w && !sessionIncorrect[w]) trackWrongGuess(w); });
 
@@ -681,50 +1038,18 @@ function showAnalysis() {
     }
   });
 
-  const prog = parseProg();
+  const stats = quizAnalyzer.getStats();
   const missed = cr.answers.filter(a => a?.status === 'missed').map(a => a.word);
   const wrongQ = cr.incorrectAnswers || [];
-  const curCorrect = cr.answers.filter(a => a?.status === 'correct').length;
-
-  // 1. ค่าความแม่นยำในการตอบคำศัพท์ (Precision) — คำถูก / คำทั้งหมดที่พิมพ์ส่ง
-  const totalIncorrect = Math.max(
-    prog.totalIncorrect || 0,
-    Object.values(sessionIncorrect).reduce((sum, c) => sum + (Number(c) || 0), 0)
-  );
-  const totalSubmitted = prog.totalCorrect + totalIncorrect;
-  const precision = totalSubmitted > 0 ? Math.round((prog.totalCorrect / totalSubmitted) * 100) : 100;
-
-  // 2. ค่าความระลึกได้หรือการจำคำศัพท์ได้ (Recall) — คำถูก / คำเฉลยทั้งหมดในควิซ
-  const totalPossible = prog.totalCorrect + prog.totalMissed;
-  const recall = totalPossible > 0 ? Math.round((prog.totalCorrect / totalPossible) * 100) : 0;
-
-  // 3. ความแม่นยำระดับข้อ (Question-Level Accuracy)
-  const fullyCorrect = prog.fullyCorrectQuestions || 0;
-  const completedQuestions = Math.min(prog.currentQuestion || 0, prog.totalQuestions || 0);
-  const questionAcc = completedQuestions > 0 ? Math.round((fullyCorrect / completedQuestions) * 100) : 0;
-
-  // Current Question Stats
-  const curWrong = wrongQ.length;
-  const curSubmitted = curCorrect + curWrong;
-  const curPossible = curCorrect + missed.length;
-  const curPrecision = curSubmitted > 0 ? Math.round((curCorrect / curSubmitted) * 100) : 100;
-  const curRecall = curPossible > 0 ? Math.round((curCorrect / curPossible) * 100) : 0;
 
   const col = p => p >= 70 ? 'var(--accent)' : p >= 40 ? 'var(--orange)' : 'var(--danger)';
-  const sessWords = Object.keys(sessionIncorrect);
+  const sessWords = stats.incorrectWords;
+  const allMissed = stats.missedWords;
   const badge = wrongQ.length === 0 && missed.length === 0
     ? `<span style="background:rgba(52,199,89,.15);color:var(--accent);
                     padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">✓ CLEAN</span>`
     : `<span style="background:rgba(255,59,48,.1);color:var(--danger);
                     padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">⚠ HAD ERRORS</span>`;
-
-  const wordList = (arr, color, icon='•') => arr.length
-    ? arr.map(w => {
-        const cnt = sessionIncorrect[w];
-        return `<div class="mono" style="color:${color};font-size:15px;padding:2px 0">
-          ${icon} ${w}${cnt > 1 ? ` <span style="color:var(--text2);font-size:12px">(×${cnt})</span>` : ''}</div>`;
-      }).join('')
-    : `<div style="color:var(--text2);text-align:center;padding:6px 0;font-size:13px">None</div>`;
 
   document.getElementById('qEnginePane').innerHTML = `
     <div class="q-clean-layout">
@@ -733,21 +1058,21 @@ function showAnalysis() {
         <div>${badge}</div>
       </div>
 
-      <!-- 1. แถบสถิติหลัก (มีเพียง 2 ค่า) -->
+      <!-- 1. แถบสถิติหลัก Recall & Precision (ตาม Zyzzyva format) -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
         <!-- Precision Card -->
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 10px;text-align:center">
           <div style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">
             Precision (ความแม่นยำ)
           </div>
-          <div style="font-size:28px;font-weight:800;color:${col(precision)};line-height:1.2;margin:3px 0">
-            ${precision}%
+          <div style="font-size:26px;font-weight:800;color:${col(stats.precisionPercent)};line-height:1.2;margin:3px 0">
+            ${stats.precisionPercent.toFixed(1)}%
           </div>
           <div style="font-size:11px;color:var(--text);font-weight:600;margin-top:2px">
-            ${prog.totalCorrect}/${totalSubmitted} คำที่พิมพ์ส่ง
+            ${stats.precisionText}
           </div>
           <div style="font-size:10px;color:var(--text2);margin-top:3px;line-height:1.3">
-            บอกว่าพิมพ์แม่นยำแค่ไหน หรือเดามั่วไปกี่คำ
+            สัดส่วนการตอบถูกจากจำนวนครั้งที่ส่งทั้งหมด
           </div>
         </div>
 
@@ -756,14 +1081,14 @@ function showAnalysis() {
           <div style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">
             Recall (ความระลึกได้)
           </div>
-          <div style="font-size:28px;font-weight:800;color:${col(recall)};line-height:1.2;margin:3px 0">
-            ${recall}%
+          <div style="font-size:26px;font-weight:800;color:${col(stats.recallPercent)};line-height:1.2;margin:3px 0">
+            ${stats.recallPercent.toFixed(1)}%
           </div>
           <div style="font-size:11px;color:var(--text);font-weight:600;margin-top:2px">
-            ${prog.totalCorrect}/${totalPossible} คำเฉลยในควิซ
+            ${stats.recallText}
           </div>
           <div style="font-size:10px;color:var(--text2);margin-top:3px;line-height:1.3">
-            บอกว่าจำคำศัพท์เฉลยและดึงออกมาได้ครบถ้วนกี่เปอร์เซ็นต์
+            สัดส่วนคำเฉลยที่ตอบได้จากคำเฉลยทั้งหมด
           </div>
         </div>
       </div>
@@ -785,34 +1110,39 @@ function showAnalysis() {
         `).join('') : `<div style="color:var(--text2);text-align:center;padding:6px 0;font-size:12px">ไม่มีคำเดาผิดในข้อนี้</div>`}
       </div>
 
-      <!-- All Session Wrong -->
+      <!-- All Session Incorrect -->
       <div style="background:rgba(255,59,48,.03);border:1px solid rgba(255,59,48,.15);
                   border-radius:8px;padding:12px;margin-bottom:8px;max-height:150px;overflow-y:auto">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <span style="font-size:11px;text-transform:uppercase;font-weight:700;color:var(--danger)">
-            All Session Wrong (${sessWords.length})
+            ${stats.incorrectText}
           </span>
-          <span style="font-size:10px;color:var(--text2)">คำที่คุณเดาผิดทั้งหมดในเซสชัน/ไฟล์นี้</span>
+          <span style="font-size:10px;color:var(--text2)">คำที่คุณเดาผิดสะสมในเซสชัน</span>
         </div>
         ${sessWords.length ? sessWords.map(w => {
-          const cnt = sessionIncorrect[w];
+          const cnt = quizAnalyzer.incorrectFrequency.get(w) || sessionIncorrect[w] || 1;
           return `<div class="mono" style="color:var(--danger);font-size:15px;padding:2px 0;font-weight:600">
             ✕ ${w}${cnt > 1 ? ` <span style="color:var(--text2);font-size:12px;font-weight:400">(×${cnt})</span>` : ''}
           </div>`;
         }).join('') : `<div style="color:var(--text2);text-align:center;padding:6px 0;font-size:12px">ไม่มีประวัติคำเดาผิดในเซสชันนี้</div>`}
       </div>
 
-      ${missed.length ? `
-      <!-- Missed Words (แสดงเมื่อมีคำเฉลยที่ตกหล่น) -->
+      <!-- All Session Missed Words -->
+      ${allMissed.length ? `
       <div style="background:rgba(255,149,0,.08);border:1px solid rgba(255,149,0,.25);
-                  border-radius:8px;padding:12px;margin-bottom:8px;max-height:120px;overflow-y:auto">
+                  border-radius:8px;padding:12px;margin-bottom:8px;max-height:140px;overflow-y:auto">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <span style="font-size:11px;text-transform:uppercase;font-weight:700;color:var(--orange)">
-            Missed Words (${missed.length})
+            ${stats.missedText}
           </span>
-          <span style="font-size:10px;color:var(--text2)">คำเฉลยที่ตกหล่น</span>
+          <span style="font-size:10px;color:var(--text2)">คำเฉลยที่ตกหล่นสะสม</span>
         </div>
-        ${wordList(missed, 'var(--orange)')}
+        ${allMissed.map(w => {
+          const cnt = quizAnalyzer.missedFrequency.get(w) || 1;
+          return `<div class="mono" style="color:var(--orange);font-size:15px;padding:2px 0;font-weight:600">
+            • ${w}${cnt > 1 ? ` <span style="color:var(--text2);font-size:12px;font-weight:400">(×${cnt})</span>` : ''}
+          </div>`;
+        }).join('')}
       </div>` : ''}
 
       <button class="btn btn-p" style="width:100%;margin-top:6px;min-height:44px" onclick="renderActiveQuiz()">Back to Quiz</button>
@@ -909,7 +1239,8 @@ function buildZzqXmlString() {
   const correctW  = q?.userCorrectAnswers   || [];
   const incorrectW = isChecked ? (cr?.incorrectAnswers || []) : (q?.userIncorrectAnswers || []);
   const missedW   = isChecked ? (cr?.answers?.filter(a => a.status === 'missed').map(a => a.word) || []) : [];
-  const hasBody   = correctW.length || incorrectW.length || missedW.length;
+  const analyzerXml = quizAnalyzer.toZzqXmlSections();
+  const hasBody     = correctW.length || analyzerXml || incorrectW.length || missedW.length;
 
   const progressAttr = [
     `question="${qIdx}"`,
@@ -926,15 +1257,19 @@ function buildZzqXmlString() {
       correctW.forEach(w => lines.push(`   <response word="${w}"/>`));
       lines.push('  </question-correct-responses>');
     }
-    if (incorrectW.length) {
-      lines.push('  <incorrect-responses>');
-      incorrectW.forEach(w => lines.push(`   <response word="${w}" count="1"/>`));
-      lines.push('  </incorrect-responses>');
-    }
-    if (missedW.length) {
-      lines.push('  <missed-responses>');
-      missedW.forEach(w => lines.push(`   <response word="${w}" count="1"/>`));
-      lines.push('  </missed-responses>');
+    if (analyzerXml) {
+      lines.push(analyzerXml);
+    } else {
+      if (incorrectW.length) {
+        lines.push('  <incorrect-responses>');
+        incorrectW.forEach(w => lines.push(`   <response word="${w}" count="1"/>`));
+        lines.push('  </incorrect-responses>');
+      }
+      if (missedW.length) {
+        lines.push('  <missed-responses>');
+        missedW.forEach(w => lines.push(`   <response word="${w}" count="1"/>`));
+        lines.push('  </missed-responses>');
+      }
     }
     lines.push(' </progress>');
   } else {
@@ -1980,6 +2315,7 @@ function loadXmlZzq(content, source = '.zzq', sessionContextId = '') {
   Module.generateQuiz(typeVal, currentQuizPool.join(' '), (orderVal === 1 || orderVal === 2) ? 3 : orderVal);
 
   // Restore progress
+  quizAnalyzer.reset();
   const prog = xml.querySelector('progress');
   if (prog) {
     const qIdx     = parseInt(prog.getAttribute('question')          || '0');
@@ -2001,6 +2337,29 @@ function loadXmlZzq(content, source = '.zzq', sessionContextId = '') {
     incorrectWords.forEach(w => {
       if (w && !quizHistory.some(h => h.word === w)) quizHistory.push({ word: w, status: 'missed' });
     });
+
+    // Populate quizAnalyzer
+    quizAnalyzer.correctCount = correct;
+    xml.querySelectorAll('incorrect-responses response').forEach(r => {
+      const w = r.getAttribute('word')?.trim().toUpperCase();
+      const cnt = parseInt(r.getAttribute('count')) || 1;
+      if (w) {
+        quizAnalyzer.incorrectWords.add(w);
+        quizAnalyzer.incorrectFrequency.set(w, cnt);
+        quizAnalyzer.incorrectCount += cnt;
+      }
+    });
+    xml.querySelectorAll('missed-responses response').forEach(r => {
+      const w = r.getAttribute('word')?.trim().toUpperCase();
+      const cnt = parseInt(r.getAttribute('count')) || 1;
+      if (w) {
+        quizAnalyzer.missedWords.add(w);
+        quizAnalyzer.missedFrequency.set(w, cnt);
+      }
+    });
+    let totalMissed = 0;
+    for (const cnt of quizAnalyzer.missedFrequency.values()) totalMissed += cnt;
+    quizAnalyzer.totalWords = correct + totalMissed;
   }
 
   // Load session data — from our XML comment (ignored by Zyzzyva)

@@ -1,10 +1,10 @@
-const CACHE_NAME = 'arctic-v2';
+const CACHE_NAME = 'arctic-v3';
 const ASSETS = [
   './', './index.html', './styles.css?v=18', './core.js?v=16', './search.js?v=8',
-  './quiz_bridge.js?v=13', './judge.js?v=7', './clock.js?v=4', './manifest.json?v=3',
-  './icons/icon-192.png?v=3', './icons/icon-512.png?v=3', './favicon.ico',
-  './icons/icon-maskable-192.png?v=3', './icons/icon-maskable-512.png?v=3',
-  './icons/favicon-32x32.png?v=3', './icons/apple-touch-icon.png?v=3',
+  './quiz_bridge.js?v=13', './judge.js?v=7', './clock.js?v=4', './manifest.json?v=4',
+  './icons/icon-192.png', './icons/icon-512.png', './favicon.ico',
+  './icons/icon-maskable-192.png', './icons/icon-maskable-512.png',
+  './icons/favicon-32x32.png', './icons/apple-touch-icon.png',
   './arctic_cpp_engine.js', './arctic_cpp_engine.wasm', './CSW24.txt'
 ];
 
